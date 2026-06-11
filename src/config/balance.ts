@@ -1,0 +1,252 @@
+/**
+ * Every balance constant in the game lives here (or in terrainConfig/civConfig).
+ * Simulation code must not embed magic numbers for tunable behavior.
+ */
+
+export const BALANCE = {
+  time: {
+    /** Sim days per real second at 1x speed. */
+    daysPerSecondAt1x: 2,
+    /** Available speed multipliers; index 0 is pause. */
+    speeds: [0, 1, 5, 20] as const,
+    daysPerSeason: 30,
+    seasonsPerYear: 4,
+    /** Real seconds for one ambient (visual) day/night cycle at 1x. */
+    ambientDaySeconds: 45,
+  },
+
+  map: {
+    width: 160,
+    height: 100,
+    tileSize: 8,
+    /** Elevation below this is ocean. */
+    seaLevel: 0.34,
+    mountainLevel: 0.72,
+    riverCountMin: 6,
+    riverCountMax: 10,
+  },
+
+  civ: {
+    count: 5,
+    startPopulation: 12,
+    startFood: 70,
+    startWood: 30,
+    minSpawnDistance: 26,
+    traitCount: 2,
+  },
+
+  resources: {
+    /** Food consumed per population per day. */
+    foodPerPopPerDay: 0.1,
+    /** Tile radius a settlement gathers from. */
+    gatherRadius: 3,
+    /** Larger settlements work a wider hinterland (per tier). */
+    gatherRadiusByTier: [3, 4, 5],
+    /** Fraction of population in each job. */
+    farmerShare: 0.62,
+    lumberShare: 0.23,
+    minerShare: 0.15,
+    /** Output per worker per day. */
+    farmerRate: 0.22,
+    lumberRate: 0.18,
+    minerRate: 0.15,
+    /** Land throughput cap multipliers (× summed tile yield). */
+    landFoodCap: 0.35,
+    landWoodCap: 0.5,
+    landStoneCap: 0.5,
+    /** Food production multiplier per season [spring, summer, autumn, winter]. */
+    seasonFoodMult: [1.1, 1.25, 1.0, 0.45],
+    /** Farm infrastructure multiplier per settlement tier. */
+    tierFoodMult: [1.0, 1.25, 1.55],
+    /** Storage caps per tier. */
+    foodStorage: [400, 1200, 3000],
+    woodStorage: [300, 800, 2000],
+    stoneStorage: [200, 600, 1500],
+    /** Civ-wide accrual per population per day. */
+    knowledgePerPop: 0.0025,
+    faithPerPop: 0.002,
+    culturePerPop: 0.0015,
+    /** Production bonus when the civ has at least one trade partner. */
+    tradeProductionBonus: 1.06,
+    goldenAgeProductionBonus: 1.25,
+    crisisProductionPenalty: 0.85,
+  },
+
+  growth: {
+    /** Daily growth rate when fed and below cap. */
+    growthRate: 0.012,
+    /** Daily decline rate while starving. */
+    starveRate: 0.025,
+    /** Daily plague death rate. */
+    plagueDeathRate: 0.008,
+    /** Population caps per tier. */
+    tierPopCap: [34, 110, 320],
+    /** Upgrade requirements. */
+    villagePop: 25,
+    villageWoodCost: 60,
+    townPop: 80,
+    townStoneCost: 80,
+    townWoodCost: 120,
+    /** Morale dynamics. */
+    moraleRecovery: 0.15,
+    moraleRecoveryCap: 85,
+    starveMoraleLoss: 0.4,
+    /** Settlement is abandoned below this morale or population. */
+    collapseMorale: 2,
+    collapsePop: 2,
+  },
+
+  diplomacy: {
+    /** Score thresholds (inclusive lower bounds). */
+    allianceScore: 60,
+    tradeScore: 25,
+    neutralScore: -25,
+    rivalryScore: -60,
+    /** Daily mean reversion toward 0. */
+    driftToZero: 0.02,
+    /** Daily friction for civs sharing a border. */
+    borderFriction: 0.1,
+    /** Trait-driven daily drift. */
+    warlikePenalty: 0.04,
+    sharedDevoutBonus: 0.03,
+    sharedScholarlyBonus: 0.02,
+    sharedProudPenalty: 0.02,
+    goldenAgeCharm: 0.01,
+    /** Daily random wobble amplitude. */
+    noise: 0.05,
+    /** After this many war days, exhaustion pushes toward peace. */
+    warExhaustionDays: 150,
+    warExhaustionRelief: 0.25,
+    /** Snap distance into a new band on transition, to reduce flapping. */
+    transitionMomentum: 3,
+    /** Random diplomatic incident chance per pair per day. */
+    incidentChance: 0.004,
+    incidentMagnitudeMin: 2,
+    incidentMagnitudeMax: 8,
+    /** Initial relation score range. */
+    initialScoreSpread: 20,
+    /** Daily military attrition fraction while at war. */
+    warAttrition: 0.002,
+    warMoraleLoss: 0.05,
+  },
+
+  territory: {
+    recalcDays: 10,
+    /** Claim radius per settlement tier. */
+    radiusByTier: [4, 7, 10],
+    /** Extra radius per 40 population (capped). */
+    popRadiusBonusCap: 4,
+  },
+
+  military: {
+    /** Military strength per population. */
+    perPop: 0.12,
+    warlikeMult: 1.5,
+    crisisMult: 0.6,
+  },
+
+  events: {
+    /** Famine triggers after this many consecutive starving days. */
+    famineHungerDays: 7,
+    famineDuration: 30,
+    famineMoraleLoss: 0.3,
+    /** Plague chance per settlement per day, scaled by population. */
+    plagueChancePerPop: 0.00001,
+    plagueDurationMin: 50,
+    plagueDurationMax: 110,
+    plagueSpreadChance: 0.003,
+    plagueSpreadRange: 15,
+    /** A settlement that survived plague cannot catch it again for this long. */
+    plagueImmunityDays: 240,
+    /** Migration. */
+    migrationChance: 0.004,
+    migrationCrowding: 0.8,
+    migrationFoodCost: 30,
+    migrationWoodCost: 20,
+    migrationMinPop: 16,
+    migrationPopFraction: 0.35,
+    migrationMinRing: 8,
+    migrationMaxRing: 18,
+    migrationMinSeparation: 6,
+    /** Border conflict (war skirmish) chance per warring pair per day. */
+    borderConflictChance: 0.02,
+    skirmishMilitaryLoss: 0.06,
+    skirmishPopLoss: 0.03,
+    skirmishMoraleLoss: 4,
+    skirmishRelationHit: 3,
+    /** Capture: attacker must exceed defender military by this ratio. */
+    captureRatio: 2.2,
+    captureChance: 0.25,
+    capturePopLoss: 0.08,
+    /** Succession crisis chance per civ per day. */
+    successionChance: 0.0008,
+    successionDuration: 80,
+    successionMoraleLoss: 10,
+    /** Religious schism. */
+    schismChance: 0.0006,
+    schismMinFaith: 50,
+    schismFaithKeep: 0.55,
+    schismMoraleLoss: 8,
+    schismRelationHit: 15,
+    /** Wildfire (summer only). */
+    wildfireChance: 0.01,
+    wildfireMinTiles: 12,
+    wildfireMaxTiles: 32,
+    wildfireNearSettlement: 6,
+    wildfireWoodLossFraction: 0.2,
+    wildfireMoraleLoss: 5,
+    /** Forest regrowth: grassland tiles converted on the first day of spring. */
+    regrowthTiles: 40,
+    /** Flood (spring, river-adjacent settlements). */
+    floodChance: 0.004,
+    floodFoodKeep: 0.7,
+    floodWoodKeep: 0.85,
+    floodMoraleLoss: 4,
+    floodRiverRange: 2,
+    /** Golden age. */
+    goldenAgeChance: 0.0006,
+    goldenAgeDuration: 150,
+    goldenAgeCooldown: 600,
+  },
+
+  agents: {
+    /** Hard cap on visible citizen agents. */
+    maxAgents: 600,
+    perSettlementCap: 36,
+    /** Fraction of settlement population represented as visible agents. */
+    populationFraction: 0.45,
+    /** World pixels per second. */
+    walkSpeed: 14,
+    workDurationMin: 3,
+    workDurationMax: 7,
+    /** Camera zoom below which agents are not materialized. */
+    minZoom: 1.4,
+    /** Margin in tiles around the view for agent spawning. */
+    viewMargin: 6,
+    /** Agent dt multiplier is capped so high sim speeds don't teleport agents. */
+    maxSpeedFactor: 2.5,
+    tradeRange: 50,
+    fightRange: 25,
+    fleeDistance: 4,
+    raidFearDays: 20,
+    buildPulseDays: 60,
+  },
+
+  render: {
+    defaultZoom: 2.2,
+    minZoom: 0.6,
+    maxZoom: 8,
+    zoomStep: 1.1,
+    nightMaxAlpha: 0.62,
+    duskAlpha: 0.14,
+    glowMaxAlpha: 0.5,
+    weatherParticleBudget: 260,
+    labelMinZoom: 1.6,
+    territoryFillAlpha: 0.1,
+    territoryBorderAlpha: 0.7,
+    /** Real seconds between territory overlay redraws (throttle). */
+    territoryRedrawInterval: 0.5,
+    uiRefreshInterval: 0.25,
+    agentSyncInterval: 0.4,
+  },
+} as const;

@@ -1,0 +1,23 @@
+{
+  "name": "emberfall",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "An idle civilization ecosystem simulation — a living world in a bottle.",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "pixi.js": "^8.6.6"
+  },
+  "devDependencies": {
+    "playwright-core": "^1.60.0",
+    "typescript": "^5.7.2",
+    "vite": "^5.4.11",
+    "vitest": "^2.1.8"
+  }
+}

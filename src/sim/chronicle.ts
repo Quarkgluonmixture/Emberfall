@@ -10,6 +10,9 @@ export interface ChronicleParams {
   other?: string;
   pop?: number;
   flavor?: string;
+  /** Optional tile location, copied onto the chronicle entry. */
+  x?: number;
+  y?: number;
 }
 
 type Template = (p: ChronicleParams) => string;
@@ -102,6 +105,8 @@ export function pushEntry(
   importance: 1 | 2 | 3,
   civId: number,
   text: string,
+  x?: number,
+  y?: number,
 ): ChronicleEntry {
   const entry: ChronicleEntry = {
     day: state.day,
@@ -112,6 +117,10 @@ export function pushEntry(
     kind,
     civId,
   };
+  if (x !== undefined && y !== undefined) {
+    entry.x = x;
+    entry.y = y;
+  }
   state.chronicle.push(entry);
   // Keep memory bounded on very long runs: drop old minor entries, keep history.
   if (state.chronicle.length > CHRONICLE_SOFT_CAP) {
@@ -129,5 +138,5 @@ export function pushEvent(
   civId: number,
   params: ChronicleParams,
 ): ChronicleEntry {
-  return pushEntry(state, kind, importance, civId, composeText(rng, kind, params));
+  return pushEntry(state, kind, importance, civId, composeText(rng, kind, params), params.x, params.y);
 }

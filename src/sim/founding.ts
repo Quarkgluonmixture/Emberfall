@@ -121,6 +121,11 @@ export function foundCivilizations(state: SimState, rng: RNG): void {
     };
     state.civs.push(civ);
     const camp = foundSettlement(state, civ.id, sites[i].x, sites[i].y, cfg.startPopulation, rng);
-    pushEvent(state, rng, 'founding', 3, civ.id, { civ: civ.name, name: camp.name });
+    pushEvent(state, rng, 'founding', 3, civ.id, {
+      civ: civ.name,
+      name: camp.name,
+      x: camp.x,
+      y: camp.y,
+    });
   }
 }

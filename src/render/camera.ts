@@ -15,6 +15,21 @@ export class Camera {
   private screenW = 1;
   private screenH = 1;
 
+  /** Active cinematic flight, if any. */
+  private flight: {
+    fx: number;
+    fy: number;
+    fs: number;
+    tx: number;
+    ty: number;
+    ts: number;
+    t: number;
+    dur: number;
+  } | null = null;
+
+  /** Invoked on any direct user interaction (used to exit attract mode). */
+  onInput: (() => void) | null = null;
+
   constructor(worldTilesW: number, worldTilesH: number) {
     this.worldW = worldTilesW * BALANCE.map.tileSize;
     this.worldH = worldTilesH * BALANCE.map.tileSize;
@@ -35,6 +50,8 @@ export class Camera {
       lastX = e.offsetX;
       lastY = e.offsetY;
       canvas.setPointerCapture(e.pointerId);
+      this.cancelFlight();
+      this.onInput?.();
     });
     canvas.addEventListener('pointermove', (e) => {
       if (!down) return;
@@ -61,6 +78,8 @@ export class Camera {
       'wheel',
       (e) => {
         e.preventDefault();
+        this.cancelFlight();
+        this.onInput?.();
         const cfg = BALANCE.render;
         const factor = Math.pow(cfg.zoomStep, -e.deltaY / 100);
         const before = this.screenToWorld(e.offsetX, e.offsetY);
@@ -72,6 +91,42 @@ export class Camera {
       },
       { passive: false },
     );
+  }
+
+  flying(): boolean {
+    return this.flight !== null;
+  }
+
+  /** Begin a smooth eased flight to a world-pixel position and zoom level. */
+  flyTo(worldX: number, worldY: number, scale: number, duration: number): void {
+    const cfg = BALANCE.render;
+    this.flight = {
+      fx: this.x,
+      fy: this.y,
+      fs: this.scale,
+      tx: worldX,
+      ty: worldY,
+      ts: Math.min(cfg.maxZoom, Math.max(cfg.minZoom, scale)),
+      t: 0,
+      dur: Math.max(0.1, duration),
+    };
+  }
+
+  cancelFlight(): void {
+    this.flight = null;
+  }
+
+  /** Advance the active flight (ease-in-out, zoom interpolated in log space). */
+  update(dt: number): void {
+    const f = this.flight;
+    if (!f) return;
+    f.t += dt;
+    const k = Math.min(1, f.t / f.dur);
+    const e = k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2;
+    this.x = f.fx + (f.tx - f.fx) * e;
+    this.y = f.fy + (f.ty - f.fy) * e;
+    this.scale = f.fs * Math.pow(f.ts / f.fs, e);
+    if (k >= 1) this.flight = null;
   }
 
   /** Clamp the view and write the transform into the root container. */

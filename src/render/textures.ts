@@ -1,18 +1,32 @@
 /**
- * Generated placeholder textures (see ASSET_MANIFEST.md for the real asset
- * plan). Everything is drawn with Graphics/canvas so the game has zero binary
- * asset dependencies.
+ * Texture management. Procedural placeholders are generated first so the game
+ * always works; real art from public/assets/ (see ASSET_MANIFEST.md) is then
+ * loaded on top, replacing whatever is available. Any missing/failed file
+ * silently keeps its placeholder.
  */
-import { Graphics, Texture, type Renderer } from 'pixi.js';
+import { Assets, Graphics, Rectangle, Texture, type Renderer } from 'pixi.js';
+
+export interface CitizenAnims {
+  walk: Texture[];
+  work: Texture[];
+  fight: Texture[];
+  rest: Texture[];
+}
 
 export interface GameTextures {
   /** Indexed by settlement tier: camp, village, town. */
   settlement: [Texture, Texture, Texture];
+  ruins: Texture | null;
   banner: Texture;
+  /** Fallback single-frame citizen (used when citizenAnims is null). */
   citizen: Texture;
+  citizenAnims: CitizenAnims | null;
   glow: Texture;
   raindrop: Texture;
   snowflake: Texture;
+  smoke: Texture[] | null;
+  /** Real terrain art: [season][terrain][variation]. Null → flat-color bake. */
+  terrainTiles: Texture[][][] | null;
 }
 
 /** Multiply a 0xRRGGBB color by a brightness factor. */
@@ -52,16 +66,16 @@ function makeVillage(renderer: Renderer): Texture {
 
 function makeTown(renderer: Renderer): Texture {
   const g = new Graphics();
-  g.rect(0, 9, 18, 5).fill(0x6b6258); // wall
+  g.rect(0, 9, 18, 5).fill(0x6b6258);
   g.rect(0, 8, 1.6, 1).fill(0x7b7268);
   g.rect(4, 8, 1.6, 1).fill(0x7b7268);
   g.rect(8, 8, 1.6, 1).fill(0x7b7268);
   g.rect(12, 8, 1.6, 1).fill(0x7b7268);
   g.rect(16, 8, 1.6, 1).fill(0x7b7268);
-  g.rect(2.5, 4, 5, 6).fill(0x7d6347); // hall
+  g.rect(2.5, 4, 5, 6).fill(0x7d6347);
   g.poly([2, 4, 5, 1.4, 8, 4]).fill(0x59412c);
   g.rect(4.3, 6, 1.4, 2).fill(0xffd089);
-  g.rect(11, 1.5, 4, 8.5).fill(0x8a8076); // keep tower
+  g.rect(11, 1.5, 4, 8.5).fill(0x8a8076);
   g.poly([10.5, 1.5, 13, -1, 15.5, 1.5]).fill(0x4f4a44);
   g.rect(12.2, 3.4, 1.5, 1.8).fill(0xffd089);
   g.rect(12.2, 6.4, 1.5, 1.8).fill(0xffd089);
@@ -71,7 +85,7 @@ function makeTown(renderer: Renderer): Texture {
 function makeBanner(renderer: Renderer): Texture {
   const g = new Graphics();
   g.rect(0, 0, 0.9, 7).fill(0xc9c2b4);
-  g.rect(0.9, 0.4, 4, 3.2).fill(0xffffff); // tinted with civ color
+  g.rect(0.9, 0.4, 4, 3.2).fill(0xffffff);
   return gen(renderer, g);
 }
 
@@ -111,10 +125,139 @@ function makeSnowflake(renderer: Renderer): Texture {
 export function makeTextures(renderer: Renderer): GameTextures {
   return {
     settlement: [makeCamp(renderer), makeVillage(renderer), makeTown(renderer)],
+    ruins: null,
     banner: makeBanner(renderer),
     citizen: makeCitizen(renderer),
+    citizenAnims: null,
     glow: makeGlow(),
     raindrop: makeRaindrop(renderer),
     snowflake: makeSnowflake(renderer),
+    smoke: null,
+    terrainTiles: null,
   };
+}
+
+// ── Real asset loading ─────────────────────────────────────────────
+
+const ASSET_BASE = 'assets/';
+
+async function tryLoad(name: string): Promise<Texture | null> {
+  try {
+    const tex = await Assets.load<Texture>(ASSET_BASE + name);
+    return tex ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** Cut a horizontal strip into equal frames. */
+function sliceStrip(base: Texture, frames: number): Texture[] {
+  const w = base.width / frames;
+  return Array.from(
+    { length: frames },
+    (_, i) => new Texture({ source: base.source, frame: new Rectangle(i * w, 0, w, base.height) }),
+  );
+}
+
+/** Cut a 3-column × 9-row terrain sheet into [terrain][variation] cells. */
+function sliceTerrainSheet(base: Texture): Texture[][] {
+  base.source.autoGenerateMipmaps = true;
+  const cell = base.width / 3;
+  const inset = cell * 0.15; // trim the grid gutters baked into the sheet
+  const out: Texture[][] = [];
+  for (let t = 0; t < 9; t++) {
+    const row: Texture[] = [];
+    for (let v = 0; v < 3; v++) {
+      row.push(
+        new Texture({
+          source: base.source,
+          frame: new Rectangle(
+            v * cell + inset,
+            t * cell + inset,
+            cell - 2 * inset,
+            cell - 2 * inset,
+          ),
+        }),
+      );
+    }
+    out.push(row);
+  }
+  return out;
+}
+
+/**
+ * Load real art over the procedural placeholders. Returns the number of
+ * assets found (0 means the game runs fully procedural).
+ */
+export async function loadRealTextures(tex: GameTextures): Promise<number> {
+  const [
+    camp,
+    village,
+    town,
+    ruins,
+    banner,
+    glow,
+    raindrop,
+    snowflake,
+    smoke,
+    walk,
+    work,
+    fight,
+    rest,
+    spring,
+    summer,
+    autumn,
+    winter,
+  ] = await Promise.all([
+    tryLoad('settlement_camp.png'),
+    tryLoad('settlement_village.png'),
+    tryLoad('settlement_town.png'),
+    tryLoad('settlement_ruins.png'),
+    tryLoad('banner.png'),
+    tryLoad('fx_glow.png'),
+    tryLoad('fx_raindrop.png'),
+    tryLoad('fx_snowflake.png'),
+    tryLoad('fx_smoke.png'),
+    tryLoad('citizen_walk.png'),
+    tryLoad('citizen_work.png'),
+    tryLoad('citizen_fight.png'),
+    tryLoad('citizen_rest.png'),
+    tryLoad('terrain_spring.png'),
+    tryLoad('terrain_summer.png'),
+    tryLoad('terrain_autumn.png'),
+    tryLoad('terrain_winter.png'),
+  ]);
+
+  let loaded = 0;
+  const count = (t: Texture | null): boolean => {
+    if (t) loaded++;
+    return t !== null;
+  };
+
+  if (count(camp)) tex.settlement[0] = camp!;
+  if (count(village)) tex.settlement[1] = village!;
+  if (count(town)) tex.settlement[2] = town!;
+  if (count(ruins)) tex.ruins = ruins;
+  if (count(banner)) tex.banner = banner!;
+  if (count(glow)) tex.glow = glow!;
+  if (count(raindrop)) tex.raindrop = raindrop!;
+  if (count(snowflake)) tex.snowflake = snowflake!;
+  if (count(smoke)) tex.smoke = sliceStrip(smoke!, 4);
+  if (count(walk) && count(work) && count(fight) && count(rest)) {
+    tex.citizenAnims = {
+      walk: sliceStrip(walk!, 4),
+      work: sliceStrip(work!, 4),
+      fight: sliceStrip(fight!, 4),
+      rest: sliceStrip(rest!, 2),
+    };
+  }
+  if (count(spring) && count(summer) && count(autumn) && count(winter)) {
+    tex.terrainTiles = [
+      sliceTerrainSheet(spring!),
+      sliceTerrainSheet(summer!),
+      sliceTerrainSheet(autumn!),
+      sliceTerrainSheet(winter!),
+    ];
+  }
+  return loaded;
 }

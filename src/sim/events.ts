@@ -34,7 +34,7 @@ export function updateAfflictions(state: SimState, rng: RNG): void {
       s.plagueDays--;
       if (s.plagueDays === 0) {
         s.immunityDays = e.plagueImmunityDays;
-        pushEvent(state, rng, 'plagueEnd', 1, s.civId, { name: s.name });
+        pushEvent(state, rng, 'plagueEnd', 1, s.civId, { name: s.name, x: s.x, y: s.y });
       } else {
         for (const other of state.settlements) {
           if (other.id === s.id || other.plagueDays > 0 || other.immunityDays > 0) continue;
@@ -42,7 +42,11 @@ export function updateAfflictions(state: SimState, rng: RNG): void {
           if (d2 > e.plagueSpreadRange ** 2) continue;
           if (rng.chance(e.plagueSpreadChance)) {
             other.plagueDays = rng.int(e.plagueDurationMin, e.plagueDurationMax);
-            pushEvent(state, rng, 'plague', 2, other.civId, { name: other.name });
+            pushEvent(state, rng, 'plague', 2, other.civId, {
+              name: other.name,
+              x: other.x,
+              y: other.y,
+            });
           }
         }
       }
@@ -51,7 +55,7 @@ export function updateAfflictions(state: SimState, rng: RNG): void {
       s.morale = Math.max(0, s.morale - e.famineMoraleLoss);
       s.famineDays--;
       if (s.famineDays === 0) {
-        pushEvent(state, rng, 'famineEnd', 1, s.civId, { name: s.name });
+        pushEvent(state, rng, 'famineEnd', 1, s.civId, { name: s.name, x: s.x, y: s.y });
       }
     }
   }
@@ -61,7 +65,7 @@ export function maybeFamine(state: SimState, s: Settlement, rng: RNG): void {
   const e = BALANCE.events;
   if (s.famineDays === 0 && s.hungerDays >= e.famineHungerDays) {
     s.famineDays = e.famineDuration;
-    pushEvent(state, rng, 'famine', 2, s.civId, { name: s.name });
+    pushEvent(state, rng, 'famine', 2, s.civId, { name: s.name, x: s.x, y: s.y });
   }
 }
 
@@ -69,7 +73,7 @@ export function maybePlague(state: SimState, s: Settlement, rng: RNG): void {
   const e = BALANCE.events;
   if (s.plagueDays === 0 && s.immunityDays === 0 && rng.chance(e.plagueChancePerPop * s.population)) {
     s.plagueDays = rng.int(e.plagueDurationMin, e.plagueDurationMax);
-    pushEvent(state, rng, 'plague', 3, s.civId, { name: s.name });
+    pushEvent(state, rng, 'plague', 3, s.civId, { name: s.name, x: s.x, y: s.y });
   }
 }
 
@@ -123,8 +127,22 @@ export function maybeMigration(state: SimState, rng: RNG): void {
       food: e.migrationFoodCost,
       wood: e.migrationWoodCost,
     });
-    pushEvent(state, rng, 'migration', 2, s.civId, { name: s.name, other: colony.name });
+    pushEvent(state, rng, 'migration', 2, s.civId, {
+      name: s.name,
+      other: colony.name,
+      x: site.x,
+      y: site.y,
+    });
   }
+}
+
+/** The civ's most populous settlement — used to anchor civ-level events. */
+function seatOf(state: SimState, civId: number): Settlement | null {
+  let best: Settlement | null = null;
+  for (const s of state.settlements) {
+    if (s.civId === civId && (!best || s.population > best.population)) best = s;
+  }
+  return best;
 }
 
 /** Skirmishes and settlement captures along borders between warring civs. */
@@ -168,13 +186,20 @@ export function warEvents(state: SimState, rng: RNG): void {
       civ: attacker.name,
       otherCiv: defender.name,
       name: target.name,
+      x: target.x,
+      y: target.y,
     });
 
     if (attacker.military > e.captureRatio * defender.military && rng.chance(e.captureChance)) {
       target.civId = attacker.id;
       target.morale = 40;
       target.population -= target.population * e.capturePopLoss;
-      pushEvent(state, rng, 'capture', 3, attacker.id, { name: target.name, civ: attacker.name });
+      pushEvent(state, rng, 'capture', 3, attacker.id, {
+        name: target.name,
+        civ: attacker.name,
+        x: target.x,
+        y: target.y,
+      });
       recomputeTerritory(state);
     }
   }
@@ -189,7 +214,8 @@ export function maybeSuccessionCrisis(state: SimState, rng: RNG): void {
     for (const s of state.settlements) {
       if (s.civId === civ.id) s.morale = Math.max(0, s.morale - e.successionMoraleLoss);
     }
-    pushEvent(state, rng, 'succession', 2, civ.id, { civ: civ.name });
+    const seat = seatOf(state, civ.id);
+    pushEvent(state, rng, 'succession', 2, civ.id, { civ: civ.name, x: seat?.x, y: seat?.y });
   }
 }
 
@@ -207,7 +233,8 @@ export function maybeSchism(state: SimState, rng: RNG): void {
       const rel = state.relations[civ.id][other.id];
       if (rel && rel.score > 0) rel.score = Math.max(-100, rel.score - e.schismRelationHit);
     }
-    pushEvent(state, rng, 'schism', 2, civ.id, { civ: civ.name });
+    const seat = seatOf(state, civ.id);
+    pushEvent(state, rng, 'schism', 2, civ.id, { civ: civ.name, x: seat?.x, y: seat?.y });
   }
 }
 
@@ -271,9 +298,9 @@ export function maybeWildfire(state: SimState, rng: RNG): void {
   if (near && nearDist <= e.wildfireNearSettlement) {
     near.wood *= 1 - e.wildfireWoodLossFraction;
     near.morale = Math.max(0, near.morale - e.wildfireMoraleLoss);
-    pushEvent(state, rng, 'wildfire', 2, near.civId, { name: near.name });
+    pushEvent(state, rng, 'wildfire', 2, near.civId, { name: near.name, x: bx, y: by });
   } else {
-    pushEvent(state, rng, 'wildfireWild', 1, -1, {});
+    pushEvent(state, rng, 'wildfireWild', 1, -1, { x: bx, y: by });
   }
 }
 
@@ -311,7 +338,7 @@ export function maybeFlood(state: SimState, rng: RNG): void {
     s.food *= e.floodFoodKeep;
     s.wood *= e.floodWoodKeep;
     s.morale = Math.max(0, s.morale - e.floodMoraleLoss);
-    pushEvent(state, rng, 'flood', 1, s.civId, { name: s.name });
+    pushEvent(state, rng, 'flood', 1, s.civId, { name: s.name, x: s.x, y: s.y });
   }
 }
 
@@ -330,9 +357,12 @@ export function maybeGoldenAge(state: SimState, rng: RNG): void {
     if (!rng.chance(e.goldenAgeChance)) continue;
     civ.goldenAgeDays = e.goldenAgeDuration;
     civ.goldenCooldown = e.goldenAgeCooldown;
+    const seat = seatOf(state, civ.id);
     pushEvent(state, rng, 'goldenAge', 3, civ.id, {
       civ: civ.name,
       flavor: rng.pick(GOLDEN_AGE_FLAVORS),
+      x: seat?.x,
+      y: seat?.y,
     });
   }
 }
@@ -366,8 +396,10 @@ export function collapseCheck(state: SimState, rng: RNG): void {
   );
   if (dead.length === 0) return;
   for (const s of dead) {
-    pushEvent(state, rng, 'collapse', 3, s.civId, { name: s.name });
+    pushEvent(state, rng, 'collapse', 3, s.civId, { name: s.name, x: s.x, y: s.y });
+    state.ruins.push({ x: s.x, y: s.y, day: state.day });
   }
+  if (state.ruins.length > 60) state.ruins.splice(0, state.ruins.length - 60);
   const deadIds = new Set(dead.map((s) => s.id));
   state.settlements = state.settlements.filter((s) => !deadIds.has(s.id));
   for (const civ of state.civs) {

@@ -75,6 +75,21 @@ Season modifiers:
 - **Raindrop / snowflake**: single elongated translucent rain streak; single
   soft six-point snowflake, slightly blurred.
 
+## Regeneration notes — black-background variants
+
+The first export batch had FAKE transparency (a checkerboard baked into the
+pixels). Bright/neutral art (banner cloth, smoke, glow, rain) cannot be keyed
+off that, so regenerate those four on a **flat pure solid black background
+(#000000)** and explicitly forbid the checkerboard. The pipeline
+(`scripts/process-assets.mjs`) then extracts them via dark-flood-fill (banner)
+or luminance-as-alpha (smoke, glow, raindrop). Required phrasing to append:
+
+> Centered on a flat, pure solid black background (#000000) — absolutely NO
+> transparency checkerboard pattern, NO gradient backdrop, NO floor shadow.
+
+Drop the regenerated files into `assets_src/raw/6/` in this order: banner,
+smoke (4-frame horizontal strip), glow, raindrop.
+
 ## UI
 
 - **Panel frame** (96×96, 9-slice): dark oiled-wood and wrought-iron panel

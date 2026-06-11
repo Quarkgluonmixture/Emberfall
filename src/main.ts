@@ -4,19 +4,30 @@
  * frame-rate driven and purely observational.
  */
 import type { Ticker } from 'pixi.js';
+import { MusicManager } from './audio/music';
 import { BALANCE } from './config/balance';
-import { hasSave, loadFromLocalStorage, saveToLocalStorage } from './persist/save';
+import {
+  AUTOSAVE_KEY,
+  hasSave,
+  loadFromLocalStorage,
+  newestSaveKey,
+  saveToLocalStorage,
+} from './persist/save';
 import { Renderer } from './render/renderer';
 import { AgentSystem } from './sim/agents';
 import { Simulation } from './sim/simulation';
-import { dateString, seasonOf } from './sim/time';
+import { dateString, seasonOf, yearOf } from './sim/time';
 import { weatherForDay, type Weather } from './sim/weather';
+import { Director } from './showcase/director';
+import { formatStressReport, runStress } from './showcase/stress';
 import { ChroniclePanel } from './ui/chroniclePanel';
 import { CivPanel } from './ui/civPanel';
 import { DebugOverlay } from './ui/debugOverlay';
 import { HistoryPanel } from './ui/historyPanel';
 import { Hud } from './ui/hud';
 import { Inspector } from './ui/inspector';
+import { SeedGalleryPanel } from './ui/seedGallery';
+import { WorldStory } from './ui/worldStory';
 
 const DEFAULT_SEED = 1337;
 
@@ -32,10 +43,21 @@ let lastRunningSpeed = 1;
 let ambient = 0.35;
 let uiTimer = 0;
 let agentSyncTimer = 0;
+let autosaveTimer = 0;
+let fpsCapIndex = 0;
+/** UI state remembered across attract mode. */
+let preAttract = { cinema: false, story: false };
 
+const music = new MusicManager();
 const inspector = new Inspector();
 const civPanel = new CivPanel((civId) => inspector.select({ kind: 'civ', id: civId }));
 const debugOverlay = new DebugOverlay();
+const worldStory = new WorldStory();
+const director = new Director();
+const gallery = new SeedGalleryPanel((seed) => {
+  void start(Simulation.create(seed));
+  hud.showToast(`Traveling to seed ${seed}…`);
+});
 
 const hud = new Hud({
   onSpeed: setSpeed,
@@ -44,14 +66,15 @@ const hud = new Hud({
     else hud.showToast('Saving failed — storage unavailable.');
   },
   onLoad: () => {
-    if (!hasSave()) {
+    const key = newestSaveKey();
+    if (!key || !hasSave()) {
       hud.showToast('No saved world found.');
       return;
     }
-    const loaded = loadFromLocalStorage();
+    const loaded = loadFromLocalStorage(key);
     if (loaded) {
       void start(loaded);
-      hud.showToast('The world remembers.');
+      hud.showToast(key === AUTOSAVE_KEY ? 'The world remembers (autosave).' : 'The world remembers.');
     } else {
       hud.showToast('The saved world could not be read.');
     }
@@ -63,7 +86,19 @@ const hud = new Hud({
   },
   onToggleHistory: () => historyPanel.toggle(),
   onToggleDebug: () => debugOverlay.toggle(),
+  onToggleAttract: toggleAttract,
+  onToggleCinema: () => setCinema(!document.body.classList.contains('cinema')),
+  onScreenshot: takeScreenshot,
+  onToggleGallery: () => gallery.toggle(),
+  onCycleFps: cycleFps,
+  onToggleMusic: toggleMusic,
 });
+
+function toggleMusic(): void {
+  const muted = music.toggle();
+  hud.setMusic(!muted);
+  hud.showToast(muted ? 'The minstrels rest.' : 'The minstrels play.');
+}
 
 function setSpeed(index: number): void {
   speedIndex = index;
@@ -73,6 +108,54 @@ function setSpeed(index: number): void {
 
 function togglePause(): void {
   setSpeed(speedIndex === 0 ? lastRunningSpeed : 0);
+}
+
+function setCinema(on: boolean): void {
+  document.body.classList.toggle('cinema', on);
+}
+
+function toggleAttract(): void {
+  if (!renderer) return;
+  if (director.active) {
+    stopAttract();
+    return;
+  }
+  preAttract = {
+    cinema: document.body.classList.contains('cinema'),
+    story: worldStory.visible,
+  };
+  setCinema(true);
+  worldStory.toggle(true);
+  if (speedIndex === 0) setSpeed(1);
+  director.start(sim.state, renderer.camera);
+}
+
+function stopAttract(): void {
+  if (!director.active) return;
+  director.stop();
+  setCinema(preAttract.cinema);
+  worldStory.toggle(preAttract.story);
+}
+
+function takeScreenshot(): void {
+  if (!renderer) return;
+  const name = `emberfall-seed${sim.state.seed}-y${yearOf(sim.state.day)}.png`;
+  void renderer.screenshot(name).then(
+    () => hud.showToast(`Saved ${name}`),
+    () => hud.showToast('Screenshot failed.'),
+  );
+}
+
+function cycleFps(): void {
+  const options = BALANCE.render.fpsCapOptions;
+  fpsCapIndex = (fpsCapIndex + 1) % options.length;
+  applyFpsCap();
+}
+
+function applyFpsCap(): void {
+  const cap = BALANCE.render.fpsCapOptions[fpsCapIndex];
+  if (renderer) renderer.app.ticker.maxFPS = cap;
+  hud.setFpsLabel(cap);
 }
 
 function weatherText(weather: Weather, season: number): string {
@@ -125,6 +208,10 @@ function loop(ticker: Ticker): void {
   const duskGlow = Math.max(0, 1 - Math.abs(darkness - 0.5) * 5);
   const weather = weatherForDay(state.seed, state.day, season);
 
+  // Cinematics: the director steers, then any active flight eases the camera.
+  director.update(dt, state, renderer.camera);
+  renderer.camera.update(dt);
+
   agentSyncTimer += dt;
   if (agentSyncTimer >= BALANCE.render.agentSyncInterval) {
     agentSyncTimer = 0;
@@ -133,6 +220,7 @@ function loop(ticker: Ticker): void {
     agents.sync(state, view);
   }
   agents.update(dt * Math.min(speed, BALANCE.agents.maxSpeedFactor), state, darkness);
+  music.update(dt, state, season, darkness);
 
   renderer.frame({
     state,
@@ -145,6 +233,14 @@ function loop(ticker: Ticker): void {
     time: performance.now() / 1000,
   });
 
+  autosaveTimer += dt;
+  if (autosaveTimer >= BALANCE.time.autosaveSeconds) {
+    autosaveTimer = 0;
+    if (saveToLocalStorage(state, AUTOSAVE_KEY)) {
+      console.info(`Emberfall: autosaved at day ${state.day}.`);
+    }
+  }
+
   uiTimer += dt;
   if (uiTimer >= BALANCE.render.uiRefreshInterval) {
     uiTimer = 0;
@@ -154,6 +250,7 @@ function loop(ticker: Ticker): void {
     inspector.update(state, agents);
     chroniclePanel.update(state);
     historyPanel.update(state);
+    worldStory.update(state, director.active ? (director.current?.label ?? null) : null);
     if (debugOverlay.visible) {
       let population = 0;
       for (const s of state.settlements) population += s.population;
@@ -176,6 +273,7 @@ function loop(ticker: Ticker): void {
 
 /** Start (or restart) the game with a fresh simulation. */
 async function start(newSim: Simulation): Promise<void> {
+  stopAttract();
   const old = renderer;
   renderer = null;
   old?.destroy();
@@ -190,11 +288,19 @@ async function start(newSim: Simulation): Promise<void> {
   const first = sim.state.settlements[0];
   if (first) created.camera.centerOn(first.x, first.y);
   created.camera.attach(created.app.canvas, onPick);
+  created.camera.onInput = () => {
+    if (director.active) stopAttract();
+  };
   created.app.ticker.add(loop);
   renderer = created;
+  applyFpsCap();
+  autosaveTimer = 0;
 }
 
 window.addEventListener('keydown', (e) => {
+  // Any key other than the attract toggle itself wakes the player back up.
+  if (director.active && e.key.toLowerCase() !== 'a') stopAttract();
+
   if (e.code === 'Space') {
     togglePause();
     e.preventDefault();
@@ -202,16 +308,41 @@ window.addEventListener('keydown', (e) => {
   else if (e.key === '2') setSpeed(2);
   else if (e.key === '3') setSpeed(3);
   else if (e.key === 'h' || e.key === 'H') historyPanel.toggle();
+  else if (e.key === 'm' || e.key === 'M') toggleMusic();
+  else if (e.key === 'a' || e.key === 'A') toggleAttract();
+  else if (e.key === 'c' || e.key === 'C') setCinema(!document.body.classList.contains('cinema'));
+  else if (e.key === 'p' || e.key === 'P') takeScreenshot();
+  else if (e.key === 'g' || e.key === 'G') gallery.toggle();
+  else if (e.key === 'w' || e.key === 'W') worldStory.toggle();
   else if (e.key === 'F3') {
     debugOverlay.toggle();
     e.preventDefault();
   } else if (e.key === 'Escape') {
     inspector.select(null);
     if (historyPanel.visible) historyPanel.toggle();
+    if (gallery.visible) gallery.toggle(false);
   }
 });
 
 const params = new URLSearchParams(location.search);
 const initialSeed = Number(params.get('seed')) || DEFAULT_SEED;
 hud.setSpeed(speedIndex);
-void start(Simulation.create(initialSeed));
+hud.setMusic(music.enabled);
+
+void start(Simulation.create(initialSeed)).then(() => {
+  if (params.get('stress')) {
+    hud.showToast('Running 100-year stress test…');
+    // Let the first frame paint before blocking on the synchronous runs.
+    window.setTimeout(() => {
+      const report = runStress(initialSeed, 100);
+      const text = formatStressReport(report);
+      console.info(text);
+      debugOverlay.extra = text;
+      debugOverlay.toggle(true);
+      hud.showToast(
+        report.identical ? 'Stress test passed — bit-identical.' : 'Stress test FAILED determinism!',
+      );
+    }, 150);
+  }
+  if (params.get('attract')) toggleAttract();
+});

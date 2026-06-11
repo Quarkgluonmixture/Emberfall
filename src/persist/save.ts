@@ -8,6 +8,7 @@ import type {
   Civilization,
   DiplomaticState,
   Relation,
+  RuinSite,
   Settlement,
   SimState,
 } from '../core/types';
@@ -16,6 +17,7 @@ import { recomputeTerritory } from '../sim/territory';
 import { generateWorld } from '../world/worldgen';
 
 export const SAVE_KEY = 'emberfall:save:v1';
+export const AUTOSAVE_KEY = 'emberfall:autosave:v1';
 
 interface RelationPair {
   a: number;
@@ -36,6 +38,7 @@ interface SaveFile {
   settlements: Settlement[];
   relationPairs: RelationPair[];
   chronicle: ChronicleEntry[];
+  ruins: RuinSite[];
   terrainMods: [number, number][];
 }
 
@@ -58,6 +61,7 @@ export function serializeState(state: SimState): string {
     settlements: state.settlements,
     relationPairs,
     chronicle: state.chronicle,
+    ruins: state.ruins,
     terrainMods: state.terrainMods,
   };
   return JSON.stringify(file);
@@ -89,6 +93,7 @@ export function deserializeState(json: string): SimState {
     settlements: file.settlements,
     relations,
     chronicle: file.chronicle,
+    ruins: file.ruins ?? [],
     borders: [],
     terrainMods: file.terrainMods,
     terrainVersion: 1,
@@ -104,19 +109,21 @@ export function simulationFromSave(json: string): Simulation {
   return new Simulation(deserializeState(json));
 }
 
-export function saveToLocalStorage(state: SimState): boolean {
+export function saveToLocalStorage(state: SimState, key: string = SAVE_KEY): boolean {
   if (typeof localStorage === 'undefined') return false;
   try {
-    localStorage.setItem(SAVE_KEY, serializeState(state));
+    localStorage.setItem(key, serializeState(state));
+    // Timestamp lives beside the payload so save data itself stays deterministic.
+    localStorage.setItem(`${key}:at`, String(Date.now()));
     return true;
   } catch {
     return false;
   }
 }
 
-export function loadFromLocalStorage(): Simulation | null {
+export function loadFromLocalStorage(key: string = SAVE_KEY): Simulation | null {
   if (typeof localStorage === 'undefined') return null;
-  const json = localStorage.getItem(SAVE_KEY);
+  const json = localStorage.getItem(key);
   if (!json) return null;
   try {
     return simulationFromSave(json);
@@ -125,6 +132,22 @@ export function loadFromLocalStorage(): Simulation | null {
   }
 }
 
+/** The save slot (manual or auto) with the most recent timestamp. */
+export function newestSaveKey(): string | null {
+  if (typeof localStorage === 'undefined') return null;
+  let best: string | null = null;
+  let bestAt = -1;
+  for (const key of [SAVE_KEY, AUTOSAVE_KEY]) {
+    if (localStorage.getItem(key) === null) continue;
+    const at = Number(localStorage.getItem(`${key}:at`) ?? 0);
+    if (at > bestAt) {
+      bestAt = at;
+      best = key;
+    }
+  }
+  return best;
+}
+
 export function hasSave(): boolean {
-  return typeof localStorage !== 'undefined' && localStorage.getItem(SAVE_KEY) !== null;
+  return newestSaveKey() !== null;
 }

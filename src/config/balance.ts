@@ -13,6 +13,8 @@ export const BALANCE = {
     seasonsPerYear: 4,
     /** Real seconds for one ambient (visual) day/night cycle at 1x. */
     ambientDaySeconds: 45,
+    /** Real seconds between autosaves (separate slot from manual saves). */
+    autosaveSeconds: 180,
   },
 
   map: {
@@ -232,7 +234,31 @@ export const BALANCE = {
     buildPulseDays: 60,
   },
 
+  audio: {
+    /** Master music volume (0..1). */
+    musicVolume: 0.5,
+    /** Seconds to crossfade between tracks. */
+    musicFadeSeconds: 2.5,
+    /** Real seconds an event mood holds the music after its latest trigger. */
+    moodHoldSeconds: { war: 75, disaster: 60, goldenAge: 90 },
+    /** Darkness thresholds for the night track (hysteresis pair). */
+    nightEnter: 0.72,
+    nightExit: 0.38,
+    /** Minimum real seconds between base-track (season/night) switches. */
+    minTrackHoldSeconds: 12,
+  },
   render: {
+    /** Terrain bake resolution multiplier (1 = 8px/tile). Real tile art uses 2. */
+    terrainBakeScale: 2,
+    /** Target on-map width (world px) of settlement sprites per tier. */
+    settlementWidths: [12, 16, 22],
+    ruinsWidth: 16,
+    bannerHeight: 7,
+    /** Target on-map height (world px) of citizen sprites. */
+    citizenHeight: 6,
+    smokeAlpha: 0.35,
+    /** Frame-rate cap options cycled by the HUD button; 0 = uncapped. */
+    fpsCapOptions: [60, 30, 0],
     defaultZoom: 2.2,
     minZoom: 0.6,
     maxZoom: 8,

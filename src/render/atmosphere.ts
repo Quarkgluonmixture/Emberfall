@@ -7,9 +7,9 @@ import type { GameTextures } from './textures';
 
 interface Particle {
   sprite: Sprite;
-  vx: number;
   vy: number;
   sway: number;
+  snow: boolean;
 }
 
 export class Atmosphere {
@@ -21,6 +21,7 @@ export class Atmosphere {
   private rng = new RNG(0xfade);
   private screenW = 0;
   private screenH = 0;
+  private gustPhase = 0;
 
   constructor(private tex: GameTextures) {}
 
@@ -42,27 +43,38 @@ export class Atmosphere {
         ? 0
         : Math.round(cfg.weatherParticleBudget * weather.intensity);
 
-    while (this.particles.length < desired) {
+    // Gusts: wind strength breathes instead of staying constant.
+    this.gustPhase += dt;
+    const gust =
+      0.65 + 0.35 * Math.sin(this.gustPhase * 0.45) + 0.15 * Math.sin(this.gustPhase * 1.7);
+
+    // Spawn/remove gradually so weather fades in and out rather than popping.
+    let spawnBudget = 4;
+    while (this.particles.length < desired && spawnBudget-- > 0) {
       const snow = weather.kind === 'snow';
-      const sprite = new Sprite(snow ? this.tex.snowflake : this.tex.raindrop);
-      sprite.position.set(this.rng.range(0, this.screenW), this.rng.range(0, this.screenH));
+      const tex = snow ? this.tex.snowflake : this.tex.raindrop;
+      const sprite = new Sprite(tex);
+      // Real art is higher-res than the procedural particles; normalize size.
+      sprite.scale.set(Math.min(1, (snow ? 6 : 14) / tex.height));
+      sprite.position.set(this.rng.range(0, this.screenW), this.rng.range(-30, this.screenH));
       this.weatherContainer.addChild(sprite);
       this.particles.push({
         sprite,
-        vx: weather.wind * (snow ? 30 : 80),
         vy: snow ? this.rng.range(30, 60) : this.rng.range(280, 380),
         sway: this.rng.range(0, Math.PI * 2),
+        snow,
       });
     }
-    while (this.particles.length > desired) {
+    let removeBudget = 6;
+    while (this.particles.length > desired && removeBudget-- > 0) {
       this.particles.pop()!.sprite.destroy();
     }
 
-    const snow = weather.kind === 'snow';
     for (const p of this.particles) {
       p.sway += dt * 2;
-      p.sprite.x += (p.vx + (snow ? Math.sin(p.sway) * 14 : 0)) * dt;
-      p.sprite.y += p.vy * dt;
+      const windSpeed = weather.wind * (p.snow ? 30 : 80) * gust;
+      p.sprite.x += (windSpeed + (p.snow ? Math.sin(p.sway) * 14 : 0)) * dt;
+      p.sprite.y += p.vy * (p.snow ? 0.8 + 0.2 * gust : 1) * dt;
       if (p.sprite.y > this.screenH + 8) {
         p.sprite.y = -8;
         p.sprite.x = this.rng.range(-20, this.screenW + 20);

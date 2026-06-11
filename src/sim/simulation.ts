@@ -43,6 +43,7 @@ export class Simulation {
       settlements: [],
       relations: [],
       chronicle: [],
+      ruins: [],
       borders: [],
       terrainMods: [],
       terrainVersion: 0,
@@ -112,6 +113,8 @@ export class Simulation {
             name: s.name,
             pop: Math.round(s.population),
             civ: civ.name,
+            x: s.x,
+            y: s.y,
           });
         }
       }
@@ -123,9 +126,12 @@ export class Simulation {
       const transitions = updateDiplomacy(state, rng);
       for (const t of transitions) {
         const importance = t.kind === 'warDeclared' ? 3 : t.kind === 'relationsCooled' ? 1 : 2;
+        const mid = this.frontierMidpoint(t.a, t.b);
         pushEvent(state, rng, t.kind, importance, t.a, {
           civ: state.civs[t.a].name,
           otherCiv: state.civs[t.b].name,
+          x: mid?.x,
+          y: mid?.y,
         });
       }
       this.updateMilitary();
@@ -145,6 +151,24 @@ export class Simulation {
 
     state.rngState = rng.state();
     this.lastTickMs = performance.now() - t0;
+  }
+
+  /** Midpoint of the closest settlement pair between two civs (their frontier). */
+  private frontierMidpoint(a: number, b: number): { x: number; y: number } | null {
+    let best: { x: number; y: number } | null = null;
+    let bestD2 = Infinity;
+    for (const sa of this.state.settlements) {
+      if (sa.civId !== a) continue;
+      for (const sb of this.state.settlements) {
+        if (sb.civId !== b) continue;
+        const d2 = (sa.x - sb.x) ** 2 + (sa.y - sb.y) ** 2;
+        if (d2 < bestD2) {
+          bestD2 = d2;
+          best = { x: Math.round((sa.x + sb.x) / 2), y: Math.round((sa.y + sb.y) / 2) };
+        }
+      }
+    }
+    return best;
   }
 
   /** Military strength trends toward a population-derived target; war erodes it. */

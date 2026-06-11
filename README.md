@@ -31,10 +31,15 @@ Optional: open a specific world with `?seed=12345` in the URL.
 | Click | Inspect tile / settlement / citizen (citizens win ties) |
 | `Space` | Pause / resume |
 | `1` / `2` / `3` | 1× / 5× / 20× speed |
+| `A` | Attract mode (automated cinematic tour; any input exits) |
+| `C` | Cinema mode (hide all UI) |
+| `P` | Screenshot (PNG of the canvas) |
+| `G` | Seed gallery |
+| `W` | World Story overlay |
 | `H` | Toggle the History panel |
 | `F3` | Toggle the debug overlay |
 | `Esc` | Close panels |
-| Top bar | Save / Load (localStorage), New World, panel toggles |
+| Top bar | Save / Load (localStorage), New World, FPS cap, panel toggles |
 
 Zoom in past ~1.4× to see individual citizens going about their day. At night
 they head home; villages glow.
@@ -63,12 +68,15 @@ src/
 │   ├── founding.ts     civ/settlement creation, site scoring
 │   ├── agents.ts       hybrid LOD: visible citizen agents near the camera
 │   └── weather.ts      cosmetic daily weather (pure hash of seed+day)
-├── render/        Pixi: camera, terrain bake, territory, settlements,
-│                  citizens, atmosphere (night/dusk/particles), textures
+├── render/        Pixi: camera (with cinematic flights), terrain bake,
+│                  territory, settlements, citizens, event markers,
+│                  atmosphere (night/dusk/particles), textures
+├── showcase/      interest.ts (shot scoring), director.ts (attract-mode
+│                  cinematographer), stress.ts (determinism/perf harness)
 ├── ui/            DOM panels: HUD, civ roster, inspector, chronicle,
-│                  history, debug overlay
-└── persist/       save.ts — serialize to localStorage; world regenerates
-                   from seed, terrain diffs replayed
+│                  history, world story, seed gallery, debug overlay
+└── persist/       save.ts — serialize to localStorage (manual + autosave
+                   slots); world regenerates from seed, diffs replayed
 ```
 
 ### Key design decisions
@@ -106,6 +114,40 @@ src/
 - **New agent behaviors**: add a state in `sim/agents.ts#chooseTask` and a
   matching animation rule in `render/citizenLayer.ts`.
 
+## Showcase Mode
+
+Emberfall is built to be left running on a second monitor.
+
+**Attract mode** (`A`, or open with `?attract=1`): an automated director tours
+the world — cutting to wars, captures, wildfires, migrations and golden ages
+as they happen, lingering on capitals and frontiers in between, with slow
+drifting shots and eased flights. All UI hides except the **World Story**
+overlay (year, season, dominant civilization, active crises, latest chronicle
+line). Touching the mouse or keyboard hands control back to you.
+
+**Best seeds** (from the curated gallery, `G`): seed `48` *The Braided
+Waters* (river country, frequent border wars), seed `34` *The Stonecrown
+Reaches* (mountain realm, dense towns), seed `3` *The Scattered Shores*
+(island wars), seed `89` *The Deepwood Realm* (slow forest world). Open any
+world directly with `?seed=48`.
+
+**Recording a demo clip:**
+
+1. Open the world you want (`?seed=48&attract=1` is a good start).
+2. Set speed to 1× or 5× — 20× is great for time-lapses.
+3. Press `A` for the cinematic tour (or `C` to just hide UI and drive the
+   camera yourself; `P` saves clean PNG stills).
+4. Capture the browser window with OBS or any screen recorder; the canvas is
+   plain WebGL, so window capture works without tricks.
+5. Night scenes (glowing settlements under snowfall) read best on video —
+   wait for winter.
+
+**Reliability:** the game autosaves every 3 minutes to a separate slot (Load
+picks the newest of manual/auto), the frame rate is capped at 60fps by
+default (cycle with the fps button), and `?stress=1` runs a 100-year
+double-simulation on boot, reporting wall time and a bit-identical
+determinism check in the debug overlay.
+
 ## Testing
 
 `npm test` covers terrain generation determinism and biome coverage, resource
@@ -119,6 +161,8 @@ Two extra dev tools live in `scripts/`:
 - `npx vite-node scripts/longrun.ts` — simulate 10 in-game years headless and
   print population, settlement tiers and a histogram of chronicle events
   (useful when tuning `balance.ts`).
+- `npx vite-node scripts/curate-seeds.ts` — re-score candidate seeds and
+  regenerate the seed gallery (`src/config/seedGallery.ts`).
 - `node scripts/smoke.mjs` — drive the running dev server with a headless
   Chromium/Edge, screenshot the game and dump console errors (requires a
   local Edge/Chrome; adjust the executable path at the top).

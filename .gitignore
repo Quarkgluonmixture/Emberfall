@@ -1,3 +1,5 @@
 node_modules/
 dist/
 scripts/out/
+assets_src/raw/
+assets_src/music/

@@ -3,8 +3,18 @@
 Status legend: **placeholder** = drawn procedurally at runtime in
 `src/render/textures.ts` or as flat tile colors; **generated** = produced by an
 image model and shipped in `public/assets/`; **downloaded** = sourced from an
-asset pack. _Currently every asset is placeholder; the game has zero binary
-dependencies._
+asset pack.
+
+_Most assets are now **generated** (GPT-Image, 2026-06-11). Raw exports live in
+`assets_src/raw/`; run `node scripts/process-assets.mjs` to regenerate the
+game-ready PNGs in `public/assets/` (it chroma-keys the fake checkerboard
+"transparency" baked into the exports, then resizes). The procedural
+placeholders remain as automatic fallbacks if any file is missing._
+
+**Keying note:** white/neutral-bright art (banner cloth, smoke, glow
+gradients, rain streaks) cannot be separated from a baked checkerboard. Those
+four were regenerated on solid black (`assets_src/raw/6/`) and are extracted
+via dark flood-fill (banner) or luminance-as-alpha (smoke, glow, raindrop).
 
 Target style for final art: cozy dark-fantasy, top-down, muted palette with
 warm ember accents, painterly-pixel hybrid, readable at small sizes.
@@ -17,15 +27,15 @@ up. Each terrain needs 4 seasonal variants + 3 jitter variations per season
 
 | Asset | Dimensions | Frames | Status |
 | --- | --- | --- | --- |
-| tile_ocean (deep/shallow gradient set) | 32×32 | 12 | placeholder (flat color + shade) |
-| tile_coast (sand/shingle) | 32×32 | 12 | placeholder |
-| tile_grassland | 32×32 | 12 | placeholder |
-| tile_forest (canopy) | 32×32 | 12 | placeholder |
-| tile_mountain (peaks, snowcapped in winter) | 32×32 | 12 | placeholder |
-| tile_river (straight, bend, mouth) | 32×32 | 12×3 shapes | placeholder |
-| tile_swamp | 32×32 | 12 | placeholder |
-| tile_desert | 32×32 | 12 | placeholder |
-| tile_tundra | 32×32 | 12 | placeholder |
+| tile_ocean (deep/shallow gradient set) | 64×64 cell | 12 | generated (terrain_*.png sheets) |
+| tile_coast (sand/shingle) | 64×64 cell | 12 | generated |
+| tile_grassland | 64×64 cell | 12 | generated |
+| tile_forest (canopy) | 64×64 cell | 12 | generated |
+| tile_mountain (peaks, snowcapped in winter) | 64×64 cell | 12 | generated |
+| tile_river (one shape only) | 64×64 cell | 12 | generated (bends/mouth still missing) |
+| tile_swamp | 64×64 cell | 12 | generated |
+| tile_desert | 64×64 cell | 12 | generated |
+| tile_tundra | 64×64 cell | 12 | generated |
 
 ## Settlements
 
@@ -33,11 +43,11 @@ Authored at 4× (sprite footprint on map ≈ 12–20 px wide).
 
 | Asset | Dimensions | Frames | Status |
 | --- | --- | --- | --- |
-| settlement_camp (tent + campfire) | 48×40 | 2 (fire flicker) | placeholder (Graphics) |
-| settlement_village (2–3 huts, lit windows) | 64×48 | 2 (window glow) | placeholder (Graphics) |
-| settlement_town (walls, keep, market) | 80×64 | 2 (window glow) | placeholder (Graphics) |
-| settlement_ruins (collapsed town) | 64×48 | 1 | **missing** (not yet rendered) |
-| banner_civ (tintable flag) | 16×28 | 1 | placeholder (Graphics, white = tint target) |
+| settlement_camp (tent + campfire) | 128×107 | 1 | generated |
+| settlement_village (2–3 huts, lit windows) | 160×120 | 1 | generated |
+| settlement_town (walls, keep, market) | 192×154 | 1 | generated |
+| settlement_ruins (collapsed town) | 160×120 | 1 | generated |
+| banner_civ (tintable flag) | 64×~66 | 1 | generated (black-bg regen) |
 
 ## Citizens
 
@@ -46,20 +56,43 @@ Tiny agents, tinted per civilization. Authored at 4× (12×24 px source,
 
 | Asset | Dimensions | Frames | Status |
 | --- | --- | --- | --- |
-| citizen_walk | 12×24 | 4 | placeholder (static sprite + code bob) |
-| citizen_work (swing/gather) | 12×24 | 4 | placeholder (code bob) |
-| citizen_fight | 12×24 | 4 | placeholder (code lunge) |
-| citizen_rest (sitting) | 12×24 | 2 | placeholder (alpha fade) |
+| citizen_walk | 48×96/frame | 4 | generated |
+| citizen_work (swing/gather) | 48×96/frame | 4 | generated |
+| citizen_fight | 48×96/frame | 4 | generated |
+| citizen_rest (sitting) | 48×96/frame | 2 | generated |
 
 ## Atmosphere & effects
 
 | Asset | Dimensions | Frames | Status |
 | --- | --- | --- | --- |
-| fx_glow_warm (radial light) | 64×64 | 1 | placeholder (canvas gradient) |
-| fx_raindrop | 4×20 | 1 | placeholder (Graphics) |
-| fx_snowflake | 8×8 | 3 | placeholder (Graphics, 1 frame) |
-| fx_smoke_puff (chimneys) | 16×16 | 4 | **missing** (not yet rendered) |
-| fx_fire_wildfire | 24×24 | 4 | **missing** (wildfire is terrain-only) |
+| fx_glow_warm (radial light) | 128×128 | 1 | generated (black-bg regen, luma-alpha) |
+| fx_raindrop | ~10×24 | 1 | generated (black-bg regen, luma-alpha) |
+| fx_snowflake | 16×16 | 1 | generated |
+| fx_smoke_puff (chimneys) | 64×64/frame | 4 | generated (black-bg regen, luma-alpha) |
+| fx_fire_wildfire | 64×64/frame | 4 | raw only (wildfire is terrain-only) |
+
+## Music
+
+Suno-generated instrumentals (2026-06-11). Masters live in `assets_src/music/`
+(git-ignored); `scripts/process-assets.mjs` copies them to
+`public/assets/music/` under the role names `src/audio/music.ts` plays.
+Selection logic: season track by default, night track when darkness falls,
+war/disaster/golden-age moods cut in on matching chronicle events, theme plays
+once at boot. Toggle with M or the HUD button.
+
+| Role | File | Source (Suno title) | Status |
+| --- | --- | --- | --- |
+| theme (boot, plays once) | theme.mp3 | Cinder Lullaby | **generated** |
+| spring | spring.mp3 | Apple Orchard | **generated** |
+| summer | summer.mp3 | Hearth Festival | **generated** |
+| autumn | autumn.mp3 | Golden Harveststrings | **generated** |
+| winter | winter.mp3 | Frosted Palimpsest | **generated** |
+| night layer | night.mp3 | Owlwood Lullaby | **generated** |
+| war mood | war.mp3 | Cinder Canticles | **generated** |
+| disaster mood (plague/famine/fire/collapse) | disaster.mp3 | Golden Ashes | **generated** |
+| golden-age mood | goldenage.mp3 | Candle Ironwood | **generated** |
+
+To remap a track, edit `MUSIC_MAP` in `scripts/process-assets.mjs` and rerun it.
 
 ## UI
 

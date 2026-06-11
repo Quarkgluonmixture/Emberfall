@@ -85,6 +85,13 @@ export interface Relation {
   warDays: number;
 }
 
+/** A place where a settlement once stood. Render-visible, kept in saves. */
+export interface RuinSite {
+  x: number;
+  y: number;
+  day: number;
+}
+
 export interface ChronicleEntry {
   day: number;
   year: number;
@@ -94,6 +101,9 @@ export interface ChronicleEntry {
   importance: 1 | 2 | 3;
   kind: string;
   civId: number;
+  /** Optional tile location of the event (for cameras and markers). */
+  x?: number;
+  y?: number;
 }
 
 export interface SimState {
@@ -109,6 +119,7 @@ export interface SimState {
   /** relations[i][j] === relations[j][i] (shared object). relations[i][i] is unused. */
   relations: Relation[][];
   chronicle: ChronicleEntry[];
+  ruins: RuinSite[];
   /** Pair keys (i * MAX_CIVS + j, i < j) of civs sharing a border. Derived. */
   borders: number[];
   /** Terrain diffs [tileIndex, terrain] applied on top of the generated world. */

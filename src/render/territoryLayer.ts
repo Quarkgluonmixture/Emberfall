@@ -70,6 +70,18 @@ export class TerritoryLayer {
         else this.g.rect(x, y + ts - 1, ts, 1);
       }
       this.g.fill({ color, alpha: cfg.territoryBorderAlpha });
+      // A soft inner band makes the frontier read as a glow, not a hairline.
+      for (const e of edges) {
+        const i = Math.floor(e / 4);
+        const side = e % 4;
+        const x = (i % width) * ts;
+        const y = Math.floor(i / width) * ts;
+        if (side === 0) this.g.rect(x, y, 3, ts);
+        else if (side === 1) this.g.rect(x + ts - 3, y, 3, ts);
+        else if (side === 2) this.g.rect(x, y, ts, 3);
+        else this.g.rect(x, y + ts - 3, ts, 3);
+      }
+      this.g.fill({ color, alpha: 0.13 });
     }
   }
 }

@@ -10,10 +10,11 @@ import type { Weather } from '../sim/weather';
 import { Atmosphere } from './atmosphere';
 import { Camera } from './camera';
 import { CitizenLayer } from './citizenLayer';
+import { MarkerLayer } from './markerLayer';
 import { SettlementLayer } from './settlementLayer';
 import { TerrainLayer } from './terrainLayer';
 import { TerritoryLayer } from './territoryLayer';
-import { makeTextures, type GameTextures } from './textures';
+import { loadRealTextures, makeTextures, type GameTextures } from './textures';
 
 export interface FrameInput {
   state: SimState;
@@ -36,16 +37,18 @@ export class Renderer {
   territory: TerritoryLayer;
   settlements: SettlementLayer;
   citizens: CitizenLayer;
+  markers: MarkerLayer;
   atmosphere: Atmosphere;
 
   private constructor(app: Application, world: World) {
     this.app = app;
     this.camera = new Camera(world.width, world.height);
     this.textures = makeTextures(app.renderer);
-    this.terrain = new TerrainLayer(app.renderer, world);
+    this.terrain = new TerrainLayer(app.renderer, world, this.textures);
     this.territory = new TerritoryLayer();
     this.settlements = new SettlementLayer(this.textures);
     this.citizens = new CitizenLayer(this.textures);
+    this.markers = new MarkerLayer();
     this.atmosphere = new Atmosphere(this.textures);
 
     this.camera.root.addChild(
@@ -53,6 +56,7 @@ export class Renderer {
       this.territory.g,
       this.settlements.container,
       this.citizens.container,
+      this.markers.container,
     );
     app.stage.addChild(
       this.camera.root,
@@ -72,7 +76,10 @@ export class Renderer {
       preference: 'webgl',
     });
     parent.appendChild(app.canvas);
-    return new Renderer(app, world);
+    const renderer = new Renderer(app, world);
+    const loaded = await loadRealTextures(renderer.textures);
+    if (loaded > 0) console.info(`Emberfall: loaded ${loaded} art assets.`);
+    return renderer;
   }
 
   get fps(): number {
@@ -89,6 +96,7 @@ export class Renderer {
     this.territory.update(input.dt, input.state);
     this.settlements.update(input.state, this.camera.scale, input.darkness, input.time);
     this.citizens.update(input.agents, input.state);
+    this.markers.update(input.dt, input.state);
 
     // The glow layer sits above the night overlay; mirror the camera transform.
     const glow = this.settlements.glowContainer;
@@ -96,6 +104,11 @@ export class Renderer {
     glow.scale.copyFrom(this.camera.root.scale);
 
     this.atmosphere.update(input.dt, input.darkness, input.duskGlow, input.weather);
+  }
+
+  /** Save a PNG of the rendered canvas (DOM UI intentionally excluded). */
+  async screenshot(filename: string): Promise<void> {
+    await this.app.renderer.extract.download({ target: this.app.stage, filename });
   }
 
   /** Approximate display object count, for the debug overlay. */

@@ -95,6 +95,7 @@ export function makeState(
     settlements,
     relations,
     chronicle: [],
+    ruins: [],
     borders: [],
     terrainMods: [],
     terrainVersion: 0,

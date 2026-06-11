@@ -16,14 +16,16 @@ export interface DebugInfo {
 
 export class DebugOverlay {
   visible = false;
+  /** Persistent extra text appended below the live stats (e.g. stress reports). */
+  extra = '';
   private root: HTMLElement;
 
   constructor() {
     this.root = document.getElementById('debug')!;
   }
 
-  toggle(): void {
-    this.visible = !this.visible;
+  toggle(force?: boolean): void {
+    this.visible = force ?? !this.visible;
     this.root.classList.toggle('hidden', !this.visible);
   }
 
@@ -42,6 +44,7 @@ export class DebugOverlay {
       `population  ${info.population}\n` +
       `tick        ${info.tickMs.toFixed(2)}ms\n` +
       `versions    terrain ${info.terrainVersion} / territory ${info.territoryVersion}\n` +
-      `active systems:\n${systems}`;
+      `active systems:\n${systems}` +
+      (this.extra ? `\n\n${this.extra}` : '');
   }
 }

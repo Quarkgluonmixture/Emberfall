@@ -1,0 +1,72 @@
+[
+  {
+    "file": "01-macro-day.jpg",
+    "label": "macro day",
+    "description": "Whole 160x100 world at noon, fully zoomed out.",
+    "day": 600,
+    "seed": 48
+  },
+  {
+    "file": "02-macro-night.jpg",
+    "label": "macro night",
+    "description": "Whole world at midnight: settlement lights, glow control.",
+    "day": 600,
+    "seed": 48
+  },
+  {
+    "file": "03-mid-day.jpg",
+    "label": "mid day",
+    "description": "Default play zoom (2.2x) on the largest settlement region (Briarcairn) at noon.",
+    "day": 600,
+    "seed": 48
+  },
+  {
+    "file": "04-mid-night.jpg",
+    "label": "mid night",
+    "description": "Same framing at midnight: lighting quality and building visibility.",
+    "day": 600,
+    "seed": 48
+  },
+  {
+    "file": "05-close-settlement.jpg",
+    "label": "close settlement",
+    "description": "Close-up of the largest settlement at 4.5x: building art, grounding, glow.",
+    "day": 600,
+    "seed": 48
+  },
+  {
+    "file": "06-close-citizens.jpg",
+    "label": "close citizens",
+    "description": "Citizen close-up at 6.5x: can you tell who is working, walking, fighting, resting?",
+    "day": 600,
+    "seed": 48
+  },
+  {
+    "file": "07-winter.jpg",
+    "label": "winter",
+    "description": "Mid-winter (snow terrain, snowfall if rolled) over the same region.",
+    "day": 695,
+    "seed": 48
+  },
+  {
+    "file": "08-rain.jpg",
+    "label": "rain",
+    "description": "Heavy rain over the largest settlement region, noon, default zoom.",
+    "day": 601,
+    "seed": 48
+  },
+  {
+    "file": "09-war-crisis.jpg",
+    "label": "active crisis or war",
+    "description": "War frontier between two civilizations: border friction, skirmish markers, military readability.",
+    "day": 695,
+    "seed": 48
+  },
+  {
+    "file": "10-town-large.jpg",
+    "label": "town upgrade / large settlement",
+    "description": "Largest 2 (Briarcairn, pop 320) with surroundings: scale fantasy, road connections.",
+    "day": 600,
+    "seed": 48
+  }
+]

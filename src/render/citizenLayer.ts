@@ -41,7 +41,18 @@ export class CitizenLayer {
     return { frame, flip };
   }
 
-  update(agents: Agent[], state: SimState): void {
+  update(agents: Agent[], state: SimState, scale: number): void {
+    // Zoom LOD: citizens are invisible at macro zoom, calm at the default
+    // zoom and only reach full contrast in close-ups — they are texture for
+    // the world, not static over it.
+    const cfg = BALANCE.render;
+    const fade = Math.min(
+      1,
+      Math.max(0, (scale - cfg.citizenFadeZoomStart) / (cfg.citizenFadeZoomFull - cfg.citizenFadeZoomStart)),
+    );
+    this.container.alpha = fade;
+    this.container.visible = fade > 0.02;
+    if (!this.container.visible) return;
     const anims = this.tex.citizenAnims;
     while (this.pool.length < agents.length) {
       const sp = new Sprite(this.tex.citizen);
@@ -52,8 +63,8 @@ export class CitizenLayer {
       sh.anchor.set(0.5);
       sh.tint = 0x000000;
       sh.alpha = 0.4;
-      sh.width = 3.5;
-      sh.height = 1.6;
+      sh.width = 2.6;
+      sh.height = 1.2;
       this.shadowLayer.addChild(sh);
       this.shadows.push(sh);
     }

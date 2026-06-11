@@ -1,6 +1,6 @@
 # Emberfall — Checkpoint
 
-**Date:** 2026-06-11 (end of day) · **State:** Phase 3 complete (glow fix, river bends, wildfire FX, tile equalization, civ rebirth, roads + caravans) + treaties & tribute, UI icons everywhere, 4-round Gemini art grading ("shippable"), per-civ biographies, README + CI, **Chinese localization + Esc settings menu** · **All 55 tests green · stress bit-identical at ~0.4–0.6ms/day** · pushed through `ba41daa`
+**Date:** 2026-06-11 (end of day) · **State:** Phase 3 complete (glow fix, river bends, wildfire FX, tile equalization, civ rebirth, roads + caravans) + treaties & tribute, UI icons everywhere, 4-round Gemini art grading ("shippable"), per-civ biographies, README + CI, Chinese localization + Esc settings menu, **Gemini art-audit workflow + readability pass (screenshot appeal 3→8)** · **All 55 tests green · stress bit-identical at ~0.4–0.6ms/day** · pushed through `ba41daa` + this session's commits
 
 A browser idle civilization aquarium: Vite + TypeScript + PixiJS 8 + Vitest.
 `npm install && npm run dev` from a clean checkout, open `http://localhost:5173`.
@@ -63,6 +63,7 @@ test/         11 suites / 55 tests: worldgen, resources, growth, diplomacy, trea
 | `node scripts/smoke.mjs` / `smoke-showcase.mjs` | headless-Edge visual verification (needs dev server running) |
 | `node scripts/verify-{roads,stress,i18n,biography}.mjs` / `art-shots.mjs` | feature-specific headless probes (needs dev server; check BASE port) |
 | `npx vite-node scripts/{rebirth,treaty}-probe.ts` | century-scale sim probes (rebirth survival, treaty A/B) |
+| `npm run art:shots / art:audit / art:review` | deterministic 10-shot battery → Gemini art critique → before/after verdict (see art-audit session) |
 
 `assets_src/raw/` and `assets_src/music/` are gitignored sources-of-truth kept
 locally; processed outputs in `public/assets/` are committed, so a clean clone
@@ -287,6 +288,51 @@ console errors.
   toggle, hotkey reference, Resume. Esc closes open panels first; with
   nothing open it toggles the menu. HUD gained a ⚙ button; HUD relabels
   itself on language change.
+
+## Art-audit workflow + readability pass 2026-06-11 (after localization)
+
+Verified: typecheck ✓, 55/55 ✓, build ✓, stress bit-identical (0.390ms/day),
+zero console errors across all battery runs.
+
+- **Probe API** (`?probe=1`, main.ts): `window.__emberfall` —
+  `advanceDays(n)` (synchronous whole-day ticks), `centerOn(tx,ty,zoom)`,
+  `setAmbient(v)` (freezes the visual day/night cycle; 0=midnight, 0.5=noon),
+  `stepAgents(seconds)` (fixed-step citizen movement while sim time is
+  frozen), `weatherAt(day)`/`seasonAt(day)`, `setSpeed`, `state` getter.
+  Never active without the URL param. This replaced all wall-clock timing in
+  screenshot scripts — batteries are now deterministic per seed.
+- **Workflow** (`npm run art:shots / art:audit / art:review`):
+  `art-audit-shots.mjs` captures a 10-shot battery (macro/mid day+night,
+  close settlement/citizens in spring, town, rain, mid-winter, war frontier
+  via relation-matrix scan) into committed `docs/art-audit/current/` (+
+  manifest.json with per-shot context). `art-audit.mjs` sends them with
+  `docs/art-audit/AUDIT_PROMPT.md` (13 scored categories, owner-provided) to
+  gemini-3.1-pro-preview → `GEMINI_ART_AUDIT.md` + distilled
+  `GEMINI_ACTION_ITEMS.md`. `art-review.mjs` compares `baseline/` vs
+  `current/` pair-by-pair → `GEMINI_REVIEW.md`. Shared invocation rules in
+  `scripts/gemini-cli.mjs` (node22 path, JSON envelope, no output paths in
+  prompts, attachments must not be gitignored).
+- **Readability pass** (top 5 of the audit, all render-side; audit scored
+  lighting 2/10, glow 2/10, scale fantasy 2/10):
+  1. Night floor: `nightMulColor` `0x0e132a`→`0x2b3a5c` @0.86 — midnight is
+     slate blue, terrain/roads/borders stay readable.
+  2. Glow nerf: `glowSizeScale` 0.62→0.36, `glowMaxAlpha` 0.5→0.36, halo
+     spill 0.32/3.2×→0.2/2.5×, far floors lowered; new
+     `settlementNightLiftAlpha` 0.55 re-lights the building art itself at
+     night (lamp-lit structures instead of sprites hiding under blobs).
+  3. Citizen LOD: container alpha fades over zoom 1.6→3.0 (new
+     `citizenFadeZoom*` knobs), `citizenHeight` 6→4.5, smaller contact
+     shadows — no more mid-zoom dot swarms.
+  4. Settlement grounding/scale: earth-tone base patch under every
+     settlement (`settlementBase*`), `settlementWidths` [12,16,22]→[11,17,26].
+  5. Borders: 2px line @0.55 (was 1px @0.65) + 5px inner band @0.09.
+- **Gemini verdict** (10 before/after pairs): 9 improved, 1 unchanged.
+  Lighting 2→8, glow control 2→9, terrain beauty 3→8, macro readability 5→9,
+  screenshot appeal 3→8. Remaining (next art pass): settlement footprint
+  sprawl (scale fantasy still 2/10 — needs multi-tile art, deliberately out
+  of scope), building variety/contrast, citizen action readability.
+- Gotcha: `verify-stress.mjs` and friends default to port 5174 — pass
+  `BASE=http://localhost:5173` when the dev server holds 5173.
 
 Note: `.mcp.json` now registers a Playwright MCP server (msedge, headless) so
 future sessions can drive the game interactively instead of via one-shot

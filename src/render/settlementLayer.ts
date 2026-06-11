@@ -16,6 +16,8 @@ interface Vis {
   halo: Sprite;
   /** Soft ground shadow anchoring the sprite to the terrain. */
   shadow: Sprite;
+  /** Earth-toned patch under everything — worn ground around the buildings. */
+  base: Sprite;
   smoke: Sprite | null;
   tier: number;
   name: string;
@@ -38,6 +40,8 @@ export class SettlementLayer {
     v.lift.scale.copyFrom(v.sprite.scale);
     v.shadow.width = target * 1.2;
     v.shadow.height = target * 0.5;
+    v.base.width = target * 1.8;
+    v.base.height = target * 0.9;
     v.tier = tier;
     if (v.smoke) {
       v.smoke.visible = tier >= 1;
@@ -86,6 +90,13 @@ export class SettlementLayer {
         halo.anchor.set(0.5);
         halo.blendMode = 'add';
         halo.tint = cfg.glowSpillTint;
+        // Worn-earth base patch blends the settlement into the terrain.
+        const base = new Sprite(this.tex.glow);
+        base.anchor.set(0.5);
+        base.tint = cfg.settlementBaseColor;
+        base.alpha = cfg.settlementBaseAlpha;
+        base.position.set(0, -0.5);
+        root.addChild(base);
         // Soft ground shadow grounds the sprite against the terrain.
         const shadow = new Sprite(this.tex.glow);
         shadow.anchor.set(0.5);
@@ -107,7 +118,7 @@ export class SettlementLayer {
         halo.position.copyFrom(root.position);
         this.container.addChild(root);
         this.glowContainer.addChild(halo, glow);
-        v = { root, sprite, lift, banner, label, glow, halo, shadow, smoke, tier: -1, name: s.name };
+        v = { root, sprite, lift, banner, label, glow, halo, shadow, base, smoke, tier: -1, name: s.name };
         this.map.set(s.id, v);
       }
       if (v.tier !== s.tier) this.applyTier(v, s.tier);
@@ -128,11 +139,16 @@ export class SettlementLayer {
         v.smoke.texture = this.tex.smoke![Math.floor(time * 3 + s.id) % this.tex.smoke!.length];
       }
 
-      // Sunlight lift fades out as night falls.
-      v.lift.alpha = cfg.settlementDayLiftAlpha * (1 - darkness);
-
       // Softer night onset: glows arrive late in the dusk and breathe slightly.
       const glowStrength = Math.pow(darkness, 1.35);
+
+      // Sunlight lift fades out as night falls; lamp-lift takes over so the
+      // buildings themselves read as lit structures instead of disappearing
+      // behind the glow blob.
+      v.lift.alpha = Math.max(
+        cfg.settlementDayLiftAlpha * (1 - darkness),
+        cfg.settlementNightLiftAlpha * glowStrength,
+      );
       const flicker = 0.92 + 0.08 * Math.sin(time * 7 + s.id * 1.7);
       // Beyond the reference zoom, damp size and alpha so a close-up reads as
       // lit windows instead of a screen-filling fireball.
@@ -165,9 +181,10 @@ export class SettlementLayer {
       const breath = 1 + 0.05 * Math.sin(time * 1.3 + s.id * 2.1);
       v.glow.alpha = alpha * farAlpha;
       v.glow.scale.set(size * texScale * farSize * breath);
-      // Wide warm spill washing the cold night terrain around each lamp.
-      v.halo.alpha = alpha * 0.32 * farT * farT;
-      v.halo.scale.set(size * texScale * farSize * 3.2 * breath);
+      // Wide warm spill washing the cold night terrain around each lamp —
+      // kept faint and tight so it never swallows the buildings.
+      v.halo.alpha = alpha * 0.2 * farT * farT;
+      v.halo.scale.set(size * texScale * farSize * 2.5 * breath);
     }
 
     for (const [id, v] of this.map) {

@@ -9,7 +9,10 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "art:shots": "node scripts/art-audit-shots.mjs",
+    "art:audit": "node scripts/art-audit.mjs",
+    "art:review": "node scripts/art-review.mjs"
   },
   "dependencies": {
     "pixi.js": "^8.6.6"

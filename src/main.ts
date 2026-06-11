@@ -43,6 +43,8 @@ let speedIndex = 1;
 let lastRunningSpeed = 1;
 /** Ambient (visual) day fraction: 0 = midnight, 0.5 = noon. */
 let ambient = 0.35;
+/** Frozen by the ?probe=1 API so screenshot batteries get exact lighting. */
+let ambientLocked = false;
 let uiTimer = 0;
 let agentSyncTimer = 0;
 let autosaveTimer = 0;
@@ -211,7 +213,7 @@ function loop(ticker: Ticker): void {
   // The ambient day/night cycle keeps breathing slowly even when paused, but
   // never spins fast enough to strobe at high sim speeds.
   const cycleRate = speed === 0 ? 0.15 : Math.min(speed, 3);
-  ambient = (ambient + (dt * cycleRate) / BALANCE.time.ambientDaySeconds) % 1;
+  if (!ambientLocked) ambient = (ambient + (dt * cycleRate) / BALANCE.time.ambientDaySeconds) % 1;
   const darkness = Math.pow(Math.cos(ambient * Math.PI * 2) * 0.5 + 0.5, 1.3);
   // Wide smooth bell around half-light so dusk eases in instead of popping.
   const duskGlow = Math.max(0, 1 - ((darkness - 0.5) * 2.8) ** 2);
@@ -346,6 +348,56 @@ window.addEventListener('keydown', (e) => {
 
 const params = new URLSearchParams(location.search);
 const initialSeed = Number(params.get('seed')) || DEFAULT_SEED;
+
+// ── Probe API (?probe=1) — deterministic control surface for the headless
+// screenshot batteries in scripts/. Read-only on the sim except advanceDays,
+// which runs the same whole-day ticks the loop does. Never active in play.
+if (params.get('probe')) {
+  (window as unknown as { __emberfall: unknown }).__emberfall = {
+    get day(): number {
+      return sim.state.day;
+    },
+    get state() {
+      return sim.state;
+    },
+    /** Synchronously fast-forward n days; returns the new day. */
+    advanceDays(n: number): number {
+      sim.advance(n);
+      return sim.state.day;
+    },
+    /** Freeze the visual day/night cycle (0 = midnight, 0.5 = noon). */
+    setAmbient(v: number): void {
+      ambient = ((v % 1) + 1) % 1;
+      ambientLocked = true;
+    },
+    /** Place the camera exactly: tile coords + zoom, no easing. */
+    centerOn(tx: number, ty: number, zoom?: number): void {
+      if (!renderer) return;
+      renderer.camera.cancelFlight();
+      if (zoom !== undefined) {
+        const cfg = BALANCE.render;
+        renderer.camera.scale = Math.min(cfg.maxZoom, Math.max(cfg.minZoom, zoom));
+      }
+      renderer.camera.centerOn(tx, ty);
+    },
+    setSpeed,
+    /** Run citizen agents forward in fixed steps while sim time stays frozen. */
+    stepAgents(seconds: number): void {
+      if (!renderer) return;
+      const view =
+        renderer.camera.scale >= BALANCE.agents.minZoom ? renderer.camera.viewTileBounds() : null;
+      agents.sync(sim.state, view);
+      const step = 1 / 60;
+      for (let t = 0; t < seconds; t += step) agents.update(step, sim.state, 0);
+    },
+    weatherAt(day: number): Weather {
+      return weatherForDay(sim.state.seed, day, seasonOf(day));
+    },
+    seasonAt(day: number): number {
+      return seasonOf(day);
+    },
+  };
+}
 hud.setSpeed(speedIndex);
 hud.setMusic(music.enabled);
 

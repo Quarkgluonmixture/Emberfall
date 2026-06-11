@@ -102,7 +102,7 @@ export class Renderer {
     this.roads.update(input.state);
     this.territory.update(input.dt, input.state);
     this.settlements.update(input.state, this.camera.scale, input.darkness, input.time);
-    this.citizens.update(input.agents, input.state);
+    this.citizens.update(input.agents, input.state, this.camera.scale);
     this.markers.update(input.dt, input.state);
 
     // The glow layer sits above the night overlay; mirror the camera transform.

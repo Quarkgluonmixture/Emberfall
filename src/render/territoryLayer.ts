@@ -61,27 +61,28 @@ export class TerritoryLayer {
     for (const [civId, edges] of borderRects) {
       const color = state.civs[civId]?.color ?? 0xffffff;
       // Dark underline first, so the colored line sits ON the ground instead
-      // of floating above it.
+      // of floating above it. 2px line + wide faint band: the stair-steps of
+      // tile-resolution borders read as a soft frontier, not a hairline saw.
       for (const e of edges) {
         const i = Math.floor(e / 4);
         const side = e % 4;
         const x = (i % width) * ts;
         const y = Math.floor(i / width) * ts;
-        if (side === 0) this.g.rect(x, y + 1, 1, ts);
-        else if (side === 1) this.g.rect(x + ts - 1, y + 1, 1, ts);
-        else if (side === 2) this.g.rect(x, y + 1, ts, 1);
-        else this.g.rect(x, y + ts, ts, 1);
+        if (side === 0) this.g.rect(x, y + 1, 2, ts);
+        else if (side === 1) this.g.rect(x + ts - 2, y + 1, 2, ts);
+        else if (side === 2) this.g.rect(x, y + 1, ts, 2);
+        else this.g.rect(x, y + ts - 1, ts, 2);
       }
-      this.g.fill({ color: 0x000000, alpha: 0.5 });
+      this.g.fill({ color: 0x000000, alpha: 0.45 });
       for (const e of edges) {
         const i = Math.floor(e / 4);
         const side = e % 4;
         const x = (i % width) * ts;
         const y = Math.floor(i / width) * ts;
-        if (side === 0) this.g.rect(x, y, 1, ts);
-        else if (side === 1) this.g.rect(x + ts - 1, y, 1, ts);
-        else if (side === 2) this.g.rect(x, y, ts, 1);
-        else this.g.rect(x, y + ts - 1, ts, 1);
+        if (side === 0) this.g.rect(x, y, 2, ts);
+        else if (side === 1) this.g.rect(x + ts - 2, y, 2, ts);
+        else if (side === 2) this.g.rect(x, y, ts, 2);
+        else this.g.rect(x, y + ts - 2, ts, 2);
       }
       this.g.fill({ color, alpha: cfg.territoryBorderAlpha });
       // A soft inner band makes the frontier read as a glow, not a hairline.
@@ -90,12 +91,12 @@ export class TerritoryLayer {
         const side = e % 4;
         const x = (i % width) * ts;
         const y = Math.floor(i / width) * ts;
-        if (side === 0) this.g.rect(x, y, 3, ts);
-        else if (side === 1) this.g.rect(x + ts - 3, y, 3, ts);
-        else if (side === 2) this.g.rect(x, y, ts, 3);
-        else this.g.rect(x, y + ts - 3, ts, 3);
+        if (side === 0) this.g.rect(x, y, 5, ts);
+        else if (side === 1) this.g.rect(x + ts - 5, y, 5, ts);
+        else if (side === 2) this.g.rect(x, y, ts, 5);
+        else this.g.rect(x, y + ts - 5, ts, 5);
       }
-      this.g.fill({ color, alpha: 0.13 });
+      this.g.fill({ color, alpha: 0.09 });
     }
   }
 }

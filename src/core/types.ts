@@ -112,6 +112,10 @@ export interface ChronicleEntry {
   /** Optional tile location of the event (for cameras and markers). */
   x?: number;
   y?: number;
+  /** Template variant index + parameters, so the UI can re-render the line in
+      any language. The stored English `text` remains canonical. */
+  variant?: number;
+  params?: { civ?: string; otherCiv?: string; name?: string; other?: string; pop?: number; flavor?: string };
 }
 
 export interface SimState {

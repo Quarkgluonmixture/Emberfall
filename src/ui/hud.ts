@@ -1,6 +1,7 @@
 /** Top bar: date, weather, time controls, save/load, showcase controls, toasts. */
 import { BALANCE } from '../config/balance';
 import type { Season } from '../core/types';
+import { onLangChange, t } from './i18n';
 import { iconHtml, seasonIconHtml } from './icons';
 
 export interface HudCallbacks {
@@ -9,13 +10,12 @@ export interface HudCallbacks {
   onLoad: () => void;
   onNewWorld: () => void;
   onToggleHistory: () => void;
-  onToggleDebug: () => void;
   onToggleAttract: () => void;
   onToggleCinema: () => void;
   onScreenshot: () => void;
   onToggleGallery: () => void;
-  onCycleFps: () => void;
   onToggleMusic: () => void;
+  onOpenMenu: () => void;
 }
 
 /** Per speed index: icon file + optional text label beside it. */
@@ -26,14 +26,20 @@ const SPEED_BUTTONS: { icon: string; label?: string }[] = [
   { icon: 'ui_speed', label: '20×' },
 ];
 
+interface Labeled {
+  btn: HTMLButtonElement;
+  text?: () => string;
+  title: () => string;
+}
+
 export class Hud {
   private dateEl: HTMLElement;
   private weatherEl: HTMLElement;
   private speedButtons: HTMLButtonElement[] = [];
-  private fpsButton!: HTMLButtonElement;
   private musicButton!: HTMLButtonElement;
   private toastEl: HTMLElement;
   private toastTimer = 0;
+  private labeled: Labeled[] = [];
 
   constructor(cb: HudCallbacks) {
     const root = document.getElementById('topbar')!;
@@ -62,38 +68,51 @@ export class Hud {
       btn.innerHTML = spec
         ? iconHtml(spec.icon) + (spec.label ? `<span>${spec.label}</span>` : '')
         : `${BALANCE.time.speeds[i]}×`;
-      btn.title = i === 0 ? 'Pause (Space)' : `Speed ${BALANCE.time.speeds[i]}× (${i})`;
       btn.addEventListener('click', () => cb.onSpeed(i));
       root.appendChild(btn);
       this.speedButtons.push(btn);
+      this.labeled.push({
+        btn,
+        title: () =>
+          i === 0 ? t('hud.pause.tip') : `${t('hud.speed.tip')} ${BALANCE.time.speeds[i]}× (${i})`,
+      });
     });
 
-    const mkButton = (label: string, title: string, fn: () => void): HTMLButtonElement => {
+    const mkButton = (text: (() => string) | null, title: () => string, fn: () => void): HTMLButtonElement => {
       const btn = document.createElement('button');
-      btn.textContent = label;
-      btn.title = title;
       btn.addEventListener('click', fn);
       root.appendChild(btn);
+      this.labeled.push({ btn, text: text ?? undefined, title });
       return btn;
     };
-    const mkIconButton = (icon: string, title: string, fn: () => void): HTMLButtonElement => {
-      const btn = mkButton('', title, fn);
+    const mkIconButton = (icon: string, title: () => string, fn: () => void): HTMLButtonElement => {
+      const btn = mkButton(null, title, fn);
       btn.innerHTML = iconHtml(icon);
       return btn;
     };
-    mkButton('Attract', 'Attract mode: an automated cinematic tour (A)', cb.onToggleAttract);
-    mkButton('🎬', 'Cinema mode: hide all UI for recording (C)', cb.onToggleCinema);
-    mkButton('📷', 'Save a screenshot of the canvas (P)', cb.onScreenshot);
-    mkButton('Worlds', 'Seed gallery: curated worlds (G)', cb.onToggleGallery);
-    mkIconButton('ui_save', 'Save world to browser storage', cb.onSave);
-    mkIconButton('ui_load', 'Load the most recent save (manual or autosave)', cb.onLoad);
-    mkButton('New World', 'Generate a fresh random world', cb.onNewWorld);
-    mkIconButton('ui_history', 'Toggle the historical record (H)', cb.onToggleHistory);
-    mkIconButton('ui_debug', 'Toggle debug overlay (F3)', cb.onToggleDebug);
-    this.musicButton = mkButton('🎵', 'Toggle music (M)', cb.onToggleMusic);
-    this.fpsButton = mkButton('60fps', 'Cycle frame-rate cap (kind to GPUs on idle duty)', cb.onCycleFps);
+    mkButton(() => t('hud.attract'), () => t('hud.attract.tip'), cb.onToggleAttract);
+    mkButton(() => '🎬', () => t('hud.cinema.tip'), cb.onToggleCinema);
+    mkButton(() => '📷', () => t('hud.screenshot.tip'), cb.onScreenshot);
+    mkButton(() => t('hud.worlds'), () => t('hud.worlds.tip'), cb.onToggleGallery);
+    mkIconButton('ui_save', () => t('hud.save.tip'), cb.onSave);
+    mkIconButton('ui_load', () => t('hud.load.tip'), cb.onLoad);
+    mkButton(() => t('hud.newWorld'), () => t('hud.newWorld.tip'), cb.onNewWorld);
+    mkIconButton('ui_history', () => t('hud.history.tip'), cb.onToggleHistory);
+    this.musicButton = mkButton(null, () => t('hud.music.tip'), cb.onToggleMusic);
+    this.musicButton.textContent = '🎵';
+    mkButton(() => '⚙', () => t('hud.menu.tip'), cb.onOpenMenu);
 
+    this.applyLabels();
+    onLangChange(() => this.applyLabels());
     this.toastEl = document.getElementById('toast')!;
+  }
+
+  /** Refresh every label/tooltip in the current language. */
+  private applyLabels(): void {
+    for (const l of this.labeled) {
+      if (l.text) l.btn.textContent = l.text();
+      l.btn.title = l.title();
+    }
   }
 
   setDate(text: string, season?: Season): void {
@@ -110,10 +129,6 @@ export class Hud {
 
   setMusic(on: boolean): void {
     this.musicButton.textContent = on ? '🎵' : '🔇';
-  }
-
-  setFpsLabel(cap: number): void {
-    this.fpsButton.textContent = cap === 0 ? '∞fps' : `${cap}fps`;
   }
 
   showToast(message: string): void {

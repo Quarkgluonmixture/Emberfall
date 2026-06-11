@@ -1,6 +1,6 @@
 /** World Story overlay: one elegant line about where the world stands now. */
 import type { SimState } from '../core/types';
-import { dateString } from '../sim/time';
+import { dateText, entryText, getLang, t } from './i18n';
 
 export class WorldStory {
   visible = false;
@@ -41,13 +41,26 @@ export class WorldStory {
         if (state.relations[i]?.[j]?.state === 'war') wars++;
       }
     }
-    if (wars > 0) crises.push(`⚔ ${wars} war${wars > 1 ? 's' : ''}`);
+    const zh = getLang() === 'zh';
+    if (wars > 0) {
+      crises.push(zh ? `⚔ ${wars} ${t('story.wars')}` : `⚔ ${wars} war${wars > 1 ? 's' : ''}`);
+    }
     const plagues = state.settlements.filter((s) => s.plagueDays > 0).length;
-    if (plagues > 0) crises.push(`☠ plague in ${plagues} place${plagues > 1 ? 's' : ''}`);
+    if (plagues > 0) {
+      crises.push(
+        zh
+          ? `☠ ${plagues} ${t('story.plagueIn')}`
+          : `☠ plague in ${plagues} place${plagues > 1 ? 's' : ''}`,
+      );
+    }
     const famines = state.settlements.filter((s) => s.famineDays > 0).length;
-    if (famines > 0) crises.push(`🥣 famine in ${famines}`);
+    if (famines > 0) {
+      crises.push(zh ? `🥣 ${famines} ${t('story.famineIn')}` : `🥣 famine in ${famines}`);
+    }
     for (const civ of state.civs) {
-      if (civ.alive && civ.goldenAgeDays > 0) crises.push(`✨ golden age of ${civ.name}`);
+      if (civ.alive && civ.goldenAgeDays > 0) {
+        crises.push(zh ? `✨ ${civ.name}${t('story.goldenAgeOf')}` : `✨ golden age of ${civ.name}`);
+      }
     }
 
     let latest = null;
@@ -58,11 +71,11 @@ export class WorldStory {
       }
     }
 
-    const line2 = shotLabel ?? latest?.text ?? '';
+    const line2 = shotLabel ?? (latest ? entryText(latest) : '');
     this.root.innerHTML =
-      `<div class="ws-line1">${dateString(state.day)}` +
-      (dom ? ` · the age of <span style="color:${domColor}">${dom.name}</span>` : '') +
-      ` · ${crises.length > 0 ? crises.join(' · ') : 'an uneasy peace'}</div>` +
+      `<div class="ws-line1">${dateText(state.day)}` +
+      (dom ? ` · ${t('story.ageOf')} <span style="color:${domColor}">${dom.name}</span>` : '') +
+      ` · ${crises.length > 0 ? crises.join(' · ') : t('story.uneasyPeace')}</div>` +
       (line2 ? `<div class="ws-line2">${line2}</div>` : '');
   }
 }

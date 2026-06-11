@@ -1,5 +1,6 @@
 /** Civilization roster: a living scoreboard of every culture in the world. */
 import type { SimState } from '../core/types';
+import { t } from './i18n';
 import { eventIconHtml } from './icons';
 
 export class CivPanel {
@@ -14,7 +15,7 @@ export class CivPanel {
   }
 
   update(state: SimState): void {
-    let html = '<h3>CIVILIZATIONS</h3>';
+    let html = `<h3>${t('civs.title')}</h3>`;
     for (const civ of state.civs) {
       const settlements = state.settlements.filter((s) => s.civId === civ.id);
       const pop = Math.round(settlements.reduce((sum, s) => sum + s.population, 0));
@@ -42,7 +43,7 @@ export class CivPanel {
         html += `<div class="civ-row fallen" data-civ="${civ.id}">
           <span class="chip" style="background:${color}"></span>
           <span>${civ.name}</span>
-          <span style="color:var(--ink-dim)">fell Y${civ.fallenYear}</span>
+          <span style="color:var(--ink-dim)">${t('civs.fell', civ.fallenYear)}</span>
         </div>`;
       }
     }

@@ -16,7 +16,7 @@ import {
 import { Renderer } from './render/renderer';
 import { AgentSystem } from './sim/agents';
 import { Simulation } from './sim/simulation';
-import { dateString, seasonOf, yearOf } from './sim/time';
+import { seasonOf, yearOf } from './sim/time';
 import { weatherForDay, type Weather } from './sim/weather';
 import { Director } from './showcase/director';
 import { formatStressReport, runStress } from './showcase/stress';
@@ -25,7 +25,9 @@ import { CivPanel } from './ui/civPanel';
 import { DebugOverlay } from './ui/debugOverlay';
 import { HistoryPanel } from './ui/historyPanel';
 import { Hud } from './ui/hud';
+import { dateText, t } from './ui/i18n';
 import { Inspector } from './ui/inspector';
+import { MenuPanel } from './ui/menu';
 import { SeedGalleryPanel } from './ui/seedGallery';
 import { WorldStory } from './ui/worldStory';
 
@@ -56,48 +58,56 @@ const worldStory = new WorldStory();
 const director = new Director();
 const gallery = new SeedGalleryPanel((seed) => {
   void start(Simulation.create(seed));
-  hud.showToast(`Traveling to seed ${seed}…`);
+  hud.showToast(t('toast.travel', seed));
 });
 
 const hud = new Hud({
   onSpeed: setSpeed,
   onSave: () => {
-    if (saveToLocalStorage(sim.state)) hud.showToast('The chronicle is preserved.');
-    else hud.showToast('Saving failed — storage unavailable.');
+    if (saveToLocalStorage(sim.state)) hud.showToast(t('toast.saved'));
+    else hud.showToast(t('toast.saveFailed'));
   },
   onLoad: () => {
     const key = newestSaveKey();
     if (!key || !hasSave()) {
-      hud.showToast('No saved world found.');
+      hud.showToast(t('toast.noSave'));
       return;
     }
     const loaded = loadFromLocalStorage(key);
     if (loaded) {
       void start(loaded);
-      hud.showToast(key === AUTOSAVE_KEY ? 'The world remembers (autosave).' : 'The world remembers.');
+      hud.showToast(key === AUTOSAVE_KEY ? t('toast.loadedAuto') : t('toast.loaded'));
     } else {
-      hud.showToast('The saved world could not be read.');
+      hud.showToast(t('toast.loadFailed'));
     }
   },
   onNewWorld: () => {
     const seed = (Math.random() * 0x7fffffff) | 0;
     void start(Simulation.create(seed));
-    hud.showToast(`A new world kindles (seed ${seed}).`);
+    hud.showToast(t('toast.newWorld', seed));
   },
   onToggleHistory: () => historyPanel.toggle(),
-  onToggleDebug: () => debugOverlay.toggle(),
   onToggleAttract: toggleAttract,
   onToggleCinema: () => setCinema(!document.body.classList.contains('cinema')),
   onScreenshot: takeScreenshot,
   onToggleGallery: () => gallery.toggle(),
-  onCycleFps: cycleFps,
   onToggleMusic: toggleMusic,
+  onOpenMenu: () => menu.toggle(true),
+});
+
+const menu = new MenuPanel({
+  onCycleFps: cycleFps,
+  getFpsCap: () => BALANCE.render.fpsCapOptions[fpsCapIndex],
+  onToggleDebug: () => debugOverlay.toggle(),
+  getDebug: () => debugOverlay.visible,
+  onToggleMusic: toggleMusic,
+  getMusic: () => music.enabled,
 });
 
 function toggleMusic(): void {
   const muted = music.toggle();
   hud.setMusic(!muted);
-  hud.showToast(muted ? 'The minstrels rest.' : 'The minstrels play.');
+  hud.showToast(muted ? t('toast.musicOff') : t('toast.musicOn'));
 }
 
 function setSpeed(index: number): void {
@@ -141,28 +151,26 @@ function takeScreenshot(): void {
   if (!renderer) return;
   const name = `emberfall-seed${sim.state.seed}-y${yearOf(sim.state.day)}.png`;
   void renderer.screenshot(name).then(
-    () => hud.showToast(`Saved ${name}`),
-    () => hud.showToast('Screenshot failed.'),
+    () => hud.showToast(t('toast.screenshotSaved', name)),
+    () => hud.showToast(t('toast.screenshotFailed')),
   );
 }
 
-function cycleFps(): void {
+function cycleFps(): number {
   const options = BALANCE.render.fpsCapOptions;
   fpsCapIndex = (fpsCapIndex + 1) % options.length;
   applyFpsCap();
+  return options[fpsCapIndex];
 }
 
 function applyFpsCap(): void {
   const cap = BALANCE.render.fpsCapOptions[fpsCapIndex];
   if (renderer) renderer.app.ticker.maxFPS = cap;
-  hud.setFpsLabel(cap);
 }
 
 function weatherText(weather: Weather, season: number): string {
   const seasonIcon = ['🌱', '☀', '🍂', '❄'][season];
-  if (weather.kind === 'rain') return `${seasonIcon} rain`;
-  if (weather.kind === 'snow') return `${seasonIcon} snow`;
-  return `${seasonIcon} clear`;
+  return `${seasonIcon} ${t(`weather.${weather.kind}`)}`;
 }
 
 function onPick(sx: number, sy: number): void {
@@ -245,7 +253,7 @@ function loop(ticker: Ticker): void {
   uiTimer += dt;
   if (uiTimer >= BALANCE.render.uiRefreshInterval) {
     uiTimer = 0;
-    hud.setDate(dateString(state.day), season);
+    hud.setDate(dateText(state.day), season);
     hud.setWeather(weatherText(weather, season));
     civPanel.update(state);
     inspector.update(state, agents);
@@ -319,9 +327,20 @@ window.addEventListener('keydown', (e) => {
     debugOverlay.toggle();
     e.preventDefault();
   } else if (e.key === 'Escape') {
-    inspector.select(null);
-    if (historyPanel.visible) historyPanel.toggle();
-    if (gallery.visible) gallery.toggle(false);
+    // Close whatever is open first; with nothing open, toggle the menu.
+    if (menu.visible) {
+      menu.toggle(false);
+    } else if (
+      inspector.selection !== null ||
+      historyPanel.visible ||
+      gallery.visible
+    ) {
+      inspector.select(null);
+      if (historyPanel.visible) historyPanel.toggle();
+      if (gallery.visible) gallery.toggle(false);
+    } else {
+      menu.toggle(true);
+    }
   }
 });
 

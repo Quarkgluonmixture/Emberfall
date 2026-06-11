@@ -155,5 +155,20 @@ export function pushEvent(
   civId: number,
   params: ChronicleParams,
 ): ChronicleEntry {
-  return pushEntry(state, kind, importance, civId, composeText(rng, kind, params), params.x, params.y);
+  // Pick the variant index with the exact arithmetic rng.pick() uses, so the
+  // RNG stream is bit-identical to the old composeText path.
+  const variants = TEMPLATES[kind];
+  const variant = variants ? Math.floor(rng.next() * variants.length) : 0;
+  const text = variants ? variants[variant](params) : `Something stirs in the world. (${kind})`;
+  const entry = pushEntry(state, kind, importance, civId, text, params.x, params.y);
+  entry.variant = variant;
+  entry.params = {
+    civ: params.civ,
+    otherCiv: params.otherCiv,
+    name: params.name,
+    other: params.other,
+    pop: params.pop,
+    flavor: params.flavor,
+  };
+  return entry;
 }

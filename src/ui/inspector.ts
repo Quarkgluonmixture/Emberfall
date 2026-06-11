@@ -6,6 +6,7 @@ import { gatherYields } from '../sim/resources';
 import { yearOf } from '../sim/time';
 import { BALANCE } from '../config/balance';
 import { BiographyPanel } from './biographyPanel';
+import { agentStateName, relationName, t, terrainName, tierName, traitName } from './i18n';
 
 export type Selection =
   | { kind: 'tile'; x: number; y: number }
@@ -13,8 +14,6 @@ export type Selection =
   | { kind: 'civ'; id: number }
   | { kind: 'citizen'; id: number }
   | null;
-
-const TIER_NAMES = ['Camp', 'Village', 'Town'];
 
 function row(label: string, value: string | number): string {
   return `<tr><td>${label}</td><td>${value}</td></tr>`;
@@ -95,38 +94,38 @@ export class Inspector {
     const def = TERRAIN_DEFS[terr];
     const owner = w.owner[i];
     const yields = gatherYields(w, x, y, BALANCE.resources.gatherRadius);
-    return `<h3>${def.name}</h3>
-      <div class="sub">Tile ${x}, ${y}</div>
+    return `<h3>${terrainName(def.name)}</h3>
+      <div class="sub">${t('inspector.tile')} ${x}, ${y}</div>
       <table>
-      ${row('Owner', owner >= 0 ? civLink(state, owner) : 'Unclaimed')}
-      ${row('Elevation', w.elevation[i].toFixed(2))}
-      ${row('Moisture', w.moisture[i].toFixed(2))}
-      ${row('Temperature', w.temperature[i].toFixed(2))}
-      ${row('Area food', yields.food.toFixed(1))}
-      ${row('Area wood', yields.wood.toFixed(1))}
-      ${row('Area stone', yields.stone.toFixed(1))}
+      ${row(t('inspector.owner'), owner >= 0 ? civLink(state, owner) : t('inspector.unclaimed'))}
+      ${row(t('inspector.elevation'), w.elevation[i].toFixed(2))}
+      ${row(t('inspector.moisture'), w.moisture[i].toFixed(2))}
+      ${row(t('inspector.temperature'), w.temperature[i].toFixed(2))}
+      ${row(t('inspector.areaFood'), yields.food.toFixed(1))}
+      ${row(t('inspector.areaWood'), yields.wood.toFixed(1))}
+      ${row(t('inspector.areaStone'), yields.stone.toFixed(1))}
       </table>`;
   }
 
   private settlementHtml(state: SimState, id: number): string {
     const s = state.settlements.find((x) => x.id === id);
-    if (!s) return `<h3>Ruins</h3><div class="sub">This place has been abandoned.</div>`;
+    if (!s) return `<h3>${t('inspector.ruins')}</h3><div class="sub">${t('inspector.ruinsSub')}</div>`;
     const afflictions = [
-      s.plagueDays > 0 ? `plague (${s.plagueDays}d)` : '',
-      s.famineDays > 0 ? `famine (${s.famineDays}d)` : '',
-      s.hungerDays > 0 ? `hungry ${s.hungerDays}d` : '',
+      s.plagueDays > 0 ? `${t('inspector.plague')} (${s.plagueDays}d)` : '',
+      s.famineDays > 0 ? `${t('inspector.famine')} (${s.famineDays}d)` : '',
+      s.hungerDays > 0 ? `${t('inspector.hungry')} ${s.hungerDays}d` : '',
     ]
       .filter(Boolean)
       .join(', ');
     return `<h3>${s.name}</h3>
-      <div class="sub">${TIER_NAMES[s.tier]} of ${civLink(state, s.civId)} · founded Y${yearOf(s.foundedDay)}</div>
+      <div class="sub">${tierName(s.tier)} ${t('inspector.of')} ${civLink(state, s.civId)} · ${t('inspector.founded', yearOf(s.foundedDay))}</div>
       <table>
-      ${row('Population', Math.round(s.population))}
-      ${row('Food', Math.round(s.food))}
-      ${row('Wood', Math.round(s.wood))}
-      ${row('Stone', Math.round(s.stone))}
-      ${row('Morale', Math.round(s.morale))}
-      ${row('Afflictions', afflictions || 'none')}
+      ${row(t('inspector.population'), Math.round(s.population))}
+      ${row(t('inspector.food'), Math.round(s.food))}
+      ${row(t('inspector.wood'), Math.round(s.wood))}
+      ${row(t('inspector.stone'), Math.round(s.stone))}
+      ${row(t('inspector.morale'), Math.round(s.morale))}
+      ${row(t('inspector.afflictions'), afflictions || t('inspector.none'))}
       </table>`;
   }
 
@@ -135,7 +134,7 @@ export class Inspector {
     if (!civ) return '';
     const settlements = state.settlements.filter((s) => s.civId === id);
     const pop = Math.round(settlements.reduce((sum, s) => sum + s.population, 0));
-    const traits = civ.traits.map((t) => `<span class="tag">${t}</span>`).join('');
+    const traits = civ.traits.map((tr) => `<span class="tag">${traitName(tr)}</span>`).join('');
     const places = settlements
       .map((s) => `<a href="#" data-settlement="${s.id}">${s.name}</a>`)
       .join(', ');
@@ -144,14 +143,14 @@ export class Inspector {
       if (other.id === id) continue;
       const rel = state.relations[id][other.id];
       if (!rel) continue;
-      const label = other.alive ? rel.state : 'fallen';
+      const label = other.alive ? relationName(rel.state) : t('inspector.fallen');
       const terms = other.alive
         ? [
-            (rel.truceDays ?? 0) > 0 ? `truce ${rel.truceDays}d` : '',
+            (rel.truceDays ?? 0) > 0 ? `${t('inspector.truce')} ${rel.truceDays}d` : '',
             (rel.tributeDays ?? 0) > 0
               ? rel.tributeFrom === id
-                ? 'paying tribute'
-                : 'owed tribute'
+                ? t('inspector.payingTribute')
+                : t('inspector.owedTribute')
               : '',
           ]
             .filter(Boolean)
@@ -160,35 +159,35 @@ export class Inspector {
       relations += row(other.name, `${label} (${Math.round(rel.score)})${terms ? ` · ${terms}` : ''}`);
     }
     const status = !civ.alive
-      ? `Fell in Year ${civ.fallenYear}`
+      ? `${t('inspector.fellInYear')} ${civ.fallenYear} ${t('inspector.fellInYearSuffix')}`.trim()
       : civ.goldenAgeDays > 0
-        ? `Golden age (${civ.goldenAgeDays}d)`
+        ? `${t('inspector.goldenAge')} (${civ.goldenAgeDays}d)`
         : civ.crisisDays > 0
-          ? `Succession crisis (${civ.crisisDays}d)`
-          : 'Stable';
+          ? `${t('inspector.crisis')} (${civ.crisisDays}d)`
+          : t('inspector.stable');
     return `<h3>${civ.name}</h3>
-      <div class="sub">${status} · <a href="#" data-bio="${civ.id}">read their story</a></div>
+      <div class="sub">${status} · <a href="#" data-bio="${civ.id}">${t('inspector.readStory')}</a></div>
       <div>${traits}</div>
       <table>
-      ${row('Population', pop)}
-      ${row('Military', Math.round(civ.military))}
-      ${row('Knowledge', Math.round(civ.knowledge))}
-      ${row('Faith', Math.round(civ.faith))}
-      ${row('Culture', Math.round(civ.culture))}
-      ${row('Settlements', places || '—')}
+      ${row(t('inspector.population'), pop)}
+      ${row(t('inspector.military'), Math.round(civ.military))}
+      ${row(t('inspector.knowledge'), Math.round(civ.knowledge))}
+      ${row(t('inspector.faith'), Math.round(civ.faith))}
+      ${row(t('inspector.culture'), Math.round(civ.culture))}
+      ${row(t('inspector.settlements'), places || '—')}
       ${relations}
       </table>`;
   }
 
   private citizenHtml(state: SimState, agents: AgentSystem, id: number): string {
     const a = agents.agents.find((x) => x.id === id);
-    if (!a) return `<h3>Citizen</h3><div class="sub">They have wandered out of sight.</div>`;
+    if (!a) return `<h3>${t('inspector.citizen')}</h3><div class="sub">${t('inspector.citizenGone')}</div>`;
     const home = state.settlements.find((s) => s.id === a.settlementId);
-    return `<h3>Citizen of ${civLink(state, a.civId)}</h3>
-      <div class="sub">A small life in a large world</div>
+    return `<h3>${t('inspector.citizenOf')} ${civLink(state, a.civId)}</h3>
+      <div class="sub">${t('inspector.citizenSub')}</div>
       <table>
-      ${row('Doing', a.state)}
-      ${row('Home', home ? `<a href="#" data-settlement="${home.id}">${home.name}</a>` : 'lost')}
+      ${row(t('inspector.doing'), agentStateName(a.state))}
+      ${row(t('inspector.home'), home ? `<a href="#" data-settlement="${home.id}">${home.name}</a>` : t('inspector.lost'))}
       </table>`;
   }
 }

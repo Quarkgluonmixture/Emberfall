@@ -260,6 +260,29 @@ Verified: typecheck ✓, 55/55 ✓, biography panel driven in-browser
   (wars/treaties/golden ages/towns/colonies), Esc closes, hidden in cinema
   mode. Works for fallen civs — their stories are the best ones.
 
+## Localization + Esc menu session 2026-06-11 (after repo polish)
+
+Verified: typecheck ✓, 55/55 ✓, build ✓, stress bit-identical (0.41ms/day),
+`scripts/verify-i18n.mjs` drives menu + language switch headlessly, zero
+console errors.
+
+- **i18n** (`src/ui/i18n.ts`): `t(key)` dictionary (en/zh) for all UI chrome
+  — HUD, menu, civ roster, inspector, history, biography, world story,
+  weather, toasts, dates (`第3年 · 春 · 第7日`) — plus vocabularies for
+  terrain/tiers/traits/relations/agent-states and a full zh mirror of every
+  chronicle template. Language persisted (`emberfall:lang`).
+- **Chronicle localization without breaking determinism**: `pushEvent` now
+  picks the variant index with the exact arithmetic `rng.pick` used (bit
+  -identical stream, test-proven) and stores `variant` + `params` on the
+  entry; stored English `text` stays canonical (old saves render as-is),
+  and the UI re-renders entries in the current language via `entryText()`.
+  ZH template variant counts MUST match `sim/chronicle.ts` exactly.
+- **Esc menu** (`src/ui/menu.ts`, `#menu`): language (English/中文), FPS cap
+  (moved out of the HUD), debug overlay toggle (was a HUD icon), music
+  toggle, hotkey reference, Resume. Esc closes open panels first; with
+  nothing open it toggles the menu. HUD gained a ⚙ button; HUD relabels
+  itself on language change.
+
 Note: `.mcp.json` now registers a Playwright MCP server (msedge, headless) so
 future sessions can drive the game interactively instead of via one-shot
 scripts; dev server may land on 5174/5175 if older instances hold 5173.

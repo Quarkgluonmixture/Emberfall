@@ -553,6 +553,53 @@ body {
   font-size: 11.5px;
 }
 
+/* ── Settings menu ───────────────────────────────── */
+#menu {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 380px;
+  padding: 18px 22px;
+  font-family: Georgia, serif;
+}
+
+#menu h2 {
+  margin: 0 0 14px;
+  color: var(--ember);
+  font-size: 17px;
+  letter-spacing: 1px;
+}
+
+.menu-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 9px 0;
+  font-size: 13.5px;
+}
+
+.menu-row button {
+  min-width: 86px;
+}
+
+.menu-group button.active {
+  border-color: var(--ember);
+  color: var(--ember);
+}
+
+.menu-keys {
+  margin: 14px 0 4px;
+  color: var(--ink-dim);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.menu-resume {
+  justify-content: center;
+  margin-top: 12px;
+}
+
 /* ── Cinema mode: pure canvas + world story ──────── */
 body.cinema #topbar,
 body.cinema #civpanel,
@@ -561,6 +608,7 @@ body.cinema #chronicle,
 body.cinema #history,
 body.cinema #biography,
 body.cinema #gallery,
+body.cinema #menu,
 body.cinema #debug {
   display: none !important;
 }

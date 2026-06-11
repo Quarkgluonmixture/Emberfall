@@ -1,6 +1,6 @@
 # Emberfall — Checkpoint
 
-**Date:** 2026-06-11 · **State:** Phase 3 complete (glow fix, river bends, wildfire FX, tile equalization, civ rebirth, roads + caravans) + treaties & tribute, UI icons everywhere, art grading pass, per-civ biographies, README + CI · **All 55 tests green · stress bit-identical at 0.60ms/day**
+**Date:** 2026-06-11 (end of day) · **State:** Phase 3 complete (glow fix, river bends, wildfire FX, tile equalization, civ rebirth, roads + caravans) + treaties & tribute, UI icons everywhere, 4-round Gemini art grading ("shippable"), per-civ biographies, README + CI, **Chinese localization + Esc settings menu** · **All 55 tests green · stress bit-identical at ~0.4–0.6ms/day** · pushed through `ba41daa`
 
 A browser idle civilization aquarium: Vite + TypeScript + PixiJS 8 + Vitest.
 `npm install && npm run dev` from a clean checkout, open `http://localhost:5173`.
@@ -45,7 +45,8 @@ src/render/   renderer, camera (+flights), terrainLayer (RT bake, river pieces, 
 src/showcase/ interest.ts (shot scoring, tested), director.ts, stress.ts (tested)
 src/audio/    music.ts
 src/ui/       hud, civPanel, inspector, chroniclePanel, historyPanel, biographyPanel,
-              worldStory, seedGallery, debugOverlay, icons (kind→SVG glyph mapping)
+              worldStory, seedGallery, debugOverlay, icons (kind→SVG glyph mapping),
+              i18n (en/zh dictionary + zh chronicle templates), menu (Esc settings)
 src/persist/  save.ts (manual + autosave slots; world regen from seed + diffs)
 test/         11 suites / 55 tests: worldgen, resources, growth, diplomacy, treaties,
               events, save, interest, stress, rebirth, roads
@@ -60,6 +61,8 @@ test/         11 suites / 55 tests: worldgen, resources, growth, diplomacy, trea
 | `npx vite-node scripts/longrun.ts` | 10-year headless balance probe (pop, tiers, event histogram) |
 | `npx vite-node scripts/curate-seeds.ts` | re-score 120 seeds → regenerates `src/config/seedGallery.ts` |
 | `node scripts/smoke.mjs` / `smoke-showcase.mjs` | headless-Edge visual verification (needs dev server running) |
+| `node scripts/verify-{roads,stress,i18n,biography}.mjs` / `art-shots.mjs` | feature-specific headless probes (needs dev server; check BASE port) |
+| `npx vite-node scripts/{rebirth,treaty}-probe.ts` | century-scale sim probes (rebirth survival, treaty A/B) |
 
 `assets_src/raw/` and `assets_src/music/` are gitignored sources-of-truth kept
 locally; processed outputs in `public/assets/` are committed, so a clean clone
@@ -113,8 +116,10 @@ rebirth~~ ✓ (plus river bends + wildfire FX from the asset session, and
 tile-variant equalization). Both playtest problems below are fixed.
 
 Deferred to phase 4: minimap, timeline scrubber, idle auto-attract, camera
-cuts, general-agent pathfinding (only caravans use roads). Peace treaties &
-tribute: DONE. Per-civ biographies: DONE (see sessions below).
+cuts, general-agent pathfinding (only caravans use roads), localized
+seed-gallery descriptions (generated English text). Peace treaties &
+tribute: DONE. Per-civ biographies: DONE. Chinese localization + Esc
+settings menu: DONE (see sessions below).
 
 ## Asset session 2026-06-11 (parallel with the playtest above)
 

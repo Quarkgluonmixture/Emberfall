@@ -7,7 +7,7 @@
 import { Container, Sprite, Text } from 'pixi.js';
 import { BALANCE } from '../config/balance';
 import { hash2 } from '../core/rng';
-import type { Season, SimState } from '../core/types';
+import { Terrain, type Season, type SimState } from '../core/types';
 import type { Weather } from '../sim/weather';
 import {
   clusterExtent,
@@ -93,10 +93,29 @@ export class SettlementLayer {
   }
 
   /** Assemble the building cluster for a settlement's current tier/pop bucket. */
-  private rebuildCluster(v: Vis, id: number, tier: number, population: number): void {
+  private rebuildCluster(
+    v: Vis,
+    id: number,
+    tier: number,
+    population: number,
+    state: SimState,
+  ): void {
     const pieces = this.tex.pieces!;
     const cfg = BALANCE.render;
-    const layout = layoutCluster(id, tier, population, (k) => k in pieces);
+    const ts = BALANCE.map.tileSize;
+    // Terrain veto: no houses or walls in the sea (or mid-river). Coastal
+    // towns simply leave their waterfront open.
+    const { width, height, terrain } = state.world;
+    const cx = v.root.position.x;
+    const cy = v.root.position.y;
+    const buildable = (dx: number, dy: number): boolean => {
+      const tx = Math.floor((cx + dx) / ts);
+      const ty = Math.floor((cy + dy) / ts);
+      if (tx < 0 || ty < 0 || tx >= width || ty >= height) return false;
+      const t = terrain[ty * width + tx] as Terrain;
+      return t !== Terrain.Ocean && t !== Terrain.River;
+    };
+    const layout = layoutCluster(id, tier, population, (k) => k in pieces, buildable);
 
     v.cluster?.destroy({ children: true });
     for (const lg of v.lampGlows) lg.destroy();
@@ -107,14 +126,17 @@ export class SettlementLayer {
     for (const p of layout) {
       const texture = pieces[p.kind];
       const sp = new Sprite(texture);
-      sp.anchor.set(0.5, 0.82);
+      // Rotated wall runs pivot around their center so they stay on the line.
+      sp.anchor.set(0.5, p.rot ? 0.5 : 0.82);
+      sp.rotation = p.rot ?? 0;
       const sc = p.w / texture.width;
       sp.scale.set(p.flip ? -sc : sc, sc);
       sp.position.set(p.dx, p.dy);
       cluster.addChild(sp);
       if (p.lift) {
         const lf = new Sprite(texture);
-        lf.anchor.set(0.5, 0.82);
+        lf.anchor.copyFrom(sp.anchor);
+        lf.rotation = sp.rotation;
         lf.scale.copyFrom(sp.scale);
         lf.position.copyFrom(sp.position);
         lf.blendMode = 'add';
@@ -280,7 +302,7 @@ export class SettlementLayer {
       }
       if (this.tex.pieces) {
         if (v.clusterKey !== clusterKey(s.tier, s.population)) {
-          this.rebuildCluster(v, s.id, s.tier, s.population);
+          this.rebuildCluster(v, s.id, s.tier, s.population, state);
           v.tier = s.tier;
         }
       } else if (v.tier !== s.tier) this.applyTier(v, s.tier);

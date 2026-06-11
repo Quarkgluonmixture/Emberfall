@@ -17,11 +17,16 @@ export interface PiecePlacement {
   /** Target world-px width. */
   w: number;
   flip: boolean;
+  /** Sprite rotation in radians (vertical wall runs use ±90°). */
+  rot?: number;
   /** Building with windows: gets a warm additive lift copy at night. */
   lift: boolean;
   /** Hosts a small window/lamp glow above the night overlay. */
   lamp: boolean;
 }
+
+/** Terrain veto: world-px offset from the settlement center → can build? */
+export type Buildable = (dx: number, dy: number) => boolean;
 
 /** World-px footprint width per piece kind (tile = 8 world px). */
 const PIECE_W: Record<string, number> = {
@@ -93,6 +98,7 @@ function placeSpiral(
   kind: string,
   startR: number,
   opts: { lift?: boolean; lamp?: boolean } = {},
+  buildable?: Buildable,
 ): boolean {
   const w = PIECE_W[kind] ?? 6;
   const a0 = hash2(seed, slot, 11) * Math.PI * 2;
@@ -101,6 +107,7 @@ function placeSpiral(
     const r = startR + k * 0.5 + hash2(seed, slot, 13 + (k % 5)) * 1.6;
     const dx = Math.cos(ang) * r;
     const dy = Math.sin(ang) * r * 0.72; // squash: settlements read as ovals
+    if (buildable && !buildable(dx, dy)) continue;
     if (collides(out, dx, dy, w)) continue;
     out.push({
       kind,
@@ -121,7 +128,7 @@ function put(
   kind: string,
   dx: number,
   dy: number,
-  opts: { lift?: boolean; lamp?: boolean; flip?: boolean; w?: number } = {},
+  opts: { lift?: boolean; lamp?: boolean; flip?: boolean; w?: number; rot?: number } = {},
 ): void {
   out.push({
     kind,
@@ -129,42 +136,68 @@ function put(
     dy,
     w: opts.w ?? PIECE_W[kind] ?? 6,
     flip: opts.flip ?? false,
+    rot: opts.rot,
     lift: opts.lift ?? false,
     lamp: opts.lamp ?? false,
   });
 }
 
-/** Defensive ring around a town: wall pieces along an ellipse, gate south. */
-function wallRing(out: PiecePlacement[], seed: number, radius: number, have: HavePiece): void {
+/**
+ * Defensive rectangle around a town: continuous horizontal runs top/bottom,
+ * 90°-rotated runs on the sides, towers/posts hiding the corner joints, gate
+ * (or gap) centered south. Segments overlap slightly so the wall reads as one
+ * structure, and any segment over water is skipped — coastal towns open to
+ * the sea instead of fencing it.
+ */
+function wallRect(
+  out: PiecePlacement[],
+  seed: number,
+  rx: number,
+  ry: number,
+  have: HavePiece,
+  buildable?: Buildable,
+): void {
   const stone = hash2(seed, 900, 1) < 0.6;
   const straight = pick(have, stone ? 'wall_straight' : 'palisade_straight', 'palisade_straight', 'wall_straight');
   if (!straight) return;
   const corner = pick(have, stone ? 'wall_tower' : 'palisade_corner', 'palisade_corner', 'wall_tower');
   const gate = stone ? pick(have, 'wall_gate') : null;
+  const w = PIECE_W[straight] ?? 7;
+  const ok = (dx: number, dy: number): boolean => !buildable || buildable(dx, dy);
 
-  const rx = radius;
-  const ry = radius * 0.72;
-  const circumference = Math.PI * (3 * (rx + ry) - Math.sqrt((3 * rx + ry) * (rx + 3 * ry)));
-  const segments = Math.max(8, Math.round(circumference / 6.4));
-  // The gate sits due south (screen-down); skip wall segments under it.
-  const gateAng = Math.PI / 2;
-  for (let i = 0; i < segments; i++) {
-    const ang = (i / segments) * Math.PI * 2;
-    const dx = Math.cos(ang) * rx;
-    const dy = Math.sin(ang) * ry;
-    const dGate = Math.abs(Math.atan2(Math.sin(ang - gateAng), Math.cos(ang - gateAng)));
-    if (dGate < 0.55 / (radius / 14)) continue;
-    // Corner towers on the diagonals.
-    const diag = Math.min(
-      Math.abs(Math.atan2(Math.sin(ang - Math.PI / 4), Math.cos(ang - Math.PI / 4))),
-      Math.abs(Math.atan2(Math.sin(ang - (3 * Math.PI) / 4), Math.cos(ang - (3 * Math.PI) / 4))),
-      Math.abs(Math.atan2(Math.sin(ang + Math.PI / 4), Math.cos(ang + Math.PI / 4))),
-      Math.abs(Math.atan2(Math.sin(ang + (3 * Math.PI) / 4), Math.cos(ang + (3 * Math.PI) / 4))),
-    );
-    const kind = corner && diag < Math.PI / segments ? corner : straight;
-    put(out, kind, dx, dy, { flip: Math.cos(ang) < 0 });
+  // Horizontal runs (top y=-ry, bottom y=+ry), overlapped for continuity.
+  const cornerHalf = corner ? (PIECE_W[corner] ?? 6) * 0.45 : 0;
+  const runW = rx - cornerHalf;
+  const countX = Math.max(2, Math.round((2 * runW) / (w * 0.82)));
+  const gateHalf = gate ? (PIECE_W[gate] ?? 8.5) * 0.55 : 3.2;
+  for (let i = 0; i <= countX; i++) {
+    const dx = -runW + (2 * runW * i) / countX;
+    if (ok(dx, -ry)) put(out, straight, dx, -ry);
+    // South run leaves the doorway open for the gate (or just open).
+    if (Math.abs(dx) > gateHalf && ok(dx, ry)) put(out, straight, dx, ry);
   }
-  if (gate) put(out, gate, Math.cos(gateAng) * rx, Math.sin(gateAng) * ry);
+  if (gate && ok(0, ry)) put(out, gate, 0, ry);
+
+  // Vertical runs: the same piece rotated upright reads as a side wall.
+  const runH = ry - cornerHalf;
+  const countY = Math.max(1, Math.round((2 * runH) / (w * 0.82)));
+  for (let i = 0; i <= countY; i++) {
+    const dy = -runH + (2 * runH * i) / countY;
+    if (ok(-rx, dy)) put(out, straight, -rx, dy, { rot: Math.PI / 2 });
+    if (ok(rx, dy)) put(out, straight, rx, dy, { rot: Math.PI / 2 });
+  }
+
+  // Corner towers/posts mask the joints between runs.
+  if (corner) {
+    for (const [cx, cy] of [
+      [-rx, -ry],
+      [rx, -ry],
+      [-rx, ry],
+      [rx, ry],
+    ] as const) {
+      if (ok(cx, cy)) put(out, corner, cx, cy);
+    }
+  }
 }
 
 /**
@@ -177,6 +210,7 @@ export function layoutCluster(
   tier: number,
   population: number,
   have: HavePiece,
+  buildable?: Buildable,
 ): PiecePlacement[] {
   const seed = 0x5e771e ^ Math.imul(id + 1, 2654435761);
   const out: PiecePlacement[] = [];
@@ -187,24 +221,24 @@ export function layoutCluster(
     const fire = pick(have, 'campfire');
     if (fire) put(out, fire, 0, 1.2);
     const tent = pick(have, hash2(seed, 1, 1) < 0.5 ? 'tent_0' : 'tent_1', 'tent_0', 'tent_1');
-    if (tent) placeSpiral(out, seed, 2, tent, 4.2, { lift: true, lamp: true });
+    if (tent) placeSpiral(out, seed, 2, tent, 4.2, { lift: true, lamp: true }, buildable);
     if (bucket >= 1) {
       const tent2 = pick(have, tent === 'tent_0' ? 'tent_1' : 'tent_0', 'tent_0');
-      if (tent2) placeSpiral(out, seed, 3, tent2, 4.6, { lift: true });
+      if (tent2) placeSpiral(out, seed, 3, tent2, 4.6, { lift: true }, buildable);
     }
     const crates = pick(have, 'crates');
-    if (crates && hash2(seed, 4, 1) < 0.6) placeSpiral(out, seed, 4, crates, 3.6);
+    if (crates && hash2(seed, 4, 1) < 0.6) placeSpiral(out, seed, 4, crates, 3.6, {}, buildable);
   } else if (tier === 1) {
     // Village: centre well/shrine, granary, 4-10 huts.
     const centre = pick(have, hash2(seed, 10, 1) < 0.55 ? 'well' : 'shrine', 'well', 'shrine', 'campfire');
     if (centre) put(out, centre, 0, 0.8);
     const granary = pick(have, 'granary', 'shed', 'crates');
-    if (granary) placeSpiral(out, seed, 11, granary, 5.2);
+    if (granary) placeSpiral(out, seed, 11, granary, 5.2, {}, buildable);
     const count = Math.min(10, 4 + bucket);
     for (let i = 0; i < count; i++) {
       const roll = hash2(seed, 20 + i, 2);
       const hut = pick(have, `hut_${Math.floor(roll * 3)}`, 'hut_0', 'hut_1', 'hut_2');
-      if (hut) placeSpiral(out, seed, 20 + i, hut, 5, { lift: true, lamp: i < 2 });
+      if (hut) placeSpiral(out, seed, 20 + i, hut, 5, { lift: true, lamp: i < 2 }, buildable);
     }
     const lamp = pick(have, 'lamp');
     if (lamp && bucket >= 3) put(out, lamp, 3.2, 2.6, { lamp: true });
@@ -229,7 +263,7 @@ export function layoutCluster(
           : roll < 0.85
             ? pick(have, `hut_${Math.floor(hash2(seed, 50 + i, 5) * 3)}`, 'hut_0', 'house_0')
             : pick(have, hash2(seed, 50 + i, 6) < 0.5 ? 'granary' : 'shed', 'shed', 'granary', 'hut_1');
-      if (kind) placeSpiral(out, seed, 50 + i, kind, 7.5, { lift: true, lamp: i < 4 });
+      if (kind) placeSpiral(out, seed, 50 + i, kind, 7.5, { lift: true, lamp: i < 4 }, buildable);
     }
 
     const lamp = pick(have, 'lamp');
@@ -239,9 +273,13 @@ export function layoutCluster(
     }
 
     if (hash2(seed, 901, 1) < 0.7) {
-      let maxR = 0;
-      for (const p of out) maxR = Math.max(maxR, Math.hypot(p.dx, p.dy / 0.72) + p.w * 0.5);
-      wallRing(out, seed, maxR + 3.5, have);
+      let rx = 8;
+      let ry = 6;
+      for (const p of out) {
+        rx = Math.max(rx, Math.abs(p.dx) + p.w * 0.5);
+        ry = Math.max(ry, Math.abs(p.dy) + p.w * 0.35);
+      }
+      wallRect(out, seed, rx + 3.5, ry + 3, have, buildable);
     }
   }
 

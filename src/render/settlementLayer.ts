@@ -7,6 +7,8 @@ import type { GameTextures } from './textures';
 interface Vis {
   root: Container;
   sprite: Sprite;
+  /** Additive warm copy lifting the dark art out of silhouette in daylight. */
+  lift: Sprite;
   banner: Sprite;
   label: Text;
   glow: Sprite;
@@ -32,6 +34,8 @@ export class SettlementLayer {
     v.sprite.texture = this.tex.settlement[tier];
     const target = BALANCE.render.settlementWidths[tier];
     v.sprite.scale.set(target / v.sprite.texture.width);
+    v.lift.texture = v.sprite.texture;
+    v.lift.scale.copyFrom(v.sprite.scale);
     v.shadow.width = target * 1.2;
     v.shadow.height = target * 0.5;
     v.tier = tier;
@@ -53,6 +57,10 @@ export class SettlementLayer {
         const root = new Container();
         const sprite = new Sprite();
         sprite.anchor.set(0.5, 0.8);
+        const lift = new Sprite();
+        lift.anchor.set(0.5, 0.8);
+        lift.blendMode = 'add';
+        lift.tint = cfg.settlementDayLiftColor;
         const banner = new Sprite(this.tex.banner);
         banner.anchor.set(0.1, 1);
         banner.scale.set(cfg.bannerHeight / this.tex.banner.height);
@@ -93,13 +101,13 @@ export class SettlementLayer {
           smoke.scale.set(7 / this.tex.smoke[0].height);
           root.addChild(smoke);
         }
-        root.addChild(sprite, banner, label);
+        root.addChild(sprite, lift, banner, label);
         root.position.set((s.x + 0.5) * ts, (s.y + 0.5) * ts);
         glow.position.copyFrom(root.position);
         halo.position.copyFrom(root.position);
         this.container.addChild(root);
         this.glowContainer.addChild(halo, glow);
-        v = { root, sprite, banner, label, glow, halo, shadow, smoke, tier: -1, name: s.name };
+        v = { root, sprite, lift, banner, label, glow, halo, shadow, smoke, tier: -1, name: s.name };
         this.map.set(s.id, v);
       }
       if (v.tier !== s.tier) this.applyTier(v, s.tier);
@@ -119,6 +127,9 @@ export class SettlementLayer {
       if (v.smoke && v.smoke.visible) {
         v.smoke.texture = this.tex.smoke![Math.floor(time * 3 + s.id) % this.tex.smoke!.length];
       }
+
+      // Sunlight lift fades out as night falls.
+      v.lift.alpha = cfg.settlementDayLiftAlpha * (1 - darkness);
 
       // Softer night onset: glows arrive late in the dusk and breathe slightly.
       const glowStrength = Math.pow(darkness, 1.35);

@@ -10,8 +10,13 @@ const WORKING_STATES = new Set(['gathering', 'building', 'farming']);
 export class CitizenLayer {
   container = new Container();
   private pool: Sprite[] = [];
+  /** Soft contact shadows keeping the tiny sprites from melting into terrain. */
+  private shadowLayer = new Container();
+  private shadows: Sprite[] = [];
 
-  constructor(private tex: GameTextures) {}
+  constructor(private tex: GameTextures) {
+    this.container.addChild(this.shadowLayer);
+  }
 
   /** Pick the animation frame and facing for an agent (real art path). */
   private frameFor(a: Agent): { frame: Texture; flip: number } {
@@ -43,15 +48,27 @@ export class CitizenLayer {
       sp.anchor.set(0.5, 1);
       this.container.addChild(sp);
       this.pool.push(sp);
+      const sh = new Sprite(this.tex.glow);
+      sh.anchor.set(0.5);
+      sh.tint = 0x000000;
+      sh.alpha = 0.4;
+      sh.width = 3.5;
+      sh.height = 1.6;
+      this.shadowLayer.addChild(sh);
+      this.shadows.push(sh);
     }
     for (let i = 0; i < this.pool.length; i++) {
       const sp = this.pool[i];
+      const sh = this.shadows[i];
       if (i >= agents.length) {
         sp.visible = false;
+        sh.visible = false;
         continue;
       }
       const a = agents[i];
       sp.visible = true;
+      sh.visible = true;
+      sh.position.set(a.x, a.y + 0.6);
       sp.tint = state.civs[a.civId]?.color ?? 0xffffff;
 
       if (anims) {
@@ -74,6 +91,7 @@ export class CitizenLayer {
     }
     while (this.pool.length > agents.length + 200) {
       this.pool.pop()!.destroy();
+      this.shadows.pop()!.destroy();
     }
   }
 }

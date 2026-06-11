@@ -1,6 +1,6 @@
 # Emberfall — Checkpoint
 
-**Date:** 2026-06-11 · **State:** Phase 3 largely complete (glow fix, river bends, wildfire FX, tile equalization, civ rebirth, roads + caravans) · **All 48 tests green · stress bit-identical at 0.48ms/day**
+**Date:** 2026-06-11 · **State:** Phase 3 complete (glow fix, river bends, wildfire FX, tile equalization, civ rebirth, roads + caravans) + treaties & tribute, UI icons everywhere, art grading pass, per-civ biographies, README + CI · **All 55 tests green · stress bit-identical at 0.60ms/day**
 
 A browser idle civilization aquarium: Vite + TypeScript + PixiJS 8 + Vitest.
 `npm install && npm run dev` from a clean checkout, open `http://localhost:5173`.
@@ -35,20 +35,20 @@ A browser idle civilization aquarium: Vite + TypeScript + PixiJS 8 + Vitest.
 src/config/   balance.ts (ALL tuning incl. audio), terrainConfig, civConfig, seedGallery (GENERATED)
 src/core/     types.ts (all data shapes), rng.ts (seeded PRNG + hash2)
 src/world/    worldgen.ts (fBm, biomes, rivers), world.ts (tile helpers)
-src/sim/      simulation.ts (day-tick orchestrator), resources/growth/diplomacy/territory/
-              events/chronicle/founding/agents/weather/time/rebirth/roads — Pixi-free,
-              deterministic
+src/sim/      simulation.ts (day-tick orchestrator), resources/growth/diplomacy/treaties/
+              territory/events/chronicle/founding/agents/weather/time/rebirth/roads —
+              Pixi-free, deterministic
 src/render/   renderer, camera (+flights), terrainLayer (RT bake, river pieces, variant
               equalization), roadLayer, territoryLayer, settlementLayer (zoom-damped
               glow/smoke/ruins), citizenLayer (anims), markerLayer (+wildfire FX),
               atmosphere (night/dusk/particles), textures (procedural + asset loading)
 src/showcase/ interest.ts (shot scoring, tested), director.ts, stress.ts (tested)
 src/audio/    music.ts
-src/ui/       hud, civPanel, inspector, chroniclePanel, historyPanel, worldStory,
-              seedGallery, debugOverlay
+src/ui/       hud, civPanel, inspector, chroniclePanel, historyPanel, biographyPanel,
+              worldStory, seedGallery, debugOverlay, icons (kind→SVG glyph mapping)
 src/persist/  save.ts (manual + autosave slots; world regen from seed + diffs)
-test/         10 suites / 48 tests: worldgen, resources, growth, diplomacy, events,
-              save, interest, stress, rebirth, roads
+test/         11 suites / 55 tests: worldgen, resources, growth, diplomacy, treaties,
+              events, save, interest, stress, rebirth, roads
 ```
 
 ## Scripts
@@ -71,8 +71,10 @@ is fully playable.
   walks are short enough not to matter); fights visual-only
 - River bend/mouth tiles wired (2026-06-11 asset session); T-junctions and 2-tile-wide river blobs still fall back to the straight tile
 - Single manual save slot
-- Reborn civs survive long-term in only ~2/5 of 360-year worlds (seeds 5/48/99
-  still converge to 1–2 empires; peace treaties in phase 4 would help)
+- Empire convergence largely solved by treaties (see treaty session A/B:
+  civ falls 7/4/9/15 → 1/0/3/6); harshest seeds (48/99) can still end at
+  ~2 strong civs over 150 years — acceptable drama, tune
+  `balance.diplomacy.treaty*` if not
 - A world that burns all 16 civ slots (MAX_CIVS) stops rebirthing — "the age
   of legends ends"; acceptable for now
 - Curated seed descriptions' "vitality" lines reflect current balance constants — re-run `curate-seeds.ts` after balance changes
@@ -110,9 +112,9 @@ Found problems, in priority order:
 rebirth~~ ✓ (plus river bends + wildfire FX from the asset session, and
 tile-variant equalization). Both playtest problems below are fixed.
 
-Deferred to phase 4: minimap, timeline scrubber, per-civ biographies, idle
-auto-attract, camera cuts, general-agent pathfinding (only caravans use
-roads). Peace treaties & tribute: DONE (see below).
+Deferred to phase 4: minimap, timeline scrubber, idle auto-attract, camera
+cuts, general-agent pathfinding (only caravans use roads). Peace treaties &
+tribute: DONE. Per-civ biographies: DONE (see sessions below).
 
 ## Asset session 2026-06-11 (parallel with the playtest above)
 
@@ -224,10 +226,39 @@ bit-identical at 0.60ms/day, zero console errors.
 - **Lamps & grounding** (`settlementLayer`): two-stage tungsten glow — core
   tint `#ffe2a8`, wide spill `#d96b14` at 3.2× radius — plus slow breathing
   and a soft black ground shadow under each settlement.
-- **Territory** as projected light: the whole overlay is now additive.
+- **Territory** (round 3): additive borders were judged a regression ("sci-fi
+  neon", blown out on snow) — reverted to normal @0.65 with a 1px black
+  underline that grounds the line on the terrain.
+- **Round 3 additions**: black contact shadows under citizen sprites (they
+  vanished into same-hue autumn terrain) and an additive `#ffebc2`@0.18
+  daylight lift on settlement sprites fading with darkness (raw art read as
+  charcoal silhouettes in sunlight).
+- **Round 4 verdict (Gemini, viewing final shots)**: "shippable — polished,
+  atmospheric, ready to go"; optional future nicety: 1px inner highlight on
+  territory borders.
 - `scripts/art-shots.mjs` captures the season/dusk/boundary battery (note:
   headless pages throttle the ambient clock — timing math is unreliable,
   sample and pick instead).
+
+## Repo-polish session 2026-06-11 (README, CI, biographies — after treaties)
+
+Verified: typecheck ✓, 55/55 ✓, biography panel driven in-browser
+(`scripts/verify-biography.mjs`, zero console errors). No commits made.
+
+- **README.md** refreshed for the public GitHub repo: features list (incl.
+  treaties, rebirth, roads), 4 screenshots copied from gitignored
+  `scripts/out/art/` into committed `docs/` (JPEG-compressed, 564KB total),
+  controls table fixed (`M` was missing), seed recommendations updated to
+  the current regenerated gallery (seed 48 is no longer in it — 79 is the
+  new river pick), Credits section for the CC BY icon attribution.
+- **CI**: `.github/workflows/ci.yml` — push/PR → Node 18 (deps are pinned
+  for 18) + npm cache → `npm ci`, `tsc --noEmit`, `vitest run`.
+- **Per-civ biographies** (`src/ui/biographyPanel.ts`): "read their story"
+  link in the inspector's civ view; self-contained DOM panel (no main.ts
+  wiring), chronicle filtered by civId-or-name-mention, importance ≥2 plus
+  personal minor kinds, year-grouped with event icons, deeds summary line
+  (wars/treaties/golden ages/towns/colonies), Esc closes, hidden in cinema
+  mode. Works for fallen civs — their stories are the best ones.
 
 Note: `.mcp.json` now registers a Playwright MCP server (msedge, headless) so
 future sessions can drive the game interactively instead of via one-shot

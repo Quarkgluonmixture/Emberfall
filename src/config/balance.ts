@@ -373,7 +373,11 @@ export const BALANCE = {
     weatherParticleBudget: 260,
     labelMinZoom: 1.6,
     territoryFillAlpha: 0.1,
-    territoryBorderAlpha: 0.7,
+    territoryBorderAlpha: 0.65,
+    /** Daylight lift on settlement sprites (additive warm overlay), fading
+        out at night — the raw art reads as charcoal silhouettes in sunlight. */
+    settlementDayLiftColor: 0xffebc2,
+    settlementDayLiftAlpha: 0.18,
     /** Real seconds between territory overlay redraws (throttle). */
     territoryRedrawInterval: 0.5,
     uiRefreshInterval: 0.25,

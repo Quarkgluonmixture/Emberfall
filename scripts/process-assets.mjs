@@ -167,6 +167,188 @@ if (fs.existsSync(path.join(rawRoot, '8'))) {
   }
 }
 
+/**
+ * Folders 9/10 — building pieces & terrain decor for the settlement-cluster
+ * rework (see ASSET_PROMPTS.md). Each raw image holds several isolated objects
+ * on white; we key the background, find connected alpha components, merge
+ * near-neighbours (flames over a campfire ring, detached leaves), then emit
+ * one trimmed PNG per piece. Works for both horizontal strips and row grids.
+ */
+async function slicePieces(src, outNames, gap = 28) {
+  const { data, info } = await sharp(src).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+  const W = info.width;
+  const H = info.height;
+
+  // Key the connected white/checkerboard background from the borders.
+  const visited = new Uint8Array(W * H);
+  const stack = [];
+  for (let x = 0; x < W; x++) stack.push(x, (H - 1) * W + x);
+  for (let y = 0; y < H; y++) stack.push(y * W, y * W + W - 1);
+  while (stack.length > 0) {
+    const idx = stack.pop();
+    if (visited[idx]) continue;
+    visited[idx] = 1;
+    if (!isBackground(data, idx * 4)) continue;
+    data[idx * 4 + 3] = 0;
+    const x = idx % W;
+    const y = (idx / W) | 0;
+    if (x > 0) stack.push(idx - 1);
+    if (x < W - 1) stack.push(idx + 1);
+    if (y > 0) stack.push(idx - W);
+    if (y < H - 1) stack.push(idx + W);
+  }
+
+  // Label connected components of the remaining opaque pixels.
+  const label = new Int32Array(W * H).fill(-1);
+  const boxes = [];
+  for (let start = 0; start < W * H; start++) {
+    if (label[start] >= 0 || data[start * 4 + 3] === 0) continue;
+    const id = boxes.length;
+    const box = { x0: W, y0: H, x1: 0, y1: 0, area: 0 };
+    const q = [start];
+    label[start] = id;
+    while (q.length > 0) {
+      const idx = q.pop();
+      const x = idx % W;
+      const y = (idx / W) | 0;
+      box.x0 = Math.min(box.x0, x);
+      box.y0 = Math.min(box.y0, y);
+      box.x1 = Math.max(box.x1, x);
+      box.y1 = Math.max(box.y1, y);
+      box.area++;
+      for (const n of [idx - 1, idx + 1, idx - W, idx + W]) {
+        if (n < 0 || n >= W * H) continue;
+        if (Math.abs((n % W) - x) > 1) continue;
+        if (label[n] >= 0 || data[n * 4 + 3] === 0) continue;
+        label[n] = id;
+        q.push(n);
+      }
+    }
+    boxes.push(box);
+  }
+
+  // Merge fragments: union boxes whose rects (grown by gap) intersect — but
+  // only while we have MORE components than expected pieces; a clean sheet
+  // (one component per piece) must not be glued together by tight layouts.
+  const GAP = gap;
+  let pieces = boxes.filter((b) => b.area > 400);
+  let merged = true;
+  while (merged && pieces.length > outNames.length) {
+    merged = false;
+    outer: for (let i = 0; i < pieces.length; i++) {
+      for (let j = i + 1; j < pieces.length; j++) {
+        const a = pieces[i];
+        const b = pieces[j];
+        if (a.x0 - GAP < b.x1 && b.x0 - GAP < a.x1 && a.y0 - GAP < b.y1 && b.y0 - GAP < a.y1) {
+          a.x0 = Math.min(a.x0, b.x0);
+          a.y0 = Math.min(a.y0, b.y0);
+          a.x1 = Math.max(a.x1, b.x1);
+          a.y1 = Math.max(a.y1, b.y1);
+          a.area += b.area;
+          pieces.splice(j, 1);
+          merged = true;
+          break outer;
+        }
+      }
+    }
+  }
+
+  // Sort into reading order: rows by vertical overlap, then left to right.
+  pieces.sort((a, b) => (a.y0 + a.y1) / 2 - (b.y0 + b.y1) / 2);
+  const rows = [];
+  for (const p of pieces) {
+    const row = rows.find((r) => {
+      const overlap = Math.min(r.y1, p.y1) - Math.max(r.y0, p.y0);
+      return overlap > 0.3 * Math.min(r.y1 - r.y0, p.y1 - p.y0);
+    });
+    if (row) {
+      row.items.push(p);
+      row.y0 = Math.min(row.y0, p.y0);
+      row.y1 = Math.max(row.y1, p.y1);
+    } else {
+      rows.push({ y0: p.y0, y1: p.y1, items: [p] });
+    }
+  }
+  const ordered = rows.flatMap((r) => r.items.sort((a, b) => a.x0 - b.x0));
+
+  if (ordered.length !== outNames.length) {
+    console.warn(
+      `  SKIP ${path.basename(src)} — found ${ordered.length} pieces, expected ${outNames.length}`,
+    );
+    return;
+  }
+  for (let i = 0; i < ordered.length; i++) {
+    const [name, targetW] = outNames[i];
+    const p = ordered[i];
+    const pad = 4;
+    const left = Math.max(0, p.x0 - pad);
+    const top = Math.max(0, p.y0 - pad);
+    await sharp(Buffer.from(data), { raw: { width: W, height: H, channels: 4 } })
+      .extract({
+        left,
+        top,
+        width: Math.min(W, p.x1 + pad) - left,
+        height: Math.min(H, p.y1 + pad) - top,
+      })
+      .resize({ width: targetW, kernel: 'lanczos3' })
+      .png()
+      .toFile(name);
+    console.log(`  ${path.relative(outDir, name)}  w=${targetW}`);
+  }
+}
+
+const PIECE_SETS = [
+  ['01_tents.png', [['tent_0', 44], ['tent_1', 44]]],
+  ['02_huts.png', [['hut_0', 48], ['hut_1', 48], ['hut_2', 48]]],
+  ['03_houses.png', [['house_0', 52], ['house_1', 52], ['house_2', 52]]],
+  ['04_storage.png', [['granary', 44], ['shed', 44], ['crates', 30]]],
+  ['05_civic.png', [['shrine', 34], ['well', 30]]],
+  ['06_market.png', [['stall_0', 40], ['stall_1', 40]]],
+  ['07_temple.png', [['hall', 96]]],
+  ['08_walls_stone.png', [['wall_straight', 56], ['wall_tower', 48], ['wall_gate', 64]]],
+  ['09_palisade.png', [['palisade_straight', 48], ['palisade_corner', 44]]],
+  ['10_props.png', [['lamp', 22], ['scaffold', 40], ['campfire', 32]]],
+  ['11_ruins.png', [['ruin_0', 40], ['ruin_1', 44], ['ruin_2', 40]]],
+];
+// Decor sheets share one 5-row layout; sheet B continues the variant indices.
+const DECOR_ROWS = [
+  ['rock', 36, 3],
+  ['tree_broadleaf', 46, 2],
+  ['tree_conifer', 42, 2],
+  ['reed', 30, 2],
+  ['bush', 28, 2],
+];
+
+if (fs.existsSync(path.join(rawRoot, '9'))) {
+  console.log('Building pieces (folder 9):');
+  const piecesDir = path.join(outDir, 'pieces');
+  fs.mkdirSync(piecesDir, { recursive: true });
+  for (const [file, targets] of PIECE_SETS) {
+    const src = path.join(rawRoot, '9', file);
+    if (!fs.existsSync(src)) {
+      console.warn(`  missing ${file} (not generated yet) — skipped`);
+      continue;
+    }
+    await slicePieces(src, targets.map(([n, w]) => [path.join(piecesDir, `${n}.png`), w]));
+  }
+}
+
+if (fs.existsSync(path.join(rawRoot, '10'))) {
+  console.log('Terrain decor (folder 10):');
+  const decorDir = path.join(outDir, 'decor');
+  fs.mkdirSync(decorDir, { recursive: true });
+  const sheets = sources('10');
+  for (let s = 0; s < sheets.length; s++) {
+    const names = DECOR_ROWS.flatMap(([base, w, count]) =>
+      Array.from({ length: count }, (_, i) => [
+        path.join(decorDir, `${base}_${s * count + i}.png`),
+        w,
+      ]),
+    );
+    await slicePieces(sheets[s], names, 8);
+  }
+}
+
 console.log('Effects (folder 1):');
 const fx = sources('1');
 // fx[0] glow, fx[1] smoke, fx[2] wildfire and the raindrop half of fx[3] are

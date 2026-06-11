@@ -31,7 +31,52 @@ export interface GameTextures {
   terrainTiles: Texture[][][] | null;
   /** River shapes: [season][shape: 0 bend (N→E), 1 mouth (N→ocean S)][variation]. */
   riverTiles: Texture[][][] | null;
+  /** Building pieces for settlement clusters (batch 9). Null → legacy single
+      sprites. Individual kinds may be missing while art is incomplete. */
+  pieces: Record<string, Texture> | null;
+  /** Terrain decor sprites grouped by base name (batch 10). */
+  decor: Record<string, Texture[]> | null;
 }
+
+/** Piece kinds the cluster layouts may request (public/assets/pieces/). */
+export const PIECE_KINDS = [
+  'tent_0',
+  'tent_1',
+  'hut_0',
+  'hut_1',
+  'hut_2',
+  'house_0',
+  'house_1',
+  'house_2',
+  'granary',
+  'shed',
+  'crates',
+  'shrine',
+  'well',
+  'stall_0',
+  'stall_1',
+  'hall',
+  'wall_straight',
+  'wall_tower',
+  'wall_gate',
+  'palisade_straight',
+  'palisade_corner',
+  'lamp',
+  'scaffold',
+  'campfire',
+  'ruin_0',
+  'ruin_1',
+  'ruin_2',
+] as const;
+
+/** Decor base names and their variant counts (public/assets/decor/). */
+export const DECOR_KINDS: [string, number][] = [
+  ['rock', 6],
+  ['tree_broadleaf', 4],
+  ['tree_conifer', 4],
+  ['reed', 4],
+  ['bush', 4],
+];
 
 /** Multiply a 0xRRGGBB color by a brightness factor. */
 export function scaleColor(color: number, factor: number): number {
@@ -140,6 +185,8 @@ export function makeTextures(renderer: Renderer): GameTextures {
     wildfire: null,
     terrainTiles: null,
     riverTiles: null,
+    pieces: null,
+    decor: null,
   };
 }
 
@@ -310,5 +357,40 @@ export async function loadRealTextures(tex: GameTextures): Promise<number> {
       sliceRiverSheet(rivWinter!),
     ];
   }
+
+  // Settlement-cluster building pieces; any subset may exist while the art
+  // batches are incomplete. The cluster layouts substitute or skip missing
+  // kinds, and with no pieces at all the legacy single sprites stay in use.
+  const pieceTextures = await Promise.all(PIECE_KINDS.map((k) => tryLoad(`pieces/${k}.png`)));
+  const pieces: Record<string, Texture> = {};
+  let pieceCount = 0;
+  for (let i = 0; i < PIECE_KINDS.length; i++) {
+    const t = pieceTextures[i];
+    if (t) {
+      pieces[PIECE_KINDS[i]] = t;
+      pieceCount++;
+    }
+  }
+  if (pieceCount > 0) {
+    tex.pieces = pieces;
+    loaded += pieceCount;
+  }
+
+  const decor: Record<string, Texture[]> = {};
+  let decorCount = 0;
+  for (const [base, variants] of DECOR_KINDS) {
+    const list = (
+      await Promise.all(Array.from({ length: variants }, (_, i) => tryLoad(`decor/${base}_${i}.png`)))
+    ).filter((t): t is Texture => t !== null);
+    if (list.length > 0) {
+      decor[base] = list;
+      decorCount += list.length;
+    }
+  }
+  if (decorCount > 0) {
+    tex.decor = decor;
+    loaded += decorCount;
+  }
+
   return loaded;
 }

@@ -1,14 +1,33 @@
-/** Settlement sprites, civ banners, name labels, chimney smoke, night glows, ruins. */
+/**
+ * Settlement rendering: procedural building clusters (assembled from the
+ * batch-9 piece art per settlement id/tier/population), civ banners, name
+ * labels, chimney smoke, night glows and window lamps, ruins. Falls back to
+ * the legacy single sprites when no piece art is available.
+ */
 import { Container, Sprite, Text } from 'pixi.js';
 import { BALANCE } from '../config/balance';
 import type { SimState } from '../core/types';
+import {
+  clusterExtent,
+  clusterKey,
+  layoutCluster,
+  layoutRuin,
+} from './settlementCluster';
 import type { GameTextures } from './textures';
 
 interface Vis {
   root: Container;
+  /** Legacy single sprite (hidden while a cluster is active). */
   sprite: Sprite;
   /** Additive warm copy lifting the dark art out of silhouette in daylight. */
   lift: Sprite;
+  /** Procedural building cluster, rebuilt when tier/pop bucket changes. */
+  cluster: Container | null;
+  /** Additive lift copies of cluster buildings (windows read lit at night). */
+  clusterLifts: Sprite[];
+  /** Small per-building window glows, living in glowContainer (above night). */
+  lampGlows: Sprite[];
+  clusterKey: string;
   banner: Sprite;
   label: Text;
   glow: Sprite;
@@ -28,7 +47,7 @@ export class SettlementLayer {
   /** Rendered above the night overlay so windows appear to shine. */
   glowContainer = new Container();
   private map = new Map<number, Vis>();
-  private ruinSprites = new Map<string, Sprite>();
+  private ruinSprites = new Map<string, Container>();
 
   constructor(private tex: GameTextures) {}
 
@@ -47,6 +66,69 @@ export class SettlementLayer {
       v.smoke.visible = tier >= 1;
       v.smoke.position.set(0.5, -[5, 8, 11][tier]);
     }
+  }
+
+  /** Assemble the building cluster for a settlement's current tier/pop bucket. */
+  private rebuildCluster(v: Vis, id: number, tier: number, population: number): void {
+    const pieces = this.tex.pieces!;
+    const cfg = BALANCE.render;
+    const layout = layoutCluster(id, tier, population, (k) => k in pieces);
+
+    v.cluster?.destroy({ children: true });
+    for (const lg of v.lampGlows) lg.destroy();
+    v.lampGlows = [];
+    v.clusterLifts = [];
+
+    const cluster = new Container();
+    for (const p of layout) {
+      const texture = pieces[p.kind];
+      const sp = new Sprite(texture);
+      sp.anchor.set(0.5, 0.82);
+      const sc = p.w / texture.width;
+      sp.scale.set(p.flip ? -sc : sc, sc);
+      sp.position.set(p.dx, p.dy);
+      cluster.addChild(sp);
+      if (p.lift) {
+        const lf = new Sprite(texture);
+        lf.anchor.set(0.5, 0.82);
+        lf.scale.copyFrom(sp.scale);
+        lf.position.copyFrom(sp.position);
+        lf.blendMode = 'add';
+        lf.tint = cfg.settlementDayLiftColor;
+        lf.alpha = 0;
+        cluster.addChild(lf);
+        v.clusterLifts.push(lf);
+      }
+      if (p.lamp) {
+        const lg = new Sprite(this.tex.glow);
+        lg.anchor.set(0.5);
+        lg.blendMode = 'add';
+        lg.tint = cfg.glowTint;
+        lg.alpha = 0;
+        lg.position.set(v.root.position.x + p.dx, v.root.position.y + p.dy - 1.2);
+        lg.scale.set(cfg.lampGlowSize / this.tex.glow.width);
+        this.glowContainer.addChild(lg);
+        v.lampGlows.push(lg);
+      }
+    }
+    // Below banner/label but above base and shadow.
+    v.root.addChildAt(cluster, Math.min(2, v.root.children.length));
+    v.cluster = cluster;
+    v.clusterKey = clusterKey(tier, population);
+
+    const ext = clusterExtent(layout);
+    v.base.width = ext.rx * 2.3;
+    v.base.height = ext.ry * 2.4;
+    v.shadow.width = ext.rx * 1.7;
+    v.shadow.height = ext.ry * 1.2;
+    v.label.position.set(0, ext.ry + 2.5);
+    v.banner.position.set(2, -ext.ry - 2.5);
+    if (v.smoke) {
+      v.smoke.visible = tier >= 1;
+      v.smoke.position.set(0.5, -(ext.ry + 3.5));
+    }
+    v.sprite.visible = false;
+    v.lift.visible = false;
   }
 
   update(state: SimState, scale: number, darkness: number, time: number): void {
@@ -118,10 +200,32 @@ export class SettlementLayer {
         halo.position.copyFrom(root.position);
         this.container.addChild(root);
         this.glowContainer.addChild(halo, glow);
-        v = { root, sprite, lift, banner, label, glow, halo, shadow, base, smoke, tier: -1, name: s.name };
+        v = {
+          root,
+          sprite,
+          lift,
+          cluster: null,
+          clusterLifts: [],
+          lampGlows: [],
+          clusterKey: '',
+          banner,
+          label,
+          glow,
+          halo,
+          shadow,
+          base,
+          smoke,
+          tier: -1,
+          name: s.name,
+        };
         this.map.set(s.id, v);
       }
-      if (v.tier !== s.tier) this.applyTier(v, s.tier);
+      if (this.tex.pieces) {
+        if (v.clusterKey !== clusterKey(s.tier, s.population)) {
+          this.rebuildCluster(v, s.id, s.tier, s.population);
+          v.tier = s.tier;
+        }
+      } else if (v.tier !== s.tier) this.applyTier(v, s.tier);
       if (v.name !== s.name) {
         v.label.text = s.name;
         v.name = s.name;
@@ -145,10 +249,18 @@ export class SettlementLayer {
       // Sunlight lift fades out as night falls; lamp-lift takes over so the
       // buildings themselves read as lit structures instead of disappearing
       // behind the glow blob.
-      v.lift.alpha = Math.max(
+      const liftAlpha = Math.max(
         cfg.settlementDayLiftAlpha * (1 - darkness),
         cfg.settlementNightLiftAlpha * glowStrength,
       );
+      v.lift.alpha = liftAlpha;
+      // Cluster buildings stack many additive copies — run them a bit dimmer.
+      for (const lf of v.clusterLifts) lf.alpha = liftAlpha * 0.8;
+      // Window lamps: per-building pools of warm light above the night pass.
+      const lampAlpha = glowStrength * cfg.lampGlowAlpha;
+      for (let i = 0; i < v.lampGlows.length; i++) {
+        v.lampGlows[i].alpha = lampAlpha * (0.85 + 0.15 * Math.sin(time * 5 + i * 2.4 + s.id));
+      }
       const flicker = 0.92 + 0.08 * Math.sin(time * 7 + s.id * 1.7);
       // Beyond the reference zoom, damp size and alpha so a close-up reads as
       // lit windows instead of a screen-filling fireball.
@@ -192,6 +304,7 @@ export class SettlementLayer {
         v.root.destroy({ children: true });
         v.glow.destroy();
         v.halo.destroy();
+        for (const lg of v.lampGlows) lg.destroy();
         this.map.delete(id);
       }
     }
@@ -200,25 +313,42 @@ export class SettlementLayer {
   }
 
   private updateRuins(state: SimState, ts: number): void {
-    if (!this.tex.ruins) return;
+    const pieces = this.tex.pieces;
+    const haveRuinPieces = !!pieces && ('ruin_0' in pieces || 'ruin_1' in pieces || 'ruin_2' in pieces);
+    if (!this.tex.ruins && !haveRuinPieces) return;
     const live = new Set<string>();
     for (const r of state.ruins) {
       const key = `${r.x},${r.y},${r.day}`;
       live.add(key);
       if (!this.ruinSprites.has(key)) {
-        const sp = new Sprite(this.tex.ruins);
-        sp.anchor.set(0.5, 0.8);
-        sp.scale.set(BALANCE.render.ruinsWidth / this.tex.ruins.width);
-        sp.alpha = 0.92;
-        sp.position.set((r.x + 0.5) * ts, (r.y + 0.5) * ts);
+        let vis: Container;
+        if (haveRuinPieces) {
+          // Scattered broken pieces instead of one stamp.
+          vis = new Container();
+          for (const p of layoutRuin(r.x, r.y, (k) => k in pieces!)) {
+            const sp = new Sprite(pieces![p.kind]);
+            sp.anchor.set(0.5, 0.82);
+            const sc = p.w / sp.texture.width;
+            sp.scale.set(p.flip ? -sc : sc, sc);
+            sp.position.set(p.dx, p.dy);
+            vis.addChild(sp);
+          }
+        } else {
+          const sp = new Sprite(this.tex.ruins!);
+          sp.anchor.set(0.5, 0.8);
+          sp.scale.set(BALANCE.render.ruinsWidth / this.tex.ruins!.width);
+          vis = sp;
+        }
+        vis.alpha = 0.92;
+        vis.position.set((r.x + 0.5) * ts, (r.y + 0.5) * ts);
         // Ruins sit beneath living settlements in the same container.
-        this.container.addChildAt(sp, 0);
-        this.ruinSprites.set(key, sp);
+        this.container.addChildAt(vis, 0);
+        this.ruinSprites.set(key, vis);
       }
     }
     for (const [key, sp] of this.ruinSprites) {
       if (!live.has(key)) {
-        sp.destroy();
+        sp.destroy({ children: true });
         this.ruinSprites.delete(key);
       }
     }

@@ -388,6 +388,10 @@ export const BALANCE = {
     /** Night lamp-lift on the same overlay: buildings read as lamp-lit
         structures after dark instead of vanishing under the glow blob. */
     settlementNightLiftAlpha: 0.55,
+    /** Per-building window glows in settlement clusters (above the night
+        pass): pool size in world px and peak alpha at deep night. */
+    lampGlowSize: 7,
+    lampGlowAlpha: 0.4,
     /** Soft earth-toned base patch under each settlement, grounding it in the
         terrain instead of floating like a sticker. */
     settlementBaseColor: 0x6b5639,
@@ -396,6 +400,11 @@ export const BALANCE = {
         default zoom, full contrast only in close-ups. */
     citizenFadeZoomStart: 1.6,
     citizenFadeZoomFull: 3.0,
+    /** Macro zoom band: below macroZoomStart the strategic layer (tier
+        glyphs, war fronts, trade flows) is fully in charge and building
+        clusters are gone; above macroZoomEnd the clusters rule. */
+    macroZoomStart: 0.95,
+    macroZoomEnd: 1.3,
     /** Real seconds between territory overlay redraws (throttle). */
     territoryRedrawInterval: 0.5,
     uiRefreshInterval: 0.25,

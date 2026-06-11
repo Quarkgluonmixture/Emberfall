@@ -10,6 +10,7 @@ import type { Weather } from '../sim/weather';
 import { Atmosphere } from './atmosphere';
 import { Camera } from './camera';
 import { CitizenLayer } from './citizenLayer';
+import { MacroLayer, macroBlend } from './macroLayer';
 import { MarkerLayer } from './markerLayer';
 import { RoadLayer } from './roadLayer';
 import { SettlementLayer } from './settlementLayer';
@@ -40,6 +41,7 @@ export class Renderer {
   settlements: SettlementLayer;
   citizens: CitizenLayer;
   markers: MarkerLayer;
+  macro: MacroLayer;
   atmosphere: Atmosphere;
 
   private constructor(app: Application, world: World) {
@@ -52,6 +54,7 @@ export class Renderer {
     this.settlements = new SettlementLayer(this.textures);
     this.citizens = new CitizenLayer(this.textures);
     this.markers = new MarkerLayer(this.textures);
+    this.macro = new MacroLayer(app.renderer);
     this.atmosphere = new Atmosphere(this.textures);
 
     this.camera.root.addChild(
@@ -61,6 +64,7 @@ export class Renderer {
       this.settlements.container,
       this.citizens.container,
       this.markers.container,
+      this.macro.container,
     );
     app.stage.addChild(
       this.camera.root,
@@ -102,8 +106,12 @@ export class Renderer {
     this.roads.update(input.state);
     this.territory.update(input.dt, input.state);
     this.settlements.update(input.state, this.camera.scale, input.darkness, input.time);
+    // Zoom bands: pulling out trades building clusters for the strategic
+    // glyph layer; the crossfade keeps both readable mid-transition.
+    this.settlements.container.alpha = 1 - macroBlend(this.camera.scale);
     this.citizens.update(input.agents, input.state, this.camera.scale);
     this.markers.update(input.dt, input.state);
+    this.macro.update(input.dt, input.state, this.camera.scale, input.time);
 
     // The glow layer sits above the night overlay; mirror the camera transform.
     const glow = this.settlements.glowContainer;

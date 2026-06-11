@@ -82,10 +82,11 @@ await ef('__emberfall.setAmbient(0.5)');
 // ── Close-ups at the base epoch (spring, not winter): biggest town ──
 const town = await page.evaluate(() => {
   const st = __emberfall.state;
-  const towns = st.settlements.filter((s) => s.tier === 'town');
+  const TIER = ['camp', 'village', 'town'];
+  const towns = st.settlements.filter((s) => s.tier === 2);
   const pool = towns.length ? towns : st.settlements;
   const best = [...pool].sort((a, b) => b.population - a.population)[0];
-  return { x: best.x, y: best.y, name: best.name, tier: best.tier, pop: Math.round(best.population) };
+  return { x: best.x, y: best.y, name: best.name, tier: TIER[best.tier], pop: Math.round(best.population) };
 });
 
 await ef(`__emberfall.centerOn(${town.x}, ${town.y}, 3.0)`);

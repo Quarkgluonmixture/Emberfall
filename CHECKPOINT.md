@@ -110,9 +110,9 @@ Found problems, in priority order:
 rebirth~~ ✓ (plus river bends + wildfire FX from the asset session, and
 tile-variant equalization). Both playtest problems below are fixed.
 
-Deferred to phase 4: minimap, peace treaties & tribute, timeline scrubber,
-per-civ biographies, idle auto-attract, camera cuts, general-agent
-pathfinding (only caravans use roads).
+Deferred to phase 4: minimap, timeline scrubber, per-civ biographies, idle
+auto-attract, camera cuts, general-agent pathfinding (only caravans use
+roads). Peace treaties & tribute: DONE (see below).
 
 ## Asset session 2026-06-11 (parallel with the playtest above)
 
@@ -122,11 +122,18 @@ pathfinding (only caravans use roads).
 - **Wildfire flame FX**: `assets_src/raw/7/` → `fx_wildfire.png` (4-frame
   luma-alpha strip); `MarkerLayer` spawns a deterministic flame cluster on
   wildfire/wildfireWild chronicle events (~6 s, cosmetic only).
-- **27 UI/event icons** fetched from game-icons.net (CC BY 3.0) into
+- **35 UI/event icons** fetched from game-icons.net (CC BY 3.0) into
   `public/assets/icons/` (`event_<kind>.svg` matches sim event kinds 1:1,
   season_*, ui_*); white-on-transparent SVG, attribution in
-  `icons/ATTRIBUTION.md`. Wired into HUD/chronicle/history via `src/ui/icons.ts`
-  (visible in the sim session's verification screenshots).
+  `icons/ATTRIBUTION.md`. Wired into HUD/chronicle/history/civ-panel via
+  `src/ui/icons.ts` (CSS-mask spans tinted by currentColor): every chronicle
+  kind has a glyph (a second 8-icon batch covers village/town/peace/alliance/
+  tradeOpened/rivalry/incidentGood/incidentBad; wildfireWild/rebirth/
+  resettleRuin/relationsCooled alias neighbors), HUD speed/save/load/history/
+  debug buttons use icons, the date shows a season glyph, civ-roster badges
+  (war/golden-age/crisis) use the same set. Gotcha: icon urls must be
+  root-absolute — a relative `url()` inside a CSS custom property resolves
+  against `/src/style.css`, not the document.
 - Probes: `scripts/probe-river.ts` / `probe-fire.ts` print bend/mouth/wildfire
   coordinates for a seed; `scripts/probe-visuals.mjs` screenshots them
   (boot camera centers on the first capital at zoom 2.2).
@@ -165,9 +172,69 @@ at 0.477ms/day (122 settlements / 32k pop at year 100), zero console errors.
   caravans on roads. `scripts/verify-roads.mjs` screenshots the network.
 - Seed gallery regenerated (all 8 picks now keep 5 civs alive).
 
+## Treaties & tribute session 2026-06-11 (after the sim session)
+
+Verified: typecheck ✓, 55/55 tests ✓ (7 new in `test/treaties.test.ts`),
+build ✓, longrun histogram sane, seed gallery regenerated (8/8 keep 5 civs).
+
+- **Peace treaties** (`src/sim/treaties.ts`, runs between events and
+  diplomacy): once a war is ≥`treatyMinWarDays` old, the side whose military
+  is below `treatySurrenderRatio` of the winner's (or any cornered civ with
+  ≤2 settlements, at `treatyLastStandMult` odds) sues for peace daily at
+  `treatySurrenderChance`. Signing snaps the relation to `treatyScore`
+  neutral, lifts morale on both sides, and sets terms on the `Relation`:
+  `truceDays` (240 — clamped above war in `updateDiplomacy`, same mechanism
+  as rebirth grace) and `tributeDays`/`tributeFrom` (180 — daily food/wood
+  flows seat→seat from the payer's surplus, never below
+  `tributeFood/WoodReserve`). New chronicle kinds `treatySigned` (imp 3) and
+  `tributeEnds` (imp 1); icon aliases dove/caravan; inspector relation rows
+  show "truce Nd · paying/owed tribute". Saves: optional `RelationPair`
+  fields, old saves load unchanged. All knobs in `balance.diplomacy`
+  (new keys only).
+- **Why**: 150-year A/B probe (`scripts/treaty-probe.ts`, treaties off vs
+  on, 5 seeds): civ falls 7/4/9/15 → 1/0/3/6, top-civ settlement share
+  100%→30% (seed 21) and 100%→73% (seed 99), peaceful seed 7 unchanged.
+  Empire convergence is now the exception, not the rule. War declarations
+  rise with treaties on — survivorship, not a bug: more civs alive to fight,
+  each war ends at the table instead of in ashes.
+
+## Art grading session 2026-06-11 (Gemini-3.1-Pro-reviewed, after treaties)
+
+Owner complaint: "整体有点丑，光影季节变化生硬". Two review rounds with
+`gemini-3.1-pro-preview` via gemini CLI (run it with `C:\tools\node22\node.exe`
+— system Node 18 crashes it; round 1 was accidentally BLIND: `@file`
+attachments under gitignored `scripts/out/` are refused, stage review images
+in a non-ignored dir). All changes render-side; 55/55 tests, stress
+bit-identical at 0.60ms/day, zero console errors.
+
+- **Season crossfade** (`terrainLayer`): prev-bake sprite fades out over
+  `seasonFadeSeconds` (0.5s — longer alpha blends of misaligned pixel art
+  read as double exposure, per review). Hard-cuts on `terrainVersion`
+  invalidation (the old RT is destroyed — fading from it crashed with
+  "alphaMode of null" until guarded by `justInvalidated`).
+- **Two-pass night** (`atmosphere`): multiply `#0e132a`×darkness deepens
+  shadows keeping local contrast; additive `#0c1b2e`@0.4 moonlight lift
+  (first try `#1a3d61`@0.3 read "milky" per review). Dusk is now a vertical
+  purple→orange multiply gradient (`#4a2c41`→`#d46a32`@0.5) with a wider
+  smooth bell window in main.ts; screen vignette @0.36.
+- **Bake polish** (`terrainLayer`): deep-water multiply tint `#598ab5`@0.65
+  (kills wave moiré, lets foam punch through); neutral soften `#8a8578`@0.10
+  — except spring, which gets a fresh-green correction `#8efaa4`@0.05 (its
+  art runs olive/murky).
+- **Lamps & grounding** (`settlementLayer`): two-stage tungsten glow — core
+  tint `#ffe2a8`, wide spill `#d96b14` at 3.2× radius — plus slow breathing
+  and a soft black ground shadow under each settlement.
+- **Territory** as projected light: the whole overlay is now additive.
+- `scripts/art-shots.mjs` captures the season/dusk/boundary battery (note:
+  headless pages throttle the ambient clock — timing math is unreliable,
+  sample and pick instead).
+
 Note: `.mcp.json` now registers a Playwright MCP server (msedge, headless) so
 future sessions can drive the game interactively instead of via one-shot
 scripts; dev server may land on 5174/5175 if older instances hold 5173.
 The MCP browser can be flaky after HMR reloads — kill stale
 `ms-playwright-mcp` Edge processes if it reports "browser already in use";
-the `scripts/*.mjs` probes are the reliable fallback.
+the `scripts/*.mjs` probes are the reliable fallback. `--output-dir
+.playwright-mcp` is set (gitignored), so MCP screenshots/snapshots no longer
+litter the repo root — pass bare filenames and Read them from there (config
+change takes effect on the next session restart).

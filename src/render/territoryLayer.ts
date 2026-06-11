@@ -8,6 +8,12 @@ export class TerritoryLayer {
   private drawnVersion = -1;
   private sinceDraw = Infinity;
 
+  constructor() {
+    // Additive: frontiers project light onto the terrain instead of sitting
+    // on top of it like opaque debug lines.
+    this.g.blendMode = 'add';
+  }
+
   update(dt: number, state: SimState): void {
     this.sinceDraw += dt;
     if (

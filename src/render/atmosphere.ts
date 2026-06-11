@@ -1,5 +1,5 @@
-/** Day/night tinting, dawn/dusk warmth, and rain/snow particles (screen space). */
-import { Container, Graphics, Sprite } from 'pixi.js';
+/** Day/night grading, dawn/dusk gradient, vignette, rain/snow particles (screen space). */
+import { Container, Graphics, Sprite, Texture } from 'pixi.js';
 import { BALANCE } from '../config/balance';
 import { RNG } from '../core/rng';
 import type { Weather } from '../sim/weather';
@@ -12,9 +12,51 @@ interface Particle {
   snow: boolean;
 }
 
+const hex = (c: number): string => `#${c.toString(16).padStart(6, '0')}`;
+
+/** Vertical two-stop gradient texture (1×128), stretched to the screen. */
+function gradientTexture(top: number, bottom: number): Texture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 1;
+  canvas.height = 128;
+  const ctx = canvas.getContext('2d')!;
+  const g = ctx.createLinearGradient(0, 0, 0, 128);
+  g.addColorStop(0, hex(top));
+  g.addColorStop(1, hex(bottom));
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, 1, 128);
+  return Texture.from(canvas);
+}
+
+/** Radial vignette: transparent center, dark corners. */
+function vignetteTexture(): Texture {
+  const size = 512;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d')!;
+  const g = ctx.createRadialGradient(
+    size / 2,
+    size / 2,
+    size * 0.32,
+    size / 2,
+    size / 2,
+    size * 0.72,
+  );
+  g.addColorStop(0, 'rgba(0,0,0,0)');
+  g.addColorStop(1, 'rgba(0,0,0,1)');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, size, size);
+  return Texture.from(canvas);
+}
+
 export class Atmosphere {
-  nightOverlay = new Graphics();
-  duskOverlay = new Graphics();
+  /** Multiply pass: deepens shadows while keeping local contrast. */
+  nightMul = new Graphics();
+  /** Additive pass: cool moonlight lift so night never reads flat-dead. */
+  nightAdd = new Graphics();
+  duskOverlay: Sprite;
+  vignette: Sprite;
   weatherContainer = new Container();
 
   private particles: Particle[] = [];
@@ -23,19 +65,33 @@ export class Atmosphere {
   private screenH = 0;
   private gustPhase = 0;
 
-  constructor(private tex: GameTextures) {}
+  constructor(private tex: GameTextures) {
+    const cfg = BALANCE.render;
+    this.nightMul.blendMode = 'multiply';
+    this.nightAdd.blendMode = 'add';
+    this.duskOverlay = new Sprite(gradientTexture(cfg.duskTopColor, cfg.duskBottomColor));
+    this.duskOverlay.blendMode = 'multiply';
+    this.vignette = new Sprite(vignetteTexture());
+    this.vignette.alpha = cfg.vignetteAlpha;
+  }
 
   resize(w: number, h: number): void {
     if (w === this.screenW && h === this.screenH) return;
     this.screenW = w;
     this.screenH = h;
-    this.nightOverlay.clear().rect(0, 0, w, h).fill(0x0b1230);
-    this.duskOverlay.clear().rect(0, 0, w, h).fill(0xd9763a);
+    const cfg = BALANCE.render;
+    this.nightMul.clear().rect(0, 0, w, h).fill(cfg.nightMulColor);
+    this.nightAdd.clear().rect(0, 0, w, h).fill(cfg.nightAddColor);
+    this.duskOverlay.width = w;
+    this.duskOverlay.height = h;
+    this.vignette.width = w;
+    this.vignette.height = h;
   }
 
   update(dt: number, darkness: number, duskGlow: number, weather: Weather): void {
     const cfg = BALANCE.render;
-    this.nightOverlay.alpha = darkness * cfg.nightMaxAlpha;
+    this.nightMul.alpha = darkness * cfg.nightMulAlpha;
+    this.nightAdd.alpha = darkness * cfg.nightAddAlpha;
     this.duskOverlay.alpha = duskGlow * cfg.duskAlpha;
 
     const desired =

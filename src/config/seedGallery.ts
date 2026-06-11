@@ -12,22 +12,16 @@ export interface SeedInfo {
 
 export const SEED_GALLERY: SeedInfo[] = [
   {
+    seed: 79,
+    name: "The Braided Waters",
+    description:
+      "Low green country braided with running water, threaded by many rivers. All five peoples endure the first decade; its valleys soon crowd with walled towns, and old borders are often contested.",
+  },
+  {
     seed: 34,
     name: "The Stonecrown Reaches",
     description:
       "A high country of granite peaks and cold passes, threaded by many rivers. All five peoples endure the first decade; its valleys soon crowd with walled towns, and old borders are often contested.",
-  },
-  {
-    seed: 48,
-    name: "The Braided Waters",
-    description:
-      "Low green country braided with running water, crossed by long rivers. All five peoples endure the first decade; its valleys soon crowd with walled towns, and the marches burn with constant war.",
-  },
-  {
-    seed: 79,
-    name: "The Thousand Fords",
-    description:
-      "Low green country braided with running water, threaded by many rivers. All five peoples endure the first decade; its valleys soon crowd with walled towns, and old borders are often contested.",
   },
   {
     seed: 10,
@@ -36,22 +30,28 @@ export const SEED_GALLERY: SeedInfo[] = [
       "Broad temperate heartlands beneath gentle hills, crossed by long rivers. All five peoples endure the first decade; its valleys soon crowd with walled towns, and old borders are often contested.",
   },
   {
-    seed: 64,
-    name: "The Sundered Isles",
+    seed: 68,
+    name: "The Thousand Fords",
     description:
-      "A realm of scattered islands and long sounds, crossed by long rivers. All five peoples endure the first decade; its valleys soon crowd with walled towns, and old borders are often contested.",
-  },
-  {
-    seed: 76,
-    name: "The Long Meadows",
-    description:
-      "Broad temperate heartlands beneath gentle hills. All five peoples endure the first decade; its valleys soon crowd with walled towns, and old borders are often contested.",
+      "Low green country braided with running water, crossed by long rivers. All five peoples endure the first decade; its valleys soon crowd with walled towns, and the marches burn with constant war.",
   },
   {
     seed: 3,
-    name: "The Scattered Shores",
+    name: "The Sundered Isles",
     description:
       "A realm of scattered islands and long sounds, crossed by long rivers. All five peoples endure the first decade; walled towns rise within a generation, and the marches burn with constant war.",
+  },
+  {
+    seed: 110,
+    name: "The Long Meadows",
+    description:
+      "Broad temperate heartlands beneath gentle hills, crossed by long rivers. All five peoples endure the first decade; its valleys soon crowd with walled towns, and old borders are often contested.",
+  },
+  {
+    seed: 64,
+    name: "The Scattered Shores",
+    description:
+      "A realm of scattered islands and long sounds, crossed by long rivers. All five peoples endure the first decade; its valleys soon crowd with walled towns, and old borders are often contested.",
   },
   {
     seed: 89,

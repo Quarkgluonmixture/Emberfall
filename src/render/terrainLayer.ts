@@ -12,7 +12,14 @@ import { Terrain, type Season, type World } from '../core/types';
 import { scaleColor, type GameTextures } from './textures';
 
 export class TerrainLayer {
+  /** Current season bake + the previous one fading out above it. */
+  container = new Container();
   sprite = new Sprite();
+  private prevSprite = new Sprite();
+  private fadeLeft = 0;
+  /** Set when the cache was just destroyed — the old texture is gone, so the
+      next swap must hard-cut instead of fading from a dead texture. */
+  private justInvalidated = false;
   private cache = new Map<Season, RenderTexture>();
   private cachedVersion = -1;
   /** Per-season luminance gains equalizing the 3 art variants of each biome. */
@@ -22,7 +29,10 @@ export class TerrainLayer {
     private renderer: Renderer,
     private world: World,
     private textures: GameTextures,
-  ) {}
+  ) {
+    this.prevSprite.visible = false;
+    this.container.addChild(this.sprite, this.prevSprite);
+  }
 
   /** Mean luminance of a texture (alpha-weighted), for variant equalization. */
   private meanLuminance(tex: Texture): number {
@@ -56,8 +66,12 @@ export class TerrainLayer {
     return gains;
   }
 
-  update(season: Season, terrainVersion: number): void {
+  update(season: Season, terrainVersion: number, dt: number): void {
     if (terrainVersion !== this.cachedVersion) {
+      // The fading texture is about to be destroyed; end the fade first.
+      this.prevSprite.visible = false;
+      this.fadeLeft = 0;
+      this.justInvalidated = true;
       for (const rt of this.cache.values()) rt.destroy(true);
       this.cache.clear();
       this.cachedVersion = terrainVersion;
@@ -70,9 +84,26 @@ export class TerrainLayer {
       this.cache.set(season, rt);
     }
     if (this.sprite.texture !== rt) {
+      const fade = BALANCE.render.seasonFadeSeconds;
+      // Crossfade from the old bake instead of hard-cutting the whole map.
+      if (!this.justInvalidated && this.sprite.texture.width > 1 && fade > 0) {
+        this.prevSprite.texture = this.sprite.texture;
+        this.prevSprite.scale.copyFrom(this.sprite.scale);
+        this.prevSprite.alpha = 1;
+        this.prevSprite.visible = true;
+        this.fadeLeft = fade;
+      }
+      this.justInvalidated = false;
       this.sprite.texture = rt;
       const bake = this.textures.terrainTiles ? BALANCE.render.terrainBakeScale : 1;
       this.sprite.scale.set(1 / bake);
+    }
+    if (this.fadeLeft > 0) {
+      this.fadeLeft = Math.max(0, this.fadeLeft - dt);
+      const t = 1 - this.fadeLeft / BALANCE.render.seasonFadeSeconds;
+      const ease = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+      this.prevSprite.alpha = 1 - ease;
+      if (this.fadeLeft === 0) this.prevSprite.visible = false;
     }
   }
 
@@ -123,6 +154,32 @@ export class TerrainLayer {
         sp.tint = (g << 16) | (g << 8) | g;
         container.addChild(sp);
       }
+    }
+    // Calm deep-water noise with a multiply tint: enforces the blue while the
+    // brighter wave pixels still punch through (kills the distance moiré).
+    const cfgR = BALANCE.render;
+    if (cfgR.waterFlattenAlpha > 0) {
+      const water = new Graphics();
+      for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+          if ((terrain[y * width + x] as Terrain) === Terrain.Ocean) {
+            water.rect(x * ts, y * ts, ts, ts);
+          }
+        }
+      }
+      water.fill({ color: cfgR.waterFlattenColor, alpha: cfgR.waterFlattenAlpha });
+      water.blendMode = 'multiply';
+      container.addChild(water);
+    }
+    // Soften terrain contrast so settlements/citizens pop above it. Spring's
+    // art runs olive, so it gets a fresh green correction instead of neutral.
+    const softColor = season === 0 ? cfgR.springTintColor : cfgR.terrainSoftenColor;
+    const softAlpha = season === 0 ? cfgR.springTintAlpha : cfgR.terrainSoftenAlpha;
+    if (softAlpha > 0) {
+      const soften = new Graphics()
+        .rect(0, 0, width * ts, height * ts)
+        .fill({ color: softColor, alpha: softAlpha });
+      container.addChild(soften);
     }
     const rt = RenderTexture.create({ width: width * ts, height: height * ts });
     this.renderer.render({ container, target: rt, clear: true });

@@ -43,6 +43,8 @@ const EVENT_ICON_ALIASES: Record<string, string> = {
   rebirth: 'event_founding',
   resettleRuin: 'event_migration',
   relationsCooled: 'season_winter',
+  treatySigned: 'event_peace',
+  tributeEnds: 'event_tradeOpened',
 };
 
 const SEASON_ICONS = ['season_spring', 'season_summer', 'season_autumn', 'season_winter'] as const;

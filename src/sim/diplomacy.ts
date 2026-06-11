@@ -119,6 +119,12 @@ export function updateDiplomacy(state: SimState, rng: RNG): DiploTransition[] {
         rel.score = Math.max(rel.score, d.rivalryScore + 2);
       }
 
+      // A treaty's truce holds the same line: rivalry at worst, no new war.
+      if ((rel.truceDays ?? 0) > 0) {
+        rel.truceDays!--;
+        rel.score = Math.max(rel.score, d.rivalryScore + 2);
+      }
+
       const next = stateForScore(rel.score);
       if (next !== rel.state) {
         const dir = Math.sign(STATE_RANK[next] - STATE_RANK[rel.state]);

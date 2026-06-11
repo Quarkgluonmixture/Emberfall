@@ -205,7 +205,8 @@ function loop(ticker: Ticker): void {
   const cycleRate = speed === 0 ? 0.15 : Math.min(speed, 3);
   ambient = (ambient + (dt * cycleRate) / BALANCE.time.ambientDaySeconds) % 1;
   const darkness = Math.pow(Math.cos(ambient * Math.PI * 2) * 0.5 + 0.5, 1.3);
-  const duskGlow = Math.max(0, 1 - Math.abs(darkness - 0.5) * 5);
+  // Wide smooth bell around half-light so dusk eases in instead of popping.
+  const duskGlow = Math.max(0, 1 - ((darkness - 0.5) * 2.8) ** 2);
   const weather = weatherForDay(state.seed, state.day, season);
 
   // Cinematics: the director steers, then any active flight eases the camera.

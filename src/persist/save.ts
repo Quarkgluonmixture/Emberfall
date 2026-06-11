@@ -26,6 +26,10 @@ interface RelationPair {
   score: number;
   state: DiplomaticState;
   warDays: number;
+  /** Treaty terms; absent in saves from before the treaty system. */
+  truceDays?: number;
+  tributeDays?: number;
+  tributeFrom?: number;
 }
 
 interface SaveFile {
@@ -50,7 +54,16 @@ export function serializeState(state: SimState): string {
   for (let i = 0; i < state.civs.length; i++) {
     for (let j = i + 1; j < state.civs.length; j++) {
       const rel = state.relations[i][j];
-      relationPairs.push({ a: i, b: j, score: rel.score, state: rel.state, warDays: rel.warDays });
+      relationPairs.push({
+        a: i,
+        b: j,
+        score: rel.score,
+        state: rel.state,
+        warDays: rel.warDays,
+        truceDays: rel.truceDays,
+        tributeDays: rel.tributeDays,
+        tributeFrom: rel.tributeFrom,
+      });
     }
   }
   const file: SaveFile = {
@@ -85,7 +98,14 @@ export function deserializeState(json: string): SimState {
   const n = file.civs.length;
   const relations: Relation[][] = Array.from({ length: n }, () => new Array<Relation>(n));
   for (const p of file.relationPairs) {
-    const rel: Relation = { score: p.score, state: p.state, warDays: p.warDays };
+    const rel: Relation = {
+      score: p.score,
+      state: p.state,
+      warDays: p.warDays,
+      truceDays: p.truceDays,
+      tributeDays: p.tributeDays,
+      tributeFrom: p.tributeFrom,
+    };
     relations[p.a][p.b] = rel;
     relations[p.b][p.a] = rel;
   }

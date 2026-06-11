@@ -130,6 +130,29 @@ export const BALANCE = {
     /** Daily military attrition fraction while at war. */
     warAttrition: 0.002,
     warMoraleLoss: 0.05,
+    /** ── Treaties & tribute ─────────────────────────────
+     * A war must be at least this old before anyone sues for peace. */
+    treatyMinWarDays: 60,
+    /** The losing side sues when its military falls below this fraction of the winner's. */
+    treatySurrenderRatio: 0.5,
+    /** Daily chance to sue once the surrender condition holds. */
+    treatySurrenderChance: 0.03,
+    /** Cornered civs (≤2 settlements) sue at this multiple, regardless of ratio. */
+    treatyLastStandMult: 3,
+    /** Relation score the treaty settles at (wary neutrality). */
+    treatyScore: -12,
+    /** Truce length in days (2 years); no new war between the pair while it runs. */
+    treatyTruceDays: 240,
+    /** Tribute duration in days (1.5 years; always shorter than the truce). */
+    treatyTributeDays: 180,
+    /** Daily food/wood the tribute caravans carry, paid from the seat's surplus. */
+    tributeFoodPerDay: 1.2,
+    tributeWoodPerDay: 0.6,
+    /** The payer's seat never drops below these reserves. */
+    tributeFoodReserve: 25,
+    tributeWoodReserve: 15,
+    /** Morale lift in both peoples when the fighting stops. */
+    treatyMoraleRelief: 8,
   },
 
   territory: {
@@ -302,8 +325,34 @@ export const BALANCE = {
     minZoom: 0.6,
     maxZoom: 8,
     zoomStep: 1.1,
-    nightMaxAlpha: 0.62,
-    duskAlpha: 0.14,
+    /** Night grading: a multiply pass deepens shadows, an additive pass adds
+        cool moonlight so the scene never goes flat-dead. */
+    nightMulColor: 0x0e132a,
+    nightMulAlpha: 0.92,
+    nightAddColor: 0x0c1b2e,
+    nightAddAlpha: 0.4,
+    /** Dusk: vertical purple→orange multiply gradient instead of a flat wash. */
+    duskTopColor: 0x4a2c41,
+    duskBottomColor: 0xd46a32,
+    duskAlpha: 0.5,
+    /** Screen-space vignette strength at the corners (0 disables). */
+    vignetteAlpha: 0.36,
+    /** Seconds for the terrain bake crossfade on season change — kept short:
+        long alpha blends of misaligned pixel art read as a double exposure. */
+    seasonFadeSeconds: 0.5,
+    /** Bake-time neutral overlay that softens terrain contrast so actors pop.
+        Spring instead gets a fresh green correction (its art runs olive). */
+    terrainSoftenColor: 0x8a8578,
+    terrainSoftenAlpha: 0.1,
+    springTintColor: 0x8efaa4,
+    springTintAlpha: 0.05,
+    /** Bake-time multiply over deep water: enforces the hue while letting the
+        brighter wave pixels punch through (normal-blend looked like a decal). */
+    waterFlattenColor: 0x598ab5,
+    waterFlattenAlpha: 0.65,
+    /** Two-stage settlement lamps: warm core + wide orange spill. */
+    glowTint: 0xffe2a8,
+    glowSpillTint: 0xd96b14,
     glowMaxAlpha: 0.5,
     /** Zoom the glow look is tuned at; past it the on-screen footprint is damped. */
     glowRefZoom: 1.8,

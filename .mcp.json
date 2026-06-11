@@ -8,7 +8,9 @@
         "@playwright/mcp@latest",
         "--browser",
         "msedge",
-        "--headless"
+        "--headless",
+        "--output-dir",
+        ".playwright-mcp"
       ],
       "env": {}
     }

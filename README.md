@@ -8,6 +8,44 @@ aquarium of history on a second monitor.
 Cozy but slightly dark fantasy: soft seasons, drifting weather, small lights
 against the night.
 
+![A summer world, year 3 — five peoples raise their first fires](docs/world-summer.jpg)
+
+## Features
+
+- **A seed-deterministic world**: 160×100 tiles, 9 biomes, rivers with bends
+  and mouths, elevation/moisture/temperature, four seasons of hand-tinted
+  terrain art. Wildfires burn and spring regrows.
+- **Five civilizations** (more can rise from ruins): population, seven
+  resources, culture traits, settlements that grow camp → village → town,
+  and a full relation matrix — trade, alliances, rivalries, wars with border
+  skirmishes and captures.
+- **Peace treaties & tribute**: losing sides sue for peace; tribute caravans
+  flow seat to seat under a truce that lets the defeated rebuild. Empires
+  are the exception, not the rule.
+- **Emergent events, chronicled in prose**: famine, plague (with spread and
+  immunity), migration, succession crises, schisms, wildfire, flood, golden
+  ages, collapse — every one written into a storybook chronicle with its own
+  icon, place and date.
+- **Civ rebirth**: fallen cultures leave ruins on the map; new peoples
+  kindle their fires among the old stones and inherit a trait.
+- **Roads & caravans**: trade routes carve visible roads (A* over terrain,
+  fords and passes); trading citizens follow them.
+- **A living close-up**: zoom in and individual citizens farm, build, trade,
+  flee and rest through day and night; zoom out for a glowing
+  city-lights map.
+- **Showcase layer**: attract-mode auto-director, cinematic camera, world
+  story overlay, curated seed gallery, adaptive seasonal/mood music.
+- **Deterministic to the bit**: one seeded RNG stream; save → load → run
+  reproduces identical history (test-proven, including a 100-year stress
+  run).
+
+| | |
+| --- | --- |
+| ![Night lights at mid zoom](docs/night-lights.jpg) | ![Roads threading an autumn realm](docs/roads-autumn.jpg) |
+| *Night reads as a map of small lights.* | *Trade carves roads between towns.* |
+
+![Citizens at work at close zoom](docs/citizens-close.jpg)
+
 ## Setup
 
 Requires Node 18+.
@@ -37,6 +75,7 @@ Optional: open a specific world with `?seed=12345` in the URL.
 | `G` | Seed gallery |
 | `W` | World Story overlay |
 | `H` | Toggle the History panel |
+| `M` | Toggle music |
 | `F3` | Toggle the debug overlay |
 | `Esc` | Close panels |
 | Top bar | Save / Load (localStorage), New World, FPS cap, panel toggles |
@@ -62,19 +101,24 @@ src/
 │   ├── resources.ts    settlement production/consumption, civ accrual
 │   ├── growth.ts       population dynamics, camp→village→town upgrades
 │   ├── diplomacy.ts    relation scores → neutral/trade/alliance/rivalry/war
+│   ├── treaties.ts     peace treaties: truces and tribute when a war is lost
 │   ├── territory.ts    tile ownership + border detection
 │   ├── events.ts       famine, plague, migration, war, schism, wildfire, flood…
 │   ├── chronicle.ts    storybook text composition + the event log
 │   ├── founding.ts     civ/settlement creation, site scoring
+│   ├── rebirth.ts      fallen civs return: new cultures rise from quiet ruins
+│   ├── roads.ts        road network: per-civ spanning tree + A* trade routes
 │   ├── agents.ts       hybrid LOD: visible citizen agents near the camera
 │   └── weather.ts      cosmetic daily weather (pure hash of seed+day)
 ├── render/        Pixi: camera (with cinematic flights), terrain bake,
-│                  territory, settlements, citizens, event markers,
+│                  territory, roads, settlements, citizens, event markers,
 │                  atmosphere (night/dusk/particles), textures
 ├── showcase/      interest.ts (shot scoring), director.ts (attract-mode
 │                  cinematographer), stress.ts (determinism/perf harness)
+├── audio/         music.ts — seasonal base + night layer + chronicle moods
 ├── ui/            DOM panels: HUD, civ roster, inspector, chronicle,
-│                  history, world story, seed gallery, debug overlay
+│                  history, world story, seed gallery, debug overlay;
+│                  icons.ts maps event kinds to tintable SVG glyphs
 └── persist/       save.ts — serialize to localStorage (manual + autosave
                    slots); world regenerates from seed, diffs replayed
 ```
@@ -125,11 +169,11 @@ drifting shots and eased flights. All UI hides except the **World Story**
 overlay (year, season, dominant civilization, active crises, latest chronicle
 line). Touching the mouse or keyboard hands control back to you.
 
-**Best seeds** (from the curated gallery, `G`): seed `48` *The Braided
-Waters* (river country, frequent border wars), seed `34` *The Stonecrown
-Reaches* (mountain realm, dense towns), seed `3` *The Scattered Shores*
+**Best seeds** (from the curated gallery, `G`): seed `79` *The Braided
+Waters* (river country, contested borders), seed `34` *The Stonecrown
+Reaches* (mountain realm, dense towns), seed `3` *The Sundered Isles*
 (island wars), seed `89` *The Deepwood Realm* (slow forest world). Open any
-world directly with `?seed=48`.
+world directly with `?seed=79`.
 
 **Recording a demo clip:**
 
@@ -152,9 +196,11 @@ determinism check in the debug overlay.
 
 `npm test` covers terrain generation determinism and biome coverage, resource
 production/consumption, settlement growth and tier upgrades, diplomacy
-threshold transitions (war declaration, war exhaustion → peace), event
-triggers (famine/plague/collapse), full-state save/load round-trips, and
-post-load determinism.
+threshold transitions (war declaration, war exhaustion → peace), peace
+treaties (surrender terms, truces, tribute flow), event triggers
+(famine/plague/collapse), road network building, civ rebirth, attract-mode
+shot scoring, full-state save/load round-trips, post-load determinism, and a
+100-year stress run.
 
 Two extra dev tools live in `scripts/`:
 
@@ -166,3 +212,12 @@ Two extra dev tools live in `scripts/`:
 - `node scripts/smoke.mjs` — drive the running dev server with a headless
   Chromium/Edge, screenshot the game and dump console errors (requires a
   local Edge/Chrome; adjust the executable path at the top).
+
+## Credits
+
+- UI and event icons from [game-icons.net](https://game-icons.net)
+  ([CC BY 3.0](https://creativecommons.org/licenses/by/3.0/)) by Lorc,
+  Delapouite, Skoll, Zeromancer and Guard13007 — full list in
+  [`public/assets/icons/ATTRIBUTION.md`](public/assets/icons/ATTRIBUTION.md).
+- Terrain, settlement and citizen art generated with GPT-Image; music
+  generated with Suno (see `ASSET_MANIFEST.md`).

@@ -55,7 +55,7 @@ export class Renderer {
     this.atmosphere = new Atmosphere(this.textures);
 
     this.camera.root.addChild(
-      this.terrain.sprite,
+      this.terrain.container,
       this.roads.g,
       this.territory.g,
       this.settlements.container,
@@ -64,10 +64,12 @@ export class Renderer {
     );
     app.stage.addChild(
       this.camera.root,
-      this.atmosphere.nightOverlay,
+      this.atmosphere.nightMul,
+      this.atmosphere.nightAdd,
       this.atmosphere.duskOverlay,
       this.settlements.glowContainer,
       this.atmosphere.weatherContainer,
+      this.atmosphere.vignette,
     );
   }
 
@@ -96,7 +98,7 @@ export class Renderer {
     this.camera.apply(w, h);
     this.atmosphere.resize(w, h);
 
-    this.terrain.update(input.season, input.state.terrainVersion);
+    this.terrain.update(input.season, input.state.terrainVersion, input.dt);
     this.roads.update(input.state);
     this.territory.update(input.dt, input.state);
     this.settlements.update(input.state, this.camera.scale, input.darkness, input.time);

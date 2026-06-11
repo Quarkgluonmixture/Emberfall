@@ -5,6 +5,7 @@ import type { AgentSystem } from '../sim/agents';
 import { gatherYields } from '../sim/resources';
 import { yearOf } from '../sim/time';
 import { BALANCE } from '../config/balance';
+import { BiographyPanel } from './biographyPanel';
 
 export type Selection =
   | { kind: 'tile'; x: number; y: number }
@@ -29,6 +30,8 @@ function civLink(state: SimState, civId: number): string {
 export class Inspector {
   selection: Selection = null;
   private root: HTMLElement;
+  private bio = new BiographyPanel();
+  private lastState: SimState | null = null;
 
   constructor() {
     this.root = document.getElementById('inspector')!;
@@ -36,6 +39,12 @@ export class Inspector {
       const t = e.target as HTMLElement;
       if (t.classList.contains('close')) {
         this.select(null);
+        e.preventDefault();
+        return;
+      }
+      const bioEl = t.closest('[data-bio]') as HTMLElement | null;
+      if (bioEl) {
+        if (this.lastState) this.bio.open(this.lastState, Number(bioEl.dataset.bio));
         e.preventDefault();
         return;
       }
@@ -59,6 +68,7 @@ export class Inspector {
   }
 
   update(state: SimState, agents: AgentSystem): void {
+    this.lastState = state;
     if (!this.selection) return;
     let html = '';
     switch (this.selection.kind) {
@@ -135,7 +145,19 @@ export class Inspector {
       const rel = state.relations[id][other.id];
       if (!rel) continue;
       const label = other.alive ? rel.state : 'fallen';
-      relations += row(other.name, `${label} (${Math.round(rel.score)})`);
+      const terms = other.alive
+        ? [
+            (rel.truceDays ?? 0) > 0 ? `truce ${rel.truceDays}d` : '',
+            (rel.tributeDays ?? 0) > 0
+              ? rel.tributeFrom === id
+                ? 'paying tribute'
+                : 'owed tribute'
+              : '',
+          ]
+            .filter(Boolean)
+            .join(' · ')
+        : '';
+      relations += row(other.name, `${label} (${Math.round(rel.score)})${terms ? ` · ${terms}` : ''}`);
     }
     const status = !civ.alive
       ? `Fell in Year ${civ.fallenYear}`
@@ -145,7 +167,7 @@ export class Inspector {
           ? `Succession crisis (${civ.crisisDays}d)`
           : 'Stable';
     return `<h3>${civ.name}</h3>
-      <div class="sub">${status}</div>
+      <div class="sub">${status} · <a href="#" data-bio="${civ.id}">read their story</a></div>
       <div>${traits}</div>
       <table>
       ${row('Population', pop)}

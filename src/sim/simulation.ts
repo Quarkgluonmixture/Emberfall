@@ -15,6 +15,7 @@ import { accrueCivResources, updateSettlementResources } from './resources';
 import { recomputeRoads } from './roads';
 import { recomputeTerritory } from './territory';
 import { seasonOf } from './time';
+import { updateTreaties } from './treaties';
 
 export const SAVE_VERSION = 1;
 
@@ -127,6 +128,8 @@ export class Simulation {
     });
 
     this.timed('events', () => generateDailyEvents(state, rng));
+
+    this.timed('treaties', () => updateTreaties(state, rng));
 
     this.timed('diplomacy', () => {
       const transitions = updateDiplomacy(state, rng);

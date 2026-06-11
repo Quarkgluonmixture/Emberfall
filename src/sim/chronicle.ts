@@ -53,6 +53,15 @@ const TEMPLATES: Record<string, Template[]> = {
     (p) => `${p.civ} declares war upon ${p.otherCiv}. Beacons burn along the marches.`,
   ],
   peace: [(p) => `Weary of war, ${p.civ} and ${p.otherCiv} lay down their arms.`],
+  treatySigned: [
+    (p) =>
+      `Under a white banner, ${p.otherCiv} accepts ${p.civ}'s terms: tribute, and an oath of peace.`,
+    (p) =>
+      `Envoys seal a treaty at the border stones; ${p.otherCiv} will send caravans of tribute to ${p.civ}.`,
+  ],
+  tributeEnds: [
+    (p) => `The last tribute caravan leaves ${p.civ}; the debt to ${p.otherCiv} is paid in full.`,
+  ],
   alliance: [(p) => `${p.civ} and ${p.otherCiv} swear an alliance beneath the old oaks.`],
   tradeOpened: [
     (p) => `Caravans now travel between ${p.civ} and ${p.otherCiv}; trade flourishes.`,

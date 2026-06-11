@@ -85,6 +85,12 @@ export interface Relation {
   score: number;
   state: DiplomaticState;
   warDays: number;
+  /** Treaty-enforced truce days remaining; war cannot come while > 0. */
+  truceDays?: number;
+  /** Tribute days remaining under the current treaty. */
+  tributeDays?: number;
+  /** Civ id of the tribute payer (the war's loser), while tributeDays > 0. */
+  tributeFrom?: number;
 }
 
 /** A place where a settlement once stood. Render-visible, kept in saves. */

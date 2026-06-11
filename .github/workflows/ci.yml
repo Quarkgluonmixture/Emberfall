@@ -1,0 +1,20 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          # Dependencies are pinned for Node 18 (sharp 0.33, Vite 5, Vitest 2).
+          node-version: 18
+          cache: npm
+      - run: npm ci
+      - run: npx tsc --noEmit
+      - run: npx vitest run

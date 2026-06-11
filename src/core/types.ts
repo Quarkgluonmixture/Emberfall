@@ -66,6 +66,8 @@ export interface Civilization {
   alive: boolean;
   /** Year the civ fell, or -1. */
   fallenYear: number;
+  /** Day the civ was founded (0 for the original peoples; >0 for reborn). */
+  foundedDay: number;
   traits: string[];
   knowledge: number;
   faith: number;
@@ -130,6 +132,14 @@ export interface SimState {
   territoryVersion: number;
   nextSettlementId: number;
   rngState: number;
+  /** Day of the most recent civ rebirth (gates the rebirth cooldown). */
+  lastRebirthDay: number;
+  /** Derived road usage level (0-3) per tile. Rebuilt on a cadence; not saved. */
+  roads: Uint8Array;
+  /** Bumped when the road overlay changes so renderers re-bake. */
+  roadsVersion: number;
+  /** Derived road polylines (settlement ids + tile indexes) for caravan routing. */
+  roadPaths: { a: number; b: number; tiles: number[] }[];
 }
 
 export const MAX_CIVS = 16;

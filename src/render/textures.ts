@@ -25,8 +25,12 @@ export interface GameTextures {
   raindrop: Texture;
   snowflake: Texture;
   smoke: Texture[] | null;
+  /** Wildfire flame animation frames. Null → no flame FX. */
+  wildfire: Texture[] | null;
   /** Real terrain art: [season][terrain][variation]. Null → flat-color bake. */
   terrainTiles: Texture[][][] | null;
+  /** River shapes: [season][shape: 0 bend (N→E), 1 mouth (N→ocean S)][variation]. */
+  riverTiles: Texture[][][] | null;
 }
 
 /** Multiply a 0xRRGGBB color by a brightness factor. */
@@ -133,7 +137,9 @@ export function makeTextures(renderer: Renderer): GameTextures {
     raindrop: makeRaindrop(renderer),
     snowflake: makeSnowflake(renderer),
     smoke: null,
+    wildfire: null,
     terrainTiles: null,
+    riverTiles: null,
   };
 }
 
@@ -185,6 +191,32 @@ function sliceTerrainSheet(base: Texture): Texture[][] {
   return out;
 }
 
+/** Cut a 3-column × 2-row river sheet into [shape: bend, mouth][variation] cells. */
+function sliceRiverSheet(base: Texture): Texture[][] {
+  base.source.autoGenerateMipmaps = true;
+  const cell = base.width / 3;
+  const inset = cell * 0.15;
+  const out: Texture[][] = [];
+  for (let s = 0; s < 2; s++) {
+    const row: Texture[] = [];
+    for (let v = 0; v < 3; v++) {
+      row.push(
+        new Texture({
+          source: base.source,
+          frame: new Rectangle(
+            v * cell + inset,
+            s * cell + inset,
+            cell - 2 * inset,
+            cell - 2 * inset,
+          ),
+        }),
+      );
+    }
+    out.push(row);
+  }
+  return out;
+}
+
 /**
  * Load real art over the procedural placeholders. Returns the number of
  * assets found (0 means the game runs fully procedural).
@@ -208,6 +240,11 @@ export async function loadRealTextures(tex: GameTextures): Promise<number> {
     summer,
     autumn,
     winter,
+    wildfire,
+    rivSpring,
+    rivSummer,
+    rivAutumn,
+    rivWinter,
   ] = await Promise.all([
     tryLoad('settlement_camp.png'),
     tryLoad('settlement_village.png'),
@@ -226,6 +263,11 @@ export async function loadRealTextures(tex: GameTextures): Promise<number> {
     tryLoad('terrain_summer.png'),
     tryLoad('terrain_autumn.png'),
     tryLoad('terrain_winter.png'),
+    tryLoad('fx_wildfire.png'),
+    tryLoad('terrain_river_spring.png'),
+    tryLoad('terrain_river_summer.png'),
+    tryLoad('terrain_river_autumn.png'),
+    tryLoad('terrain_river_winter.png'),
   ]);
 
   let loaded = 0;
@@ -257,6 +299,15 @@ export async function loadRealTextures(tex: GameTextures): Promise<number> {
       sliceTerrainSheet(summer!),
       sliceTerrainSheet(autumn!),
       sliceTerrainSheet(winter!),
+    ];
+  }
+  if (count(wildfire)) tex.wildfire = sliceStrip(wildfire!, 4);
+  if (count(rivSpring) && count(rivSummer) && count(rivAutumn) && count(rivWinter)) {
+    tex.riverTiles = [
+      sliceRiverSheet(rivSpring!),
+      sliceRiverSheet(rivSummer!),
+      sliceRiverSheet(rivAutumn!),
+      sliceRiverSheet(rivWinter!),
     ];
   }
   return loaded;

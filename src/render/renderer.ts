@@ -11,6 +11,7 @@ import { Atmosphere } from './atmosphere';
 import { Camera } from './camera';
 import { CitizenLayer } from './citizenLayer';
 import { MarkerLayer } from './markerLayer';
+import { RoadLayer } from './roadLayer';
 import { SettlementLayer } from './settlementLayer';
 import { TerrainLayer } from './terrainLayer';
 import { TerritoryLayer } from './territoryLayer';
@@ -34,6 +35,7 @@ export class Renderer {
   camera: Camera;
   textures: GameTextures;
   terrain: TerrainLayer;
+  roads: RoadLayer;
   territory: TerritoryLayer;
   settlements: SettlementLayer;
   citizens: CitizenLayer;
@@ -45,14 +47,16 @@ export class Renderer {
     this.camera = new Camera(world.width, world.height);
     this.textures = makeTextures(app.renderer);
     this.terrain = new TerrainLayer(app.renderer, world, this.textures);
+    this.roads = new RoadLayer();
     this.territory = new TerritoryLayer();
     this.settlements = new SettlementLayer(this.textures);
     this.citizens = new CitizenLayer(this.textures);
-    this.markers = new MarkerLayer();
+    this.markers = new MarkerLayer(this.textures);
     this.atmosphere = new Atmosphere(this.textures);
 
     this.camera.root.addChild(
       this.terrain.sprite,
+      this.roads.g,
       this.territory.g,
       this.settlements.container,
       this.citizens.container,
@@ -93,6 +97,7 @@ export class Renderer {
     this.atmosphere.resize(w, h);
 
     this.terrain.update(input.season, input.state.terrainVersion);
+    this.roads.update(input.state);
     this.territory.update(input.dt, input.state);
     this.settlements.update(input.state, this.camera.scale, input.darkness, input.time);
     this.citizens.update(input.agents, input.state);

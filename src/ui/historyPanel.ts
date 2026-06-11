@@ -1,6 +1,7 @@
 /** The historical record: notable events grouped by year. */
 import type { ChronicleEntry, SimState } from '../core/types';
 import { SEASON_NAMES } from '../sim/time';
+import { eventIconHtml } from './icons';
 
 const MAX_YEARS_SHOWN = 60;
 
@@ -41,7 +42,7 @@ export class HistoryPanel {
       html += `<div class="year-block"><h4>Year ${year}</h4>`;
       for (const e of byYear.get(year)!) {
         const mark = e.importance === 3 ? '★ ' : '';
-        html += `<div class="entry"><span class="when">${SEASON_NAMES[e.season]}</span>${mark}${e.text}</div>`;
+        html += `<div class="entry"><span class="when">${SEASON_NAMES[e.season]}</span>${eventIconHtml(e.kind)}${mark}${e.text}</div>`;
       }
       html += '</div>';
     }

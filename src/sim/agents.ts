@@ -38,6 +38,8 @@ export interface Agent {
   /** Animation phase offset. */
   phase: number;
   speed: number;
+  /** Remaining waypoints (world px) when following a road. */
+  route?: { x: number; y: number }[];
 }
 
 export interface ViewBounds {
@@ -138,13 +140,20 @@ export class AgentSystem {
         const d = Math.sqrt(dx * dx + dy * dy);
         const speed = a.state === 'fleeing' ? a.speed * 1.8 : a.speed;
         if (d < speed * dt + 0.5) {
-          a.x = a.tx;
-          a.y = a.ty;
-          a.state = a.pendingState;
-          a.timer = this.rng.range(
-            BALANCE.agents.workDurationMin,
-            BALANCE.agents.workDurationMax,
-          );
+          if (a.route && a.route.length > 0) {
+            const next = a.route.shift()!;
+            a.tx = next.x;
+            a.ty = next.y;
+          } else {
+            a.x = a.tx;
+            a.y = a.ty;
+            a.route = undefined;
+            a.state = a.pendingState;
+            a.timer = this.rng.range(
+              BALANCE.agents.workDurationMin,
+              BALANCE.agents.workDurationMax,
+            );
+          }
         } else {
           a.x += (dx / d) * speed * dt;
           a.y += (dy / d) * speed * dt;
@@ -209,16 +218,37 @@ export class AgentSystem {
       return;
     }
 
-    // Trade caravans toward friendly neighbors.
-    const partners = this.tradePartners(state, a.civId);
-    if (partners.length > 0 && this.rng.chance(0.1)) {
-      const partner = this.nearestSettlement(state, partners, s.x, s.y, cfg.tradeRange);
+    // Caravans: follow a road out of town when one exists — kin towns at home,
+    // partner cities abroad. Without a road, amble toward a trade partner.
+    if (this.rng.chance(0.1)) {
+      const touching = state.roadPaths.filter((p) => p.a === s.id || p.b === s.id);
+      if (touching.length > 0) {
+        const pick = touching[this.rng.int(0, touching.length - 1)];
+        const tiles = pick.a === s.id ? pick.tiles : [...pick.tiles].reverse();
+        const W = state.world.width;
+        const route: { x: number; y: number }[] = [];
+        for (let i = 1; i < tiles.length; i += 2) {
+          route.push({ x: ((tiles[i] % W) + 0.5) * ts, y: (((tiles[i] / W) | 0) + 0.5) * ts });
+        }
+        const last = tiles[tiles.length - 1];
+        route.push({ x: ((last % W) + 0.5) * ts, y: (((last / W) | 0) + 0.5) * ts });
+        const first = route.shift()!;
+        a.route = route;
+        a.tx = first.x;
+        a.ty = first.y;
+        a.pendingState = 'trading';
+        a.state = 'trading';
+        return;
+      }
+      const partners = this.tradePartners(state, a.civId);
+      const partner =
+        partners.length > 0
+          ? this.nearestSettlement(state, partners, s.x, s.y, cfg.tradeRange)
+          : null;
       if (partner && partner.id !== s.id) {
         const f = this.rng.range(0.3, 0.7);
-        const mx = (s.x + (partner.x - s.x) * f + 0.5) * ts;
-        const my = (s.y + (partner.y - s.y) * f + 0.5) * ts;
-        a.tx = mx;
-        a.ty = my;
+        a.tx = (s.x + (partner.x - s.x) * f + 0.5) * ts;
+        a.ty = (s.y + (partner.y - s.y) * f + 0.5) * ts;
         a.pendingState = 'trading';
         a.state = 'trading';
         return;
@@ -259,6 +289,7 @@ export class AgentSystem {
     const w = state.world;
     tx = Math.min((w.width - 0.5) * ts, Math.max(0.5 * ts, tx));
     ty = Math.min((w.height - 0.5) * ts, Math.max(0.5 * ts, ty));
+    a.route = undefined;
     a.tx = tx;
     a.ty = ty;
     a.pendingState = then;

@@ -12,6 +12,7 @@ import { generateDailyEvents } from './events';
 import { foundCivilizations } from './founding';
 import { updateSettlementGrowth } from './growth';
 import { accrueCivResources, updateSettlementResources } from './resources';
+import { recomputeRoads } from './roads';
 import { recomputeTerritory } from './territory';
 import { seasonOf } from './time';
 
@@ -50,11 +51,16 @@ export class Simulation {
       territoryVersion: 0,
       nextSettlementId: 1,
       rngState: new RNG(seed).state(),
+      lastRebirthDay: 0,
+      roads: new Uint8Array(world.width * world.height),
+      roadsVersion: 0,
+      roadPaths: [],
     };
     const sim = new Simulation(state);
     foundCivilizations(state, sim.rng);
     state.relations = initialRelations(state.civs, sim.rng);
     recomputeTerritory(state);
+    recomputeRoads(state);
     state.rngState = sim.rng.state();
     return sim;
   }
@@ -140,13 +146,35 @@ export class Simulation {
     if (state.day % BALANCE.territory.recalcDays === 0) {
       this.timed('territory', () => recomputeTerritory(state));
     }
+    if (state.day % BALANCE.roads.recalcDays === 0) {
+      this.timed('roads', () => recomputeRoads(state));
+    }
 
+    const settlementCounts = new Map<number, number>();
+    for (const s of state.settlements) {
+      settlementCounts.set(s.civId, (settlementCounts.get(s.civId) ?? 0) + 1);
+    }
     for (const civ of state.civs) {
       if (!civ.alive) continue;
       if (civ.goldenAgeDays > 0) civ.goldenAgeDays--;
       if (civ.goldenCooldown > 0) civ.goldenCooldown--;
       if (civ.crisisDays > 0) civ.crisisDays--;
       accrueCivResources(civ, this.totalPopulation(civ.id));
+      // Morale floors: reborn peoples in their grace years, and any cornered
+      // civ down to its last hearths, do not despair into abandonment.
+      const inGrace =
+        civ.foundedDay > 0 && state.day - civ.foundedDay < BALANCE.rebirth.graceDays;
+      const lastStand = (settlementCounts.get(civ.id) ?? 0) <= 2;
+      const floor = inGrace
+        ? BALANCE.rebirth.graceMoraleFloor
+        : lastStand
+          ? BALANCE.rebirth.lastStandMoraleFloor
+          : 0;
+      if (floor > 0) {
+        for (const s of state.settlements) {
+          if (s.civId === civ.id && s.morale < floor) s.morale = floor;
+        }
+      }
     }
 
     state.rngState = rng.state();

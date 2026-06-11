@@ -29,6 +29,7 @@ export function makeCiv(id: number, overrides: Partial<Civilization> = {}): Civi
     color: 0xffffff,
     alive: true,
     fallenYear: -1,
+    foundedDay: 0,
     traits: [],
     knowledge: 0,
     faith: 0,
@@ -102,5 +103,9 @@ export function makeState(
     territoryVersion: 0,
     nextSettlementId: 100,
     rngState: 1,
+    lastRebirthDay: 0,
+    roads: new Uint8Array(world.width * world.height),
+    roadsVersion: 0,
+    roadPaths: [],
   };
 }

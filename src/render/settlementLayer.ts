@@ -110,13 +110,37 @@ export class SettlementLayer {
       // Softer night onset: glows arrive late in the dusk and breathe slightly.
       const glowStrength = Math.pow(darkness, 1.35);
       const flicker = 0.92 + 0.08 * Math.sin(time * 7 + s.id * 1.7);
-      const alpha = glowStrength * cfg.glowMaxAlpha * (0.45 + s.tier * 0.35) * flicker;
-      const size = (0.55 + s.tier * 0.4 + s.population / 350) * (ts / 8);
+      // Beyond the reference zoom, damp size and alpha so a close-up reads as
+      // lit windows instead of a screen-filling fireball.
+      const over = Math.max(1, scale / cfg.glowRefZoom);
+      const sizeDamp = Math.pow(over, -cfg.glowZoomSizeExp);
+      const alphaDamp = Math.pow(over, -cfg.glowZoomAlphaExp);
+      // The fuller the world, the tighter each light, so dense late-game
+      // regions stay readable instead of merging into one wash.
+      const density = Math.min(1, cfg.glowDensityRef / Math.max(1, state.settlements.length));
+      const alpha =
+        glowStrength *
+        cfg.glowMaxAlpha *
+        (0.45 + s.tier * 0.35) *
+        flicker *
+        alphaDamp *
+        Math.pow(density, 0.25);
+      const size =
+        (0.55 + s.tier * 0.4 + Math.min(1.1, s.population / 350)) *
+        (ts / 8) *
+        cfg.glowSizeScale *
+        Math.sqrt(density) *
+        sizeDamp;
       const texScale = 64 / this.tex.glow.width;
-      v.glow.alpha = alpha;
-      v.glow.scale.set(size * texScale);
-      v.halo.alpha = alpha * 0.3;
-      v.halo.scale.set(size * texScale * 2.3);
+      // Far out, dozens of additive glows saturate into orange wash — ease
+      // size and alpha toward floors, and kill halos fastest (they merge first).
+      const farT = Math.min(1, Math.max(0, (scale - 0.55) / (cfg.glowFarZoom - 0.55)));
+      const farAlpha = cfg.glowFarAlphaFloor + (1 - cfg.glowFarAlphaFloor) * farT;
+      const farSize = cfg.glowFarSizeFloor + (1 - cfg.glowFarSizeFloor) * farT;
+      v.glow.alpha = alpha * farAlpha;
+      v.glow.scale.set(size * texScale * farSize);
+      v.halo.alpha = alpha * 0.3 * farT * farT;
+      v.halo.scale.set(size * texScale * farSize * 2.3);
     }
 
     for (const [id, v] of this.map) {

@@ -32,7 +32,8 @@ up. Each terrain needs 4 seasonal variants + 3 jitter variations per season
 | tile_grassland | 64×64 cell | 12 | generated |
 | tile_forest (canopy) | 64×64 cell | 12 | generated |
 | tile_mountain (peaks, snowcapped in winter) | 64×64 cell | 12 | generated |
-| tile_river (one shape only) | 64×64 cell | 12 | generated (bends/mouth still missing) |
+| tile_river (straight, in season sheets) | 64×64 cell | 12 | generated |
+| tile_river_bend + mouth (terrain_river_*.png, 3 variants × 2 shapes × 4 seasons) | 64×64 cell | 24 | generated (2026-06-11, `assets_src/raw/8/`); renderer rotates per neighbors |
 | tile_swamp | 64×64 cell | 12 | generated |
 | tile_desert | 64×64 cell | 12 | generated |
 | tile_tundra | 64×64 cell | 12 | generated |
@@ -69,7 +70,7 @@ Tiny agents, tinted per civilization. Authored at 4× (12×24 px source,
 | fx_raindrop | ~10×24 | 1 | generated (black-bg regen, luma-alpha) |
 | fx_snowflake | 16×16 | 1 | generated |
 | fx_smoke_puff (chimneys) | 64×64/frame | 4 | generated (black-bg regen, luma-alpha) |
-| fx_fire_wildfire | 64×64/frame | 4 | raw only (wildfire is terrain-only) |
+| fx_fire_wildfire (fx_wildfire.png) | 64×64/frame | 4 | generated (black-bg regen in `assets_src/raw/7/`, luma-alpha); flames spawn on wildfire chronicle events |
 
 ## Music
 
@@ -99,6 +100,12 @@ To remap a track, edit `MUSIC_MAP` in `scripts/process-assets.mjs` and rerun it.
 | Asset | Dimensions | Frames | Status |
 | --- | --- | --- | --- |
 | ui_panel_frame (9-slice, parchment-on-dark) | 96×96 | 1 | placeholder (CSS) |
-| ui_icons (pause/play/speed/save/load/history/debug) | 24×24 each | 1 each | placeholder (text/emoji) |
-| ui_season_icons (spring/summer/autumn/winter) | 20×20 | 1 each | placeholder (emoji) |
-| ui_event_icons (war/plague/famine/golden-age/…, 12 kinds) | 20×20 | 1 each | **missing** (text only) |
+| ui_icons (pause/play/speed/save/load/history/debug) | SVG, vector | 7 | **downloaded** (`icons/ui_*.svg`) — not yet wired into UI |
+| ui_season_icons (spring/summer/autumn/winter) | SVG, vector | 4 | **downloaded** (`icons/season_*.svg`) — not yet wired |
+| ui_event_icons (all 16 chronicle event kinds) | SVG, vector | 16 | **downloaded** (`icons/event_<kind>.svg`) — not yet wired |
+
+Icons are white-on-transparent SVGs from game-icons.net (CC BY 3.0), fetched
+2026-06-11 into `public/assets/icons/`; see `icons/ATTRIBUTION.md` for the
+per-file author table (attribution required if redistributed). File names match
+sim event kinds 1:1 (`wildfireWild` reuses `event_wildfire.svg`); tint via CSS
+`filter` or use as masks.

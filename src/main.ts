@@ -244,7 +244,7 @@ function loop(ticker: Ticker): void {
   uiTimer += dt;
   if (uiTimer >= BALANCE.render.uiRefreshInterval) {
     uiTimer = 0;
-    hud.setDate(dateString(state.day));
+    hud.setDate(dateString(state.day), season);
     hud.setWeather(weatherText(weather, season));
     civPanel.update(state);
     inspector.update(state, agents);

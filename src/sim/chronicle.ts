@@ -80,6 +80,14 @@ const TEMPLATES: Record<string, Template[]> = {
     (p) => `The last family bars its door and leaves ${p.name} to the moss.`,
   ],
   civFell: [(p) => `The last fires of ${p.civ} go dark. Their story passes into legend.`],
+  rebirth: [
+    (p) => `From mossy ruins a new people kindle their fires — ${p.civ} is born at ${p.name}.`,
+    (p) => `Wanderers gather where old stones stand; they raise ${p.name} and call themselves ${p.civ}.`,
+  ],
+  resettleRuin: [
+    (p) => `Settlers from ${p.name} raise new roofs over the mossy stones of ${p.other}.`,
+    (p) => `The ruins near ${p.other} ring with hammers again; ${p.name} has sent its young.`,
+  ],
   incidentBad: [
     (p) => `A hunting party from ${p.civ} is slain in ${p.otherCiv}'s woods.`,
     (p) => `Fishermen of ${p.civ} and ${p.otherCiv} come to blows over the catch.`,

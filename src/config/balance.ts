@@ -247,6 +247,45 @@ export const BALANCE = {
     /** Minimum real seconds between base-track (season/night) switches. */
     minTrackHoldSeconds: 12,
   },
+  roads: {
+    /** Sim-days between road network recomputes. */
+    recalcDays: 45,
+    /** Longest in-civ road edge, in tiles. */
+    maxCivEdge: 50,
+    /** Longest inter-civ trade road, in tiles. */
+    maxTradeEdge: 70,
+    /** A* search box margin around the endpoints, in tiles. */
+    searchMargin: 8,
+  },
+  rebirth: {
+    /** Days since the last rebirth (or world start) before a new people can rise. */
+    cooldownDays: 540,
+    /** Ruins must lie quiet this long before sheltering a new people. */
+    ruinMinAgeDays: 360,
+    /** Daily chance once every other condition holds. */
+    chance: 0.004,
+    /** Chance the new culture inherits one trait from the most recent fallen civ. */
+    inheritTraitChance: 0.6,
+    /** Site score a ruin must beat to host a rebirth (founding-quality land). */
+    minSiteScore: 9,
+    /** Settlement morale cannot fall below this during the grace years. */
+    graceMoraleFloor: 35,
+    /** Any civ holding ≤2 settlements keeps this morale floor — a cornered
+        people does not abandon its last hearths. */
+    lastStandMoraleFloor: 25,
+    /** Reborn civs start larger than the original founders — they must survive
+        beside established neighbors. */
+    startPopulation: 80,
+    /** No war against (and no plague within) a reborn civ this many days. */
+    graceDays: 1080,
+    /** With this few civs left, rebirth may rise inside claimed land —
+        empires cannot hold every quiet corner. */
+    frontierAliveMax: 2,
+    /** Migration site score bonus for settling on or beside old ruins. */
+    migrationRuinBonus: 3,
+    /** Only ruins at least this old grant the bonus (and the resettle entry). */
+    ruinBonusMinAgeDays: 360,
+  },
   render: {
     /** Terrain bake resolution multiplier (1 = 8px/tile). Real tile art uses 2. */
     terrainBakeScale: 2,
@@ -266,6 +305,22 @@ export const BALANCE = {
     nightMaxAlpha: 0.62,
     duskAlpha: 0.14,
     glowMaxAlpha: 0.5,
+    /** Zoom the glow look is tuned at; past it the on-screen footprint is damped. */
+    glowRefZoom: 1.8,
+    /** How hard glow size shrinks beyond the reference zoom (1 = constant screen size). */
+    glowZoomSizeExp: 0.8,
+    /** How hard glow alpha dims beyond the reference zoom. */
+    glowZoomAlphaExp: 0.35,
+    /** Below this zoom, glows ease toward the far floors so dense late-game
+        maps read as distinct lights instead of merged orange wash. */
+    glowFarZoom: 1.3,
+    glowFarAlphaFloor: 0.35,
+    glowFarSizeFloor: 0.55,
+    /** Overall glow footprint multiplier (1 = the oversized phase-2 look). */
+    glowSizeScale: 0.62,
+    /** Settlement count where density damping kicks in; beyond it glows
+        shrink ~1/sqrt so dense late-game maps keep distinct lights. */
+    glowDensityRef: 28,
     weatherParticleBudget: 260,
     labelMinZoom: 1.6,
     territoryFillAlpha: 0.1,

@@ -110,6 +110,7 @@ export function foundCivilizations(state: SimState, rng: RNG): void {
       color: CIV_COLORS[i % CIV_COLORS.length],
       alive: true,
       fallenYear: -1,
+      foundedDay: 0,
       traits,
       knowledge: 0,
       faith: 0,

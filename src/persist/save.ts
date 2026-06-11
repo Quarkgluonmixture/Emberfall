@@ -13,6 +13,7 @@ import type {
   SimState,
 } from '../core/types';
 import { SAVE_VERSION, Simulation } from '../sim/simulation';
+import { recomputeRoads } from '../sim/roads';
 import { recomputeTerritory } from '../sim/territory';
 import { generateWorld } from '../world/worldgen';
 
@@ -40,6 +41,8 @@ interface SaveFile {
   chronicle: ChronicleEntry[];
   ruins: RuinSite[];
   terrainMods: [number, number][];
+  /** Absent in saves from before the rebirth system. */
+  lastRebirthDay?: number;
 }
 
 export function serializeState(state: SimState): string {
@@ -63,6 +66,7 @@ export function serializeState(state: SimState): string {
     chronicle: state.chronicle,
     ruins: state.ruins,
     terrainMods: state.terrainMods,
+    lastRebirthDay: state.lastRebirthDay,
   };
   return JSON.stringify(file);
 }
@@ -74,6 +78,9 @@ export function deserializeState(json: string): SimState {
   }
   const world = generateWorld(file.seed);
   for (const [i, t] of file.terrainMods) world.terrain[i] = t;
+
+  // Saves from before the rebirth system lack the founding day.
+  for (const c of file.civs) c.foundedDay ??= 0;
 
   const n = file.civs.length;
   const relations: Relation[][] = Array.from({ length: n }, () => new Array<Relation>(n));
@@ -100,8 +107,13 @@ export function deserializeState(json: string): SimState {
     territoryVersion: 0,
     nextSettlementId: file.nextSettlementId,
     rngState: file.rngState,
+    lastRebirthDay: file.lastRebirthDay ?? 0,
+    roads: new Uint8Array(world.width * world.height),
+    roadsVersion: 0,
+    roadPaths: [],
   };
   recomputeTerritory(state);
+  recomputeRoads(state);
   return state;
 }
 

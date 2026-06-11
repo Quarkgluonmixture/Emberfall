@@ -1,6 +1,7 @@
 /** Scrolling chronicle feed: the latest lines of the world's story. */
 import type { SimState } from '../core/types';
 import { SEASON_NAMES } from '../sim/time';
+import { eventIconHtml } from './icons';
 
 const VISIBLE_ENTRIES = 9;
 
@@ -19,9 +20,9 @@ export class ChroniclePanel {
     this.root.innerHTML = entries
       .map(
         (e) =>
-          `<div class="entry imp${e.importance}"><span class="when">Y${e.year} ${SEASON_NAMES[
-            e.season
-          ].slice(0, 3)}</span>${e.text}</div>`,
+          `<div class="entry imp${e.importance}">${eventIconHtml(e.kind)}<span class="when">Y${
+            e.year
+          } ${SEASON_NAMES[e.season].slice(0, 3)}</span>${e.text}</div>`,
       )
       .join('');
   }

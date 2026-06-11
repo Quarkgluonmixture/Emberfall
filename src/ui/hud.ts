@@ -1,5 +1,7 @@
 /** Top bar: date, weather, time controls, save/load, showcase controls, toasts. */
 import { BALANCE } from '../config/balance';
+import type { Season } from '../core/types';
+import { iconHtml, seasonIconHtml } from './icons';
 
 export interface HudCallbacks {
   onSpeed: (index: number) => void;
@@ -16,7 +18,13 @@ export interface HudCallbacks {
   onToggleMusic: () => void;
 }
 
-const SPEED_LABELS = ['⏸', '1×', '5×', '20×'];
+/** Per speed index: icon file + optional text label beside it. */
+const SPEED_BUTTONS: { icon: string; label?: string }[] = [
+  { icon: 'ui_pause' },
+  { icon: 'ui_play' },
+  { icon: 'ui_speed', label: '5×' },
+  { icon: 'ui_speed', label: '20×' },
+];
 
 export class Hud {
   private dateEl: HTMLElement;
@@ -50,7 +58,10 @@ export class Hud {
 
     BALANCE.time.speeds.forEach((_, i) => {
       const btn = document.createElement('button');
-      btn.textContent = SPEED_LABELS[i] ?? `${BALANCE.time.speeds[i]}×`;
+      const spec = SPEED_BUTTONS[i];
+      btn.innerHTML = spec
+        ? iconHtml(spec.icon) + (spec.label ? `<span>${spec.label}</span>` : '')
+        : `${BALANCE.time.speeds[i]}×`;
       btn.title = i === 0 ? 'Pause (Space)' : `Speed ${BALANCE.time.speeds[i]}× (${i})`;
       btn.addEventListener('click', () => cb.onSpeed(i));
       root.appendChild(btn);
@@ -65,23 +76,28 @@ export class Hud {
       root.appendChild(btn);
       return btn;
     };
+    const mkIconButton = (icon: string, title: string, fn: () => void): HTMLButtonElement => {
+      const btn = mkButton('', title, fn);
+      btn.innerHTML = iconHtml(icon);
+      return btn;
+    };
     mkButton('Attract', 'Attract mode: an automated cinematic tour (A)', cb.onToggleAttract);
     mkButton('🎬', 'Cinema mode: hide all UI for recording (C)', cb.onToggleCinema);
     mkButton('📷', 'Save a screenshot of the canvas (P)', cb.onScreenshot);
     mkButton('Worlds', 'Seed gallery: curated worlds (G)', cb.onToggleGallery);
-    mkButton('Save', 'Save world to browser storage', cb.onSave);
-    mkButton('Load', 'Load the most recent save (manual or autosave)', cb.onLoad);
+    mkIconButton('ui_save', 'Save world to browser storage', cb.onSave);
+    mkIconButton('ui_load', 'Load the most recent save (manual or autosave)', cb.onLoad);
     mkButton('New World', 'Generate a fresh random world', cb.onNewWorld);
-    mkButton('History', 'Toggle the historical record (H)', cb.onToggleHistory);
-    mkButton('Debug', 'Toggle debug overlay (F3)', cb.onToggleDebug);
+    mkIconButton('ui_history', 'Toggle the historical record (H)', cb.onToggleHistory);
+    mkIconButton('ui_debug', 'Toggle debug overlay (F3)', cb.onToggleDebug);
     this.musicButton = mkButton('🎵', 'Toggle music (M)', cb.onToggleMusic);
     this.fpsButton = mkButton('60fps', 'Cycle frame-rate cap (kind to GPUs on idle duty)', cb.onCycleFps);
 
     this.toastEl = document.getElementById('toast')!;
   }
 
-  setDate(text: string): void {
-    this.dateEl.textContent = text;
+  setDate(text: string, season?: Season): void {
+    this.dateEl.innerHTML = season === undefined ? text : seasonIconHtml(season) + text;
   }
 
   setWeather(text: string): void {

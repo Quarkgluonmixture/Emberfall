@@ -43,6 +43,22 @@ export function initialRelations(civs: Civilization[], rng: RNG): Relation[][] {
   return matrix;
 }
 
+/** Grow the symmetric matrix for a newly risen civ; everyone starts wary. */
+export function addCivRelations(state: SimState, civId: number, rng: RNG): void {
+  const n = state.civs.length;
+  const spread = BALANCE.diplomacy.initialScoreSpread;
+  const row = new Array<Relation>(n);
+  for (let i = 0; i < n; i++) {
+    if (i === civId) continue;
+    // A young culture is unknown: scores start tighter around neutral.
+    const score = rng.range(-spread * 0.5, spread * 0.5);
+    const rel: Relation = { score, state: stateForScore(score), warDays: 0 };
+    state.relations[i].push(rel);
+    row[i] = rel;
+  }
+  state.relations.push(row);
+}
+
 export interface DiploTransition {
   kind: 'warDeclared' | 'peace' | 'alliance' | 'tradeOpened' | 'rivalry' | 'relationsCooled';
   a: number;
@@ -92,6 +108,16 @@ export function updateDiplomacy(state: SimState, rng: RNG): DiploTransition[] {
 
       delta += rng.range(-d.noise, d.noise);
       rel.score = Math.min(100, Math.max(-100, rel.score + delta));
+
+      // Reborn cultures are beneath notice during their grace years: relations
+      // may sour to rivalry, but war cannot come.
+      const grace = BALANCE.rebirth.graceDays;
+      if (
+        (a.foundedDay > 0 && state.day - a.foundedDay < grace) ||
+        (b.foundedDay > 0 && state.day - b.foundedDay < grace)
+      ) {
+        rel.score = Math.max(rel.score, d.rivalryScore + 2);
+      }
 
       const next = stateForScore(rel.score);
       if (next !== rel.state) {

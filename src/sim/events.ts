@@ -10,6 +10,7 @@ import { MAX_CIVS, Terrain, type Settlement, type SimState } from '../core/types
 import { inBounds, nearTerrain } from '../world/world';
 import { pushEvent } from './chronicle';
 import { foundSettlement, scoreSite } from './founding';
+import { maybeRebirth } from './rebirth';
 import { recomputeTerritory } from './territory';
 import { isFirstDayOfSpring, seasonOf, yearOf } from './time';
 
@@ -96,7 +97,21 @@ function findMigrationSite(
       if (owner !== -1 && owner !== from.civId) continue;
       const sep2 = e.migrationMinSeparation ** 2;
       if (state.settlements.some((s) => (s.x - x) ** 2 + (s.y - y) ** 2 < sep2)) continue;
-      const sc = scoreSite(w, x, y);
+      let sc = scoreSite(w, x, y);
+      if (sc <= 0) continue;
+      // Mossy old ruins draw settlers: cleared land, standing stones, known
+      // wells. Fresh ruins are a bad omen and grant nothing.
+      const rb = BALANCE.rebirth;
+      if (
+        state.ruins.some(
+          (r) =>
+            state.day - r.day >= rb.ruinBonusMinAgeDays &&
+            Math.abs(r.x - x) <= 1 &&
+            Math.abs(r.y - y) <= 1,
+        )
+      ) {
+        sc += rb.migrationRuinBonus;
+      }
       if (sc <= 6) continue;
       const jittered = sc * rng.range(0.9, 1.1);
       if (!best || jittered > best.score) best = { x, y, score: jittered };
@@ -127,7 +142,16 @@ export function maybeMigration(state: SimState, rng: RNG): void {
       food: e.migrationFoodCost,
       wood: e.migrationWoodCost,
     });
-    pushEvent(state, rng, 'migration', 2, s.civId, {
+    const resettledOld = state.ruins.some(
+      (r) =>
+        state.day - r.day >= BALANCE.rebirth.ruinBonusMinAgeDays &&
+        Math.abs(r.x - site.x) <= 1 &&
+        Math.abs(r.y - site.y) <= 1,
+    );
+    state.ruins = state.ruins.filter(
+      (r) => Math.abs(r.x - site.x) > 1 || Math.abs(r.y - site.y) > 1,
+    );
+    pushEvent(state, rng, resettledOld ? 'resettleRuin' : 'migration', resettledOld ? 1 : 2, s.civId, {
       name: s.name,
       other: colony.name,
       x: site.x,
@@ -430,4 +454,5 @@ export function generateDailyEvents(state: SimState, rng: RNG): void {
   regrowForests(state, rng);
   maybeFlood(state, rng);
   collapseCheck(state, rng);
+  maybeRebirth(state, rng);
 }

@@ -151,6 +151,22 @@ if (fs.existsSync(path.join(rawRoot, '6'))) {
   }
 }
 
+// Folder 7: wildfire flame strip on solid black (luma-alpha, like smoke).
+if (fs.existsSync(path.join(rawRoot, '7'))) {
+  console.log('Wildfire flames (folder 7):');
+  await lumaAlphaResize(sources('7')[0], out('fx_wildfire.png'), { w: 256, h: 64 });
+}
+
+// Folder 8: river bend/mouth seasonal sheets (3 variants × 2 shapes, opaque).
+if (fs.existsSync(path.join(rawRoot, '8'))) {
+  console.log('River bend/mouth sheets (folder 8):');
+  const riv = sources('8'); // 1_spring.png … 4_winter.png (sorted)
+  const seasons = ['spring', 'summer', 'autumn', 'winter'];
+  for (let i = 0; i < seasons.length; i++) {
+    await plainResize(riv[i], out(`terrain_river_${seasons[i]}.png`), 192, 128);
+  }
+}
+
 console.log('Effects (folder 1):');
 const fx = sources('1');
 // fx[0] glow, fx[1] smoke, fx[2] wildfire and the raindrop half of fx[3] are

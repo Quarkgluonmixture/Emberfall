@@ -1,5 +1,6 @@
 /** Civilization roster: a living scoreboard of every culture in the world. */
 import type { SimState } from '../core/types';
+import { eventIconHtml } from './icons';
 
 export class CivPanel {
   private root: HTMLElement;
@@ -24,9 +25,9 @@ export class CivPanel {
         )
         .map((o) => o.name);
       const badges = [
-        civ.goldenAgeDays > 0 ? '✨' : '',
-        civ.crisisDays > 0 ? '⚠' : '',
-        wars.length > 0 ? `<span class="war">⚔ ${wars.join(', ')}</span>` : '',
+        civ.goldenAgeDays > 0 ? `<span style="color:var(--ember)">${eventIconHtml('goldenAge')}</span>` : '',
+        civ.crisisDays > 0 ? eventIconHtml('succession') : '',
+        wars.length > 0 ? `<span class="war">${eventIconHtml('warDeclared')} ${wars.join(', ')}</span>` : '',
       ]
         .filter(Boolean)
         .join(' ');

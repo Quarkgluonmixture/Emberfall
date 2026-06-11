@@ -344,10 +344,12 @@ console errors. Gemini before/after (vs pre-rework baseline): settlement art
 - **Owner-generated batch 9/10 art** (`assets_src/raw/9|10/`, spec in
   `ASSET_PROMPTS.md`): pipeline gained a connected-component slicer
   (`slicePieces` in process-assets.mjs — works for strips AND grids; merges
-  fragments only when count > expected) → 19 building pieces + 22 decor
-  sprites in `public/assets/pieces|decor/`. **Still missing: 04_storage /
-  05_civic / 06_market** (prompts ready; granary→shed→hut etc. substitution
-  chains in the layout engine pick them up automatically once processed).
+  fragments only when count > expected) → 26 building pieces + 22 decor
+  sprites in `public/assets/pieces|decor/`. Batch 9 complete (04/05/06
+  delivered later the same session): villages get real wells/shrines +
+  granaries, towns get market stalls. Walls were also reworked from ellipse
+  sampling to connected rectangles (rotated side runs, corner towers, south
+  gate) with a `buildable()` water veto — coastal towns open to the sea.
 - **Cluster engine** (`render/settlementCluster.ts` + settlementLayer):
   hash2-seeded deterministic layouts per (settlement id, tier, pop bucket of
   35) — camps: fire+tents; villages: well/shrine + granary + 4-10 huts;

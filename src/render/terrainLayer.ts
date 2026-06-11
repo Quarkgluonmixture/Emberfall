@@ -4,12 +4,40 @@
  * cost is a single sprite. With real tile art loaded, tiles are baked from
  * the seasonal sheets at higher resolution; otherwise flat shaded colors.
  */
-import { Container, Graphics, RenderTexture, Sprite, type Renderer, type Texture } from 'pixi.js';
+import { Container, Graphics, RenderTexture, Sprite, Texture as PixiTexture, type Renderer, type Texture } from 'pixi.js';
 import { BALANCE } from '../config/balance';
 import { TERRAIN_DEFS } from '../config/terrainConfig';
 import { hash2 } from '../core/rng';
 import { Terrain, type Season, type World } from '../core/types';
 import { scaleColor, type GameTextures } from './textures';
+
+/** Subtle per-biome multiply grade unifying each biome's read at macro zoom
+    without flattening local contrast (white = untouched). */
+const BIOME_GRADE: Record<number, number> = {
+  [Terrain.Ocean]: 0xffffff,
+  [Terrain.Coast]: 0xfff6e2,
+  [Terrain.Grassland]: 0xf2fbe4,
+  [Terrain.Forest]: 0xe7f5e2,
+  [Terrain.Mountain]: 0xf1f1f8,
+  [Terrain.River]: 0xffffff,
+  [Terrain.Swamp]: 0xe9efdc,
+  [Terrain.Desert]: 0xfff3e0,
+  [Terrain.Tundra]: 0xeef4fb,
+};
+
+/** 64×1 white→transparent alpha ramp, tinted per neighbor biome at bake. */
+function gradientRamp(): Texture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 64;
+  canvas.height = 1;
+  const ctx = canvas.getContext('2d')!;
+  const g = ctx.createLinearGradient(0, 0, 64, 0);
+  g.addColorStop(0, 'rgba(255,255,255,1)');
+  g.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, 64, 1);
+  return PixiTexture.from(canvas);
+}
 
 export class TerrainLayer {
   /** Current season bake + the previous one fading out above it. */
@@ -24,6 +52,8 @@ export class TerrainLayer {
   private cachedVersion = -1;
   /** Per-season luminance gains equalizing the 3 art variants of each biome. */
   private gains = new Map<Season, number[][]>();
+  /** Shared alpha ramp for biome edge fog (lazy, lives for the layer). */
+  private ramp: Texture | null = null;
 
   constructor(
     private renderer: Renderer,
@@ -148,11 +178,49 @@ export class TerrainLayer {
         sp.width = ts;
         sp.height = ts;
         // The painted tiles are darker than the flat palette; lift the bake.
-        // Variant gain flattens brightness differences between the 3 arts.
+        // Variant gain flattens brightness differences between the 3 arts;
+        // the biome grade nudges each biome toward one coherent hue family.
         const gain = gains[t]?.[variation] ?? 1;
-        const g = Math.round(255 * Math.min(1, this.shadeAt(x, y) * 1.18 * gain));
-        sp.tint = (g << 16) | (g << 8) | g;
+        const g = Math.min(1, this.shadeAt(x, y) * 1.18 * gain);
+        sp.tint = scaleColor(BIOME_GRADE[t] ?? 0xffffff, g);
         container.addChild(sp);
+      }
+    }
+
+    // Biome edge blending: where two land biomes meet, fog a half-tile of the
+    // neighbor's palette color across the seam so texture cuts read as
+    // transitions instead of grid lines. Water edges stay crisp.
+    if (!this.ramp) this.ramp = gradientRamp();
+    const isWater = (t: Terrain): boolean => t === Terrain.Ocean || t === Terrain.River;
+    const depth = ts * 0.5;
+    const HALF_PI = Math.PI / 2;
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const t = terrain[y * width + x] as Terrain;
+        if (isWater(t)) continue;
+        // Neighbor order: W, E, N, S → rotation/position of the inward fog.
+        const sides: [number, number, number, number][] = [
+          [x - 1, y, 0, 0],
+          [x + 1, y, 1, Math.PI],
+          [x, y - 1, 2, HALF_PI],
+          [x, y + 1, 3, -HALF_PI],
+        ];
+        for (const [nx, ny, side, rot] of sides) {
+          if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue;
+          const nt = terrain[ny * width + nx] as Terrain;
+          if (nt === t || isWater(nt)) continue;
+          const fog = new Sprite(this.ramp);
+          fog.rotation = rot;
+          fog.width = depth;
+          fog.height = ts;
+          fog.tint = TERRAIN_DEFS[nt].seasonColors[season];
+          fog.alpha = 0.22;
+          if (side === 0) fog.position.set(x * ts, y * ts);
+          else if (side === 1) fog.position.set((x + 1) * ts, (y + 1) * ts);
+          else if (side === 2) fog.position.set((x + 1) * ts, y * ts);
+          else fog.position.set(x * ts, (y + 1) * ts);
+          container.addChild(fog);
+        }
       }
     }
     // Calm deep-water noise with a multiply tint: enforces the blue while the

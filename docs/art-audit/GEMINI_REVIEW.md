@@ -3,56 +3,56 @@
 _Model: gemini-3.1-pro-preview · 2026-06-11 · 10 pairs (baseline vs current)_
 
 ### macro day (01-macro-day.jpg)
-**Improved.** The harsh 1x1 terrain grid has been completely eliminated and citizens are properly culled at macro zoom. This massively reduces visual static and transforms the map from a spreadsheet into a clean, readable overworld for the player.
+**Improved.** Settlements transitioned from illegible, dark mud-piles into clearly defined towns with circular palisades and faction banners. This instantly fixes the visual hierarchy, allowing the player's eyes to snap directly to points of interest instead of hunting for them in the organic terrain.
 
 ### macro night (02-macro-night.jpg)
-**Improved.** The pure black backdrop was replaced with an ambient dark blue, and the blinding orange lights were drastically reduced in radius and intensity. The player can now easily read terrain, roads, and borders at night without the screen being blown out.
+**Improved (Marginally).** The massive, blown-out light blooms are still far too large for this zoom level, but the addition of colored faction markers floating in the dark finally helps identify who owns the glowing blobs. It's better for gameplay, but the bloom scaling itself is still a visual problem at this height.
 
 ### mid day (03-mid-day.jpg)
-**Improved.** Straight, 1-pixel vector lines were replaced by organic, curved dirt roads, and civilization borders are now soft, semi-transparent glows. The region looks much more natural and integrated, significantly aiding geographical readability.
+**Improved.** The introduction of actual architectural pixel art (pitched roofs, varying house colors, structured walls) completely replaces the placeholder debris look. The towns now read as structural settlements that contrast beautifully against the green landscape. 
 
 ### mid night (04-mid-night.jpg)
-**Improved.** The contained glow control allows the settlement structures and their new civilization banners to actually be seen at night. The ambient lighting keeps the surrounding roads and terrain perfectly navigable for the player.
+**Improved.** The glow radius was dramatically reined in and now acts as a proper lighting pass rather than a blinding lens flare. You can cleanly read the illuminated palisades and rooftops within the firelight, completely fixing night-time legibility.
 
 ### close settlement (05-close-settlement.jpg)
-**Improved.** The removal of the grid and the smooth connections of the curved roads help ground the settlement into the environment. The addition of colored banners improves civilization identification at a glance.
+**Improved.** The structural grounding is fantastic; you can see distinct houses, pathways, and the defensive rings wrapping the town. It fully resolves the visual ambiguity of the original chaotic pixel clusters and firmly grounds the settlement in the world.
 
 ### close citizens (06-close-citizens.jpg)
-**Improved.** The cleaner, smoothed terrain provides a much less noisy backdrop, allowing the individual citizen sprites and their drop shadows to stand out. While deciphering exact actions is still slightly difficult, overall visual separation from the background is much better.
+**Improved.** Citizens now have distinct states and props—you can spot individuals hauling white resource sacks or performing actions rather than just being featureless orange gingerbread men. This micro-level contrast helps players instantly read economic activity at a glance.
 
 ### winter (07-winter.jpg)
-**Improved.** The continuous, grid-less snow textures create a cohesive winter landscape. The soft glowing civilization borders and brown dirt roads provide excellent, readable contrast against the white terrain, ensuring players don't lose their bearings in winter.
+**Improved.** Previously, the dark smudge of a settlement clashed horribly against the white snow, exacerbated by overblown lighting. Now, the colored roofs and clean palisade lines sit comfortably on the snow, maintaining contrast without looking like a graphical glitch.
 
 ### rain (08-rain.jpg)
-**Improved.** The atmospheric rain overlay darkens the mood without muddying the screen. The smooth terrain and lack of grid lines ensure the player can still easily read the map state despite the weather.
+**Improved.** The screen-darkening weather overlay previously swallowed the dark settlement blobs entirely. The new vibrant roof colors and defined wooden walls cut right through the storm, ensuring the player never loses track of their towns during heavy weather.
 
 ### active crisis or war (09-war-crisis.jpg)
-**Improved.** The thickened, inner-glow civilization borders make the frontlines incredibly clear and easy to read. The player can instantly understand the territorial division without the jagged stair-stepping distraction of the old borders.
+**Improved.** The border tension is much clearer now that the actual settlements are legible and fly distinct, faction-colored banners (red vs. green) along the frontier. The structural presence of the towns makes the border lines feel like actual defended territory rather than arbitrary painted hexes.
 
 ### town upgrade / large settlement (10-town-large.jpg)
-**Unchanged.** Large towns with hundreds of citizens still use the exact same constrained, single-tile footprint as smaller villages. This completely fails to deliver any visual scale fantasy or sense of sprawling growth for the player.
+**Improved.** The scale fantasy is finally being delivered; large settlements now visibly expand into sprawling, multi-ringed complexes with dense housing. It visually communicates a high population and tier upgrade brilliantly compared to the old "wider mud puddle" approach.
 
-***
+---
 
-### 1. Overall Verdict
-The readability pass was a massive success, directly addressing the most severe pain points from the baseline audit. By eliminating the harsh terrain grid, curving the roads, softening borders, and fixing the completely broken night lighting, the game successfully transitioned from a messy prototype to a readable, atmospheric "living diorama." The visual hierarchy is now clear and screen-noise is vastly reduced, though physical settlement scale remains a glaring omission.
+### Overall Verdict
+The readability pass was a resounding success and practically saved the game's aesthetic core. By replacing the illegible placeholder "mud piles" with actual medieval architectural pixel art, colored roofs, and circular palisades, the visual hierarchy is finally intact. Taming the night bloom to illuminate structures rather than blind the camera was a critical fix. The game has transitioned from a messy prototype into a charming, readable strategy game where civilization distinctly pops against the natural canvas. 
 
-### 2. Re-scored Categories (1 to 10)
-- **macro readability:** 9 (+4)
-- **terrain beauty:** 8 (+5)
-- **terrain clarity:** 8 (+2)
-- **settlement readability:** 6 (+2)
-- **settlement scale fantasy:** 2 (Unchanged)
-- **building variety:** 3 (Unchanged)
-- **lighting quality:** 8 (+6)
-- **glow control:** 9 (+7)
-- **citizen readability:** 7 (+2)
-- **action readability:** 4 (+1)
-- **event readability:** 5 (+1)
-- **UI integration:** 8 (Unchanged)
-- **screenshot appeal:** 8 (+5)
+### 13-Category Score Delta
+1. **Settlement Art / Architecture:** 1 → 9 *(+8)*
+2. **Scale Fantasy (Upgrades):** 2 → 9 *(+7)*
+3. **Micro Readability (Zoomed in):** 2 → 8 *(+6)*
+4. **Composition & Grounding:** 2 → 8 *(+6)*
+5. **Lighting & Glow Control:** 2 → 7 *(+5)*
+6. **Faction / Territory Identity:** 4 → 8 *(+4)*
+7. **Citizen State Readability:** 3 → 7 *(+4)*
+8. **Color Palette & Contrast:** 4 → 8 *(+4)*
+9. **Weather Effects Integration:** 4 → 7 *(+3)*
+10. **Macro Hierarchy (Zoomed out):** 3 → 5 *(+2)*
+11. **Terrain & Biome Art:** 5 → 5 *(Unchanged)*
+12. **Road & Infrastructure:** 4 → 4 *(Unchanged)*
+13. **UI & Typography:** 8 → 8 *(Unchanged)*
 
-### 3. Top 3 Remaining Problems
-1. **Settlement Scale & Sprawl:** Towns of 300+ citizens still occupy the exact same 1x1 tile footprint as a tiny camp. Settlements must spill over into adjacent tiles as they grow to provide a satisfying scale fantasy.
-2. **Building Art & Variety:** The internal art of the settlements is still a single dense, muddy clump of dark structures; they need more internal contrast, variety, and distinct upgrades to not look like static stickers.
-3. **Action Readability:** While citizens stand out better against the clean terrain, differentiating a working citizen from a fighting or walking one at a glance remains difficult due to tiny sprite size and subtle silhouettes.
+### Top 3 Remaining Problems
+1. **Macro-Night Bloom Scaling:** While the mid-zoom lighting is great, the fully zoomed-out macro night map (Shot 02) is still dominated by massive, featureless fuzzy orange blobs. The bloom shader desperately needs a scale-clamping mechanism at max zoom so the world isn't swallowed by light.
+2. **Terrain Monotony & Blending:** The forests and mountains remain repetitive, tiled green/grey blocks with harsh geometric stepping. The natural world lacks organic variation and feels incredibly flat compared to the new, highly detailed towns.
+3. **Rigid Road Infrastructure:** Roads remain flat, 1-pixel geometric tan lines that clip awkwardly under the new palisades and terrain edges. They need dirt blending, path wear, and organic visual transitions to properly connect the beautiful new settlements to the map.

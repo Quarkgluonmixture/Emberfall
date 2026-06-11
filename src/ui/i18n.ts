@@ -111,6 +111,7 @@ const UI: Record<string, { en: string; zh: string }> = {
   'inspector.citizenGone': { en: 'They have wandered out of sight.', zh: '他们已走出视野。' },
   'inspector.doing': { en: 'Doing', zh: '正在' },
   'inspector.home': { en: 'Home', zh: '家园' },
+  'inspector.target': { en: 'Heading to', zh: '前往' },
   'inspector.lost': { en: 'lost', zh: '失所' },
   'inspector.fallen': { en: 'fallen', zh: '已覆灭' },
   'inspector.truce': { en: 'truce', zh: '停战' },

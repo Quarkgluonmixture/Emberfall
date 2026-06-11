@@ -6,7 +6,9 @@
  */
 import { Container, Sprite, Text } from 'pixi.js';
 import { BALANCE } from '../config/balance';
-import type { SimState } from '../core/types';
+import { hash2 } from '../core/rng';
+import type { Season, SimState } from '../core/types';
+import type { Weather } from '../sim/weather';
 import {
   clusterExtent,
   clusterKey,
@@ -14,6 +16,21 @@ import {
   layoutRuin,
 } from './settlementCluster';
 import type { GameTextures } from './textures';
+
+/** Environmental grading so clusters belong to the season and weather:
+    cool desaturation in winter, warm dust in autumn, wet darkening in rain. */
+const CLUSTER_SEASON_TINT: [number, number, number, number] = [
+  0xeef7e6, 0xffffff, 0xf3e2c8, 0xcfd8e6,
+];
+const WET_TINT = 0x9fb0bd;
+const WINTER_BASE_TINT = 0x93a1b5;
+
+function lerpColor(a: number, b: number, t: number): number {
+  const r = Math.round(((a >> 16) & 255) + (((b >> 16) & 255) - ((a >> 16) & 255)) * t);
+  const g = Math.round(((a >> 8) & 255) + (((b >> 8) & 255) - ((a >> 8) & 255)) * t);
+  const bl = Math.round((a & 255) + ((b & 255) - (a & 255)) * t);
+  return (r << 16) | (g << 8) | bl;
+}
 
 interface Vis {
   root: Container;
@@ -38,6 +55,12 @@ interface Vis {
   /** Earth-toned patch under everything — worn ground around the buildings. */
   base: Sprite;
   smoke: Sprite | null;
+  /** Pulsing status glyph above the cluster: plague > famine > recent raid. */
+  status: Sprite;
+  /** Construction scaffold shown while the settlement is freshly grown. */
+  scaffold: Sprite | null;
+  /** Vertical half-extent of the current visual (for status/banner placing). */
+  ry: number;
   tier: number;
   name: string;
 }
@@ -61,6 +84,7 @@ export class SettlementLayer {
     v.shadow.height = target * 0.5;
     v.base.width = target * 1.8;
     v.base.height = target * 0.9;
+    v.ry = target * 0.55;
     v.tier = tier;
     if (v.smoke) {
       v.smoke.visible = tier >= 1;
@@ -117,12 +141,18 @@ export class SettlementLayer {
     v.clusterKey = clusterKey(tier, population);
 
     const ext = clusterExtent(layout);
+    v.ry = ext.ry;
     v.base.width = ext.rx * 2.3;
     v.base.height = ext.ry * 2.4;
     v.shadow.width = ext.rx * 1.7;
     v.shadow.height = ext.ry * 1.2;
     v.label.position.set(0, ext.ry + 2.5);
     v.banner.position.set(2, -ext.ry - 2.5);
+    if (v.scaffold) {
+      // Deterministic spot on the cluster's edge — new walls going up.
+      const a = hash2(0x5caf, id, tier) * Math.PI * 2;
+      v.scaffold.position.set(Math.cos(a) * ext.rx * 0.75, Math.sin(a) * ext.ry * 0.75 + 1);
+    }
     if (v.smoke) {
       v.smoke.visible = tier >= 1;
       v.smoke.position.set(0.5, -(ext.ry + 3.5));
@@ -131,10 +161,21 @@ export class SettlementLayer {
     v.lift.visible = false;
   }
 
-  update(state: SimState, scale: number, darkness: number, time: number): void {
+  update(
+    state: SimState,
+    scale: number,
+    darkness: number,
+    time: number,
+    season: Season = 1,
+    weather?: Weather,
+  ): void {
     const ts = BALANCE.map.tileSize;
     const cfg = BALANCE.render;
     const seen = new Set<number>();
+    const wet = weather && weather.kind !== 'clear' ? weather.intensity * 0.5 : 0;
+    const envTint = lerpColor(CLUSTER_SEASON_TINT[season], WET_TINT, wet);
+    const baseTint =
+      season === 3 ? WINTER_BASE_TINT : cfg.settlementBaseColor;
 
     for (const s of state.settlements) {
       seen.add(s.id);
@@ -195,6 +236,20 @@ export class SettlementLayer {
           root.addChild(smoke);
         }
         root.addChild(sprite, lift, banner, label);
+        // Status glyph (plague/famine/raid) floats above everything else.
+        const status = new Sprite();
+        status.anchor.set(0.5, 1);
+        status.visible = false;
+        root.addChild(status);
+        let scaffold: Sprite | null = null;
+        if (this.tex.pieces?.scaffold) {
+          scaffold = new Sprite(this.tex.pieces.scaffold);
+          scaffold.anchor.set(0.5, 0.82);
+          scaffold.visible = false;
+          const sc = 5 / scaffold.texture.width;
+          scaffold.scale.set(sc);
+          root.addChild(scaffold);
+        }
         root.position.set((s.x + 0.5) * ts, (s.y + 0.5) * ts);
         glow.position.copyFrom(root.position);
         halo.position.copyFrom(root.position);
@@ -215,6 +270,9 @@ export class SettlementLayer {
           shadow,
           base,
           smoke,
+          status,
+          scaffold,
+          ry: 6,
           tier: -1,
           name: s.name,
         };
@@ -243,6 +301,12 @@ export class SettlementLayer {
         v.smoke.texture = this.tex.smoke![Math.floor(time * 3 + s.id) % this.tex.smoke!.length];
       }
 
+      // Season/weather grading: the whole cluster (or legacy sprite) shifts
+      // with the world instead of reading as a warm-weather sticker.
+      if (v.cluster) v.cluster.tint = envTint;
+      else v.sprite.tint = envTint;
+      v.base.tint = baseTint;
+
       // Softer night onset: glows arrive late in the dusk and breathe slightly.
       const glowStrength = Math.pow(darkness, 1.35);
 
@@ -261,12 +325,47 @@ export class SettlementLayer {
       for (let i = 0; i < v.lampGlows.length; i++) {
         v.lampGlows[i].alpha = lampAlpha * (0.85 + 0.15 * Math.sin(time * 5 + i * 2.4 + s.id));
       }
+
+      // Status glyph: plague > famine > recent raid; readable from mid zoom.
+      const sIcons = this.tex.statusIcons;
+      const raided = s.lastRaidDay > 0 && state.day - s.lastRaidDay < 45;
+      const statusTex = sIcons
+        ? s.plagueDays > 0
+          ? sIcons.plague
+          : s.famineDays > 0
+            ? sIcons.famine
+            : raided
+              ? sIcons.war
+              : null
+        : null;
+      if (statusTex && scale > 1.2) {
+        v.status.visible = true;
+        v.status.texture = statusTex;
+        v.status.scale.set(5 / statusTex.width);
+        v.status.position.set(0, -(v.ry + 4));
+        v.status.tint = s.plagueDays > 0 ? 0x9dc44d : s.famineDays > 0 ? 0xd99a3d : 0xe04a3a;
+        v.status.alpha = 0.6 + 0.3 * Math.sin(time * 3 + s.id);
+      } else {
+        v.status.visible = false;
+      }
+
+      // Scaffold pulse while the settlement is freshly founded or upgraded.
+      if (v.scaffold) {
+        const growing =
+          (s.lastUpgradeDay > 0 && state.day - s.lastUpgradeDay < 90) ||
+          state.day - s.foundedDay < 120;
+        v.scaffold.visible = growing;
+        if (growing) v.scaffold.alpha = 0.75 + 0.25 * Math.sin(time * 2.2 + s.id);
+      }
       const flicker = 0.92 + 0.08 * Math.sin(time * 7 + s.id * 1.7);
       // Beyond the reference zoom, damp size and alpha so a close-up reads as
       // lit windows instead of a screen-filling fireball.
       const over = Math.max(1, scale / cfg.glowRefZoom);
       const sizeDamp = Math.pow(over, -cfg.glowZoomSizeExp);
-      const alphaDamp = Math.pow(over, -cfg.glowZoomAlphaExp);
+      // With a cluster, the buildings + window lamps carry the night look —
+      // the big settlement-wide glow is just a faint ember halo.
+      const clusterDamp = v.cluster ? 0.5 : 1;
+      const alphaDamp = Math.pow(over, -cfg.glowZoomAlphaExp) * clusterDamp;
       // The fuller the world, the tighter each light, so dense late-game
       // regions stay readable instead of merging into one wash.
       const density = Math.min(1, cfg.glowDensityRef / Math.max(1, state.settlements.length));
@@ -310,6 +409,23 @@ export class SettlementLayer {
     }
 
     this.updateRuins(state, ts);
+  }
+
+  /** QA probe: glow footprint vs settlement footprint (and cluster usage). */
+  audit(): { maxGlowToFootprint: number; clusters: number; lampGlows: number } {
+    let maxRatio = 0;
+    let clusters = 0;
+    let lampGlows = 0;
+    for (const v of this.map.values()) {
+      if (v.cluster) clusters++;
+      lampGlows += v.lampGlows.length;
+      if (v.glow.alpha > 0.05) {
+        const glowR = v.glow.width / 2;
+        const footR = Math.max(4, v.base.width / 2);
+        maxRatio = Math.max(maxRatio, glowR / footR);
+      }
+    }
+    return { maxGlowToFootprint: maxRatio, clusters, lampGlows };
   }
 
   private updateRuins(state: SimState, ts: number): void {

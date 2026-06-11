@@ -183,11 +183,20 @@ export class Inspector {
     const a = agents.agents.find((x) => x.id === id);
     if (!a) return `<h3>${t('inspector.citizen')}</h3><div class="sub">${t('inspector.citizenGone')}</div>`;
     const home = state.settlements.find((s) => s.id === a.settlementId);
+    // Destination row: only meaningful while on the move toward a settlement.
+    const ts = BALANCE.map.tileSize;
+    const moving = a.state === 'walking' || a.state === 'trading' || a.state === 'fleeing';
+    const dest = moving
+      ? state.settlements.find(
+          (s) => Math.abs(s.x + 0.5 - a.tx / ts) <= 1.5 && Math.abs(s.y + 0.5 - a.ty / ts) <= 1.5,
+        )
+      : undefined;
     return `<h3>${t('inspector.citizenOf')} ${civLink(state, a.civId)}</h3>
       <div class="sub">${t('inspector.citizenSub')}</div>
       <table>
       ${row(t('inspector.doing'), agentStateName(a.state))}
       ${row(t('inspector.home'), home ? `<a href="#" data-settlement="${home.id}">${home.name}</a>` : t('inspector.lost'))}
+      ${dest && dest.id !== a.settlementId ? row(t('inspector.target'), `<a href="#" data-settlement="${dest.id}">${dest.name}</a>`) : ''}
       </table>`;
   }
 }

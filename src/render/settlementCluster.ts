@@ -204,7 +204,7 @@ export function layoutCluster(
     for (let i = 0; i < count; i++) {
       const roll = hash2(seed, 20 + i, 2);
       const hut = pick(have, `hut_${Math.floor(roll * 3)}`, 'hut_0', 'hut_1', 'hut_2');
-      if (hut) placeSpiral(out, seed, 20 + i, hut, 5, { lift: true, lamp: i < 4 });
+      if (hut) placeSpiral(out, seed, 20 + i, hut, 5, { lift: true, lamp: i < 2 });
     }
     const lamp = pick(have, 'lamp');
     if (lamp && bucket >= 3) put(out, lamp, 3.2, 2.6, { lamp: true });
@@ -229,7 +229,7 @@ export function layoutCluster(
           : roll < 0.85
             ? pick(have, `hut_${Math.floor(hash2(seed, 50 + i, 5) * 3)}`, 'hut_0', 'house_0')
             : pick(have, hash2(seed, 50 + i, 6) < 0.5 ? 'granary' : 'shed', 'shed', 'granary', 'hut_1');
-      if (kind) placeSpiral(out, seed, 50 + i, kind, 7.5, { lift: true, lamp: i < 8 });
+      if (kind) placeSpiral(out, seed, 50 + i, kind, 7.5, { lift: true, lamp: i < 4 });
     }
 
     const lamp = pick(have, 'lamp');

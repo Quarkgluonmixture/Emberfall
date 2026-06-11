@@ -13,9 +13,20 @@ export class CitizenLayer {
   /** Soft contact shadows keeping the tiny sprites from melting into terrain. */
   private shadowLayer = new Container();
   private shadows: Sprite[] = [];
+  /** Overhead action glyphs, only readable (and only shown) at close zoom. */
+  private iconLayer = new Container();
+  private icons: Sprite[] = [];
+  /** Faint dust puffs over working citizens (field/forest/site activity). */
+  private puffs: Sprite[] = [];
+  /** Fading footprints behind trading caravans. */
+  private trailLayer = new Container();
+  private trails: { sprite: Sprite; ttl: number }[] = [];
+  private trailTimer = 0;
 
   constructor(private tex: GameTextures) {
+    this.container.addChild(this.trailLayer);
     this.container.addChild(this.shadowLayer);
+    this.container.addChild(this.iconLayer);
   }
 
   /** Pick the animation frame and facing for an agent (real art path). */
@@ -41,7 +52,7 @@ export class CitizenLayer {
     return { frame, flip };
   }
 
-  update(agents: Agent[], state: SimState, scale: number): void {
+  update(agents: Agent[], state: SimState, scale: number, dt: number): void {
     // Zoom LOD: citizens are invisible at macro zoom, calm at the default
     // zoom and only reach full contrast in close-ups — they are texture for
     // the world, not static over it.
@@ -54,6 +65,15 @@ export class CitizenLayer {
     this.container.visible = fade > 0.02;
     if (!this.container.visible) return;
     const anims = this.tex.citizenAnims;
+    // Action icons fade in past the icon zoom band and track agent states.
+    const iconFade = Math.min(
+      1,
+      Math.max(0, (scale - cfg.actionIconZoomStart) / (cfg.actionIconZoomFull - cfg.actionIconZoomStart)),
+    );
+    const showIcons = iconFade > 0.02 && this.tex.actionIcons !== null;
+    this.iconLayer.visible = showIcons;
+    this.iconLayer.alpha = iconFade * 0.9;
+
     while (this.pool.length < agents.length) {
       const sp = new Sprite(this.tex.citizen);
       sp.anchor.set(0.5, 1);
@@ -62,18 +82,50 @@ export class CitizenLayer {
       const sh = new Sprite(this.tex.glow);
       sh.anchor.set(0.5);
       sh.tint = 0x000000;
-      sh.alpha = 0.4;
-      sh.width = 2.6;
-      sh.height = 1.2;
+      sh.alpha = 0.55;
+      sh.width = 3.2;
+      sh.height = 1.5;
       this.shadowLayer.addChild(sh);
       this.shadows.push(sh);
+      const ic = new Sprite();
+      ic.anchor.set(0.5, 1);
+      ic.visible = false;
+      this.iconLayer.addChild(ic);
+      this.icons.push(ic);
+      const pf = new Sprite(this.tex.glow);
+      pf.anchor.set(0.5);
+      pf.tint = 0xcbb37a;
+      pf.visible = false;
+      pf.width = 2.2;
+      pf.height = 1.4;
+      this.iconLayer.addChild(pf);
+      this.puffs.push(pf);
     }
+    // Caravan trails: traders deposit fading dust along their route.
+    this.trailTimer += dt;
+    const emitTrail = this.trailTimer >= 0.22;
+    if (emitTrail) this.trailTimer = 0;
+    for (let i = this.trails.length - 1; i >= 0; i--) {
+      const tr = this.trails[i];
+      tr.ttl -= dt;
+      if (tr.ttl <= 0) {
+        tr.sprite.destroy();
+        this.trails.splice(i, 1);
+      } else {
+        tr.sprite.alpha = 0.28 * Math.min(1, tr.ttl / 2);
+      }
+    }
+
     for (let i = 0; i < this.pool.length; i++) {
       const sp = this.pool[i];
       const sh = this.shadows[i];
+      const ic = this.icons[i];
+      const pf = this.puffs[i];
       if (i >= agents.length) {
         sp.visible = false;
         sh.visible = false;
+        ic.visible = false;
+        pf.visible = false;
         continue;
       }
       const a = agents[i];
@@ -81,6 +133,38 @@ export class CitizenLayer {
       sh.visible = true;
       sh.position.set(a.x, a.y + 0.6);
       sp.tint = state.civs[a.civId]?.color ?? 0xffffff;
+
+      const iconTex = showIcons ? this.tex.actionIcons![a.state] : undefined;
+      if (iconTex) {
+        ic.visible = true;
+        ic.texture = iconTex;
+        const w = cfg.actionIconSize;
+        ic.scale.set(w / iconTex.width);
+        ic.position.set(a.x, a.y - cfg.citizenHeight - 1.2);
+      } else {
+        ic.visible = false;
+      }
+
+      // Work dust: a soft puff that breathes with the work animation.
+      if (showIcons && WORKING_STATES.has(a.state)) {
+        pf.visible = true;
+        pf.position.set(a.x + 1.2, a.y - 0.8);
+        pf.alpha = 0.4 * Math.abs(Math.sin(a.phase * 1.3));
+      } else {
+        pf.visible = false;
+      }
+
+      if (emitTrail && a.state === 'trading' && this.trails.length < 320) {
+        const dot = new Sprite(this.tex.glow);
+        dot.anchor.set(0.5);
+        dot.tint = 0xd9b36a;
+        dot.width = 1.7;
+        dot.height = 1.1;
+        dot.alpha = 0.28;
+        dot.position.set(a.x, a.y + 0.5);
+        this.trailLayer.addChild(dot);
+        this.trails.push({ sprite: dot, ttl: 2.4 });
+      }
 
       if (anims) {
         const { frame, flip } = this.frameFor(a);
@@ -103,6 +187,8 @@ export class CitizenLayer {
     while (this.pool.length > agents.length + 200) {
       this.pool.pop()!.destroy();
       this.shadows.pop()!.destroy();
+      this.icons.pop()!.destroy();
+      this.puffs.pop()!.destroy();
     }
   }
 }

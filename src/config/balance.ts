@@ -319,8 +319,9 @@ export const BALANCE = {
     ruinsWidth: 16,
     bannerHeight: 7,
     /** Target on-map height (world px) of citizen sprites — kept well under
-        settlement scale so people don't dwarf the buildings. */
-    citizenHeight: 4.5,
+        settlement scale so people don't dwarf the buildings, but big enough
+        to read against the detailed cluster rooftops. */
+    citizenHeight: 5.2,
     smokeAlpha: 0.35,
     /** Frame-rate cap options cycled by the HUD button; 0 = uncapped. */
     fpsCapOptions: [60, 30, 0],
@@ -368,8 +369,8 @@ export const BALANCE = {
     /** Below this zoom, glows ease toward the far floors so dense late-game
         maps read as distinct lights instead of merged orange wash. */
     glowFarZoom: 1.3,
-    glowFarAlphaFloor: 0.28,
-    glowFarSizeFloor: 0.42,
+    glowFarAlphaFloor: 0.24,
+    glowFarSizeFloor: 0.33,
     /** Overall glow footprint multiplier (1 = the oversized phase-2 look).
         Art-audit pass: lights mark settlements; the lamp-lift below does the
         "illuminated buildings" work the old giant blobs faked. */
@@ -387,11 +388,12 @@ export const BALANCE = {
     settlementDayLiftAlpha: 0.18,
     /** Night lamp-lift on the same overlay: buildings read as lamp-lit
         structures after dark instead of vanishing under the glow blob. */
-    settlementNightLiftAlpha: 0.55,
+    settlementNightLiftAlpha: 0.4,
     /** Per-building window glows in settlement clusters (above the night
-        pass): pool size in world px and peak alpha at deep night. */
-    lampGlowSize: 7,
-    lampGlowAlpha: 0.4,
+        pass): pool size in world px and peak alpha at deep night. Kept small —
+        stacked additive lamps turn towns back into orange blobs fast. */
+    lampGlowSize: 5,
+    lampGlowAlpha: 0.22,
     /** Soft earth-toned base patch under each settlement, grounding it in the
         terrain instead of floating like a sticker. */
     settlementBaseColor: 0x6b5639,
@@ -405,6 +407,11 @@ export const BALANCE = {
         clusters are gone; above macroZoomEnd the clusters rule. */
     macroZoomStart: 0.95,
     macroZoomEnd: 1.3,
+    /** Overhead citizen action icons fade in across this zoom band. */
+    actionIconZoomStart: 3.2,
+    actionIconZoomFull: 4.2,
+    /** Icon width in world px (≈20 screen px at full close-up zoom). */
+    actionIconSize: 3.2,
     /** Real seconds between territory overlay redraws (throttle). */
     territoryRedrawInterval: 0.5,
     uiRefreshInterval: 0.25,

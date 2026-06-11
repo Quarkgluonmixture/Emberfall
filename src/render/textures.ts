@@ -36,7 +36,32 @@ export interface GameTextures {
   pieces: Record<string, Texture> | null;
   /** Terrain decor sprites grouped by base name (batch 10). */
   decor: Record<string, Texture[]> | null;
+  /** White action glyphs shown above citizens at close zoom (CC BY icons). */
+  actionIcons: Record<string, Texture> | null;
+  /** Settlement status glyphs (plague/famine/raid), shown above clusters. */
+  statusIcons: { plague: Texture | null; famine: Texture | null; war: Texture | null } | null;
 }
+
+/** Agent states with an overhead action icon (walking is self-evident). */
+export const ACTION_ICON_STATES = [
+  'gathering',
+  'farming',
+  'building',
+  'trading',
+  'fighting',
+  'fleeing',
+  'resting',
+] as const;
+
+const ACTION_ICON_FILES: Record<string, string> = {
+  gathering: 'action_gather.svg',
+  farming: 'action_farm.svg',
+  building: 'action_build.svg',
+  trading: 'action_trade.svg',
+  fighting: 'action_fight.svg',
+  fleeing: 'action_flee.svg',
+  resting: 'action_rest.svg',
+};
 
 /** Piece kinds the cluster layouts may request (public/assets/pieces/). */
 export const PIECE_KINDS = [
@@ -187,6 +212,8 @@ export function makeTextures(renderer: Renderer): GameTextures {
     riverTiles: null,
     pieces: null,
     decor: null,
+    actionIcons: null,
+    statusIcons: null,
   };
 }
 
@@ -374,6 +401,34 @@ export async function loadRealTextures(tex: GameTextures): Promise<number> {
   if (pieceCount > 0) {
     tex.pieces = pieces;
     loaded += pieceCount;
+  }
+
+  const actionEntries = await Promise.all(
+    Object.entries(ACTION_ICON_FILES).map(
+      async ([state, file]) => [state, await tryLoad(`icons/${file}`)] as const,
+    ),
+  );
+  const actionIcons: Record<string, Texture> = {};
+  let actionCount = 0;
+  for (const [state, t] of actionEntries) {
+    if (t) {
+      actionIcons[state] = t;
+      actionCount++;
+    }
+  }
+  if (actionCount > 0) {
+    tex.actionIcons = actionIcons;
+    loaded += actionCount;
+  }
+
+  const [plagueIcon, famineIcon, warIcon] = await Promise.all([
+    tryLoad('icons/event_plague.svg'),
+    tryLoad('icons/event_famine.svg'),
+    tryLoad('icons/event_warDeclared.svg'),
+  ]);
+  if (plagueIcon || famineIcon || warIcon) {
+    tex.statusIcons = { plague: plagueIcon, famine: famineIcon, war: warIcon };
+    loaded += [plagueIcon, famineIcon, warIcon].filter(Boolean).length;
   }
 
   const decor: Record<string, Texture[]> = {};

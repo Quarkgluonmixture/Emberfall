@@ -47,6 +47,23 @@ async function shot(file, label, description) {
   console.log(`  ✓ ${file} (day ${day})`);
 }
 
+// ── QA assertions: fail loudly when a zoom band loses its key layers or the
+// glow swallows the settlements it should decorate. ──
+const failures = [];
+async function assertLayers(where, checks) {
+  const l = await page.evaluate('__emberfall.layers()');
+  if (!l) {
+    failures.push(`${where}: layers() unavailable`);
+    return;
+  }
+  for (const [name, pred, expect] of checks) {
+    if (!pred(l)) {
+      failures.push(`${where}: ${name} — expected ${expect}, got ${JSON.stringify(l)}`);
+      console.log(`  ✗ QA ${where}: ${name}`);
+    }
+  }
+}
+
 const ef = (expr) => page.evaluate(expr);
 
 console.log(`Battery: seed ${SEED} → ${OUT} (base ${BASE})`);
@@ -69,15 +86,32 @@ const anchor = await page.evaluate(() => {
 
 await ef('__emberfall.centerOn(80, 50, 1.05)');
 await shot('01-macro-day', 'macro day', 'Whole 160x100 world at noon, fully zoomed out.');
+await assertLayers('macro day', [
+  ['strategic glyph layer visible', (l) => l.macroVisible === true, 'macroVisible'],
+  ['citizens hidden at macro', (l) => l.citizenAlpha === 0, 'citizenAlpha 0'],
+]);
 await ef('__emberfall.setAmbient(0)');
 await shot('02-macro-night', 'macro night', 'Whole world at midnight: settlement lights, glow control.');
+await assertLayers('macro night', [
+  ['glow within 3x footprint', (l) => l.maxGlowToFootprint < 3, 'maxGlowToFootprint < 3'],
+]);
 
 await ef(`__emberfall.centerOn(${anchor.x}, ${anchor.y}, 2.2)`);
 await ef('__emberfall.setAmbient(0.5)');
 await shot('03-mid-day', 'mid day', `Default play zoom (2.2x) on the largest settlement region (${anchor.name}) at noon.`);
 await ef('__emberfall.setAmbient(0)');
 await shot('04-mid-night', 'mid night', 'Same framing at midnight: lighting quality and building visibility.');
+await assertLayers('mid night', [
+  ['clusters in use', (l) => l.clusters > 0, 'clusters > 0'],
+  ['window lamps lit', (l) => l.lampGlows > 0, 'lampGlows > 0'],
+  ['glow within 3x footprint', (l) => l.maxGlowToFootprint < 3, 'maxGlowToFootprint < 3'],
+]);
 await ef('__emberfall.setAmbient(0.5)');
+await assertLayers('mid day', [
+  ['clusters visible at mid zoom', (l) => l.settlementAlpha > 0.85, 'settlementAlpha > 0.85'],
+  ['strategic layer gone at mid zoom', (l) => l.macroVisible === false, '!macroVisible'],
+  ['decor scattered', (l) => l.decorCount > 50, 'decorCount > 50'],
+]);
 
 // ── Close-ups at the base epoch (spring, not winter): biggest town ──
 const town = await page.evaluate(() => {
@@ -102,7 +136,11 @@ await shot('05-close-settlement', 'close settlement', 'Close-up of the largest s
 
 await ef(`__emberfall.centerOn(${town.x}, ${town.y}, 6.5)`);
 await ef('__emberfall.stepAgents(25)');
-await shot('06-close-citizens', 'close citizens', 'Citizen close-up at 6.5x: can you tell who is working, walking, fighting, resting?');
+await shot('06-close-citizens', 'close citizens', 'Citizen close-up at 6.5x: action icons above heads — can you tell who is working, trading, resting?');
+await assertLayers('close citizens', [
+  ['citizens at full contrast', (l) => l.citizenAlpha >= 0.99, 'citizenAlpha 1'],
+  ['citizens materialized', (l) => l.citizenCount > 0, 'citizenCount > 0'],
+]);
 
 // ── Rain: next strong rain day from the deterministic weather function ──
 const rainDay = await page.evaluate(() => {
@@ -117,6 +155,21 @@ if (rainDay > 0) {
   await page.waitForTimeout(1800);
   await ef(`__emberfall.centerOn(${anchor.x}, ${anchor.y}, 2.2)`);
   await shot('08-rain', 'rain', 'Heavy rain over the largest settlement region, noon, default zoom.');
+}
+
+// ── Summer & autumn: full-season coverage, same framing ──
+for (const [lo, hi, name, label] of [
+  [40, 50, '11-summer', 'summer'],
+  [70, 80, '12-autumn', 'autumn'],
+]) {
+  const day = await page.evaluate(
+    `(() => { for (let d = __emberfall.day + 1; d < __emberfall.day + 240; d++) { const p = d % 120; if (p >= ${lo} && p <= ${hi}) return d; } return -1; })()`,
+  );
+  if (day < 0) continue;
+  await ef(`__emberfall.advanceDays(${day} - __emberfall.day)`);
+  await page.waitForTimeout(1800);
+  await ef(`__emberfall.centerOn(${anchor.x}, ${anchor.y}, 2.2)`);
+  await shot(name, label, `Mid-${label} over the same region, noon, default zoom.`);
 }
 
 // ── Winter: mid-winter day, prefer snowfall ──
@@ -192,5 +245,6 @@ manifest.sort((a, b) => a.file.localeCompare(b.file));
 fs.writeFileSync(`${OUT}/manifest.json`, JSON.stringify(manifest, null, 2));
 console.log(`Manifest: ${OUT}/manifest.json`);
 console.log(errors.length ? `CONSOLE ERRORS:\n${errors.join('\n')}` : 'no console errors');
+console.log(failures.length ? `QA FAILURES:\n${failures.join('\n')}` : 'all QA assertions passed');
 await browser.close();
-process.exit(errors.length ? 1 : 0);
+process.exit(errors.length || failures.length ? 1 : 0);

@@ -393,6 +393,22 @@ if (params.get('probe')) {
     weatherAt(day: number): Weather {
       return weatherForDay(sim.state.seed, day, seasonOf(day));
     },
+    /** Render-layer state for QA assertions (see art-audit-shots.mjs). */
+    layers(): Record<string, number | boolean> | null {
+      if (!renderer) return null;
+      const settle = renderer.settlements.audit();
+      return {
+        zoom: renderer.camera.scale,
+        citizenAlpha: renderer.citizens.container.visible ? renderer.citizens.container.alpha : 0,
+        citizenCount: agents.agents.length,
+        settlementAlpha: renderer.settlements.container.alpha,
+        macroVisible: renderer.macro.container.visible,
+        clusters: settle.clusters,
+        lampGlows: settle.lampGlows,
+        maxGlowToFootprint: settle.maxGlowToFootprint,
+        decorCount: renderer.decor.container.children.length,
+      };
+    },
     seasonAt(day: number): number {
       return seasonOf(day);
     },

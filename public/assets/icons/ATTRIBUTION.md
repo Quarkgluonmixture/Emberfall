@@ -51,3 +51,10 @@ own file borrow a neighbor in `src/ui/icons.ts` (`wildfireWild` → wildfire,
 `rebirth` → founding, `resettleRuin` → migration, `relationsCooled` →
 season_winter). The second batch (village…incidentGood, fetched 2026-06-11)
 covers the remaining chronicle kinds.
+| action_gather.svg | axe-in-stump | Lorc |
+| action_build.svg | claw-hammer | Lorc |
+| action_trade.svg | two-coins | Delapouite |
+| action_rest.svg | night-sleep | Delapouite |
+| action_fight.svg | crossed-swords (copy of event_warDeclared) | Lorc |
+| action_flee.svg | footsteps (copy of event_migration) | Skoll |
+| action_farm.svg | wheat (copy of event_famine) | Lorc |

@@ -10,6 +10,7 @@ import type { Weather } from '../sim/weather';
 import { Atmosphere } from './atmosphere';
 import { Camera } from './camera';
 import { CitizenLayer } from './citizenLayer';
+import { DecorLayer } from './decorLayer';
 import { MacroLayer, macroBlend } from './macroLayer';
 import { MarkerLayer } from './markerLayer';
 import { RoadLayer } from './roadLayer';
@@ -37,6 +38,7 @@ export class Renderer {
   textures: GameTextures;
   terrain: TerrainLayer;
   roads: RoadLayer;
+  decor: DecorLayer;
   territory: TerritoryLayer;
   settlements: SettlementLayer;
   citizens: CitizenLayer;
@@ -50,6 +52,7 @@ export class Renderer {
     this.textures = makeTextures(app.renderer);
     this.terrain = new TerrainLayer(app.renderer, world, this.textures);
     this.roads = new RoadLayer();
+    this.decor = new DecorLayer(this.textures);
     this.territory = new TerritoryLayer();
     this.settlements = new SettlementLayer(this.textures);
     this.citizens = new CitizenLayer(this.textures);
@@ -60,6 +63,7 @@ export class Renderer {
     this.camera.root.addChild(
       this.terrain.container,
       this.roads.g,
+      this.decor.container,
       this.territory.g,
       this.settlements.container,
       this.citizens.container,
@@ -104,12 +108,20 @@ export class Renderer {
 
     this.terrain.update(input.season, input.state.terrainVersion, input.dt);
     this.roads.update(input.state);
+    this.decor.update(input.dt, input.state, input.season);
     this.territory.update(input.dt, input.state);
-    this.settlements.update(input.state, this.camera.scale, input.darkness, input.time);
+    this.settlements.update(
+      input.state,
+      this.camera.scale,
+      input.darkness,
+      input.time,
+      input.season,
+      input.weather,
+    );
     // Zoom bands: pulling out trades building clusters for the strategic
     // glyph layer; the crossfade keeps both readable mid-transition.
     this.settlements.container.alpha = 1 - macroBlend(this.camera.scale);
-    this.citizens.update(input.agents, input.state, this.camera.scale);
+    this.citizens.update(input.agents, input.state, this.camera.scale, input.dt);
     this.markers.update(input.dt, input.state);
     this.macro.update(input.dt, input.state, this.camera.scale, input.time);
 

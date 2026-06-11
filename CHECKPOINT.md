@@ -1,6 +1,6 @@
 # Emberfall — Checkpoint
 
-**Date:** 2026-06-11 (end of day) · **State:** Phase 3 complete (glow fix, river bends, wildfire FX, tile equalization, civ rebirth, roads + caravans) + treaties & tribute, UI icons everywhere, 4-round Gemini art grading ("shippable"), per-civ biographies, README + CI, Chinese localization + Esc settings menu, **Gemini art-audit workflow + readability pass (screenshot appeal 3→8)** · **All 55 tests green · stress bit-identical at ~0.4–0.6ms/day** · pushed through `ba41daa` + this session's commits
+**Date:** 2026-06-12 · **State:** Phase 3 complete + treaties & tribute, localization, Gemini art-audit workflow, **settlement-scale rework (procedural building clusters from batch-9 art, zoom bands, action icons, activity overlays, terrain decor + grading, QA-asserted battery)** — Gemini verdict "resounding success": settlement art 1→9, scale fantasy 2→9, lighting 2→7 · **All 55 tests green · stress bit-identical at ~0.4–0.6ms/day · 164 settlements @ ~150fps** · pushed through this session's commits (see git log)
 
 A browser idle civilization aquarium: Vite + TypeScript + PixiJS 8 + Vitest.
 `npm install && npm run dev` from a clean checkout, open `http://localhost:5173`.
@@ -333,6 +333,56 @@ zero console errors across all battery runs.
   of scope), building variety/contrast, citizen action readability.
 - Gotcha: `verify-stress.mjs` and friends default to port 5174 — pass
   `BASE=http://localhost:5173` when the dev server holds 5173.
+
+## Settlement-scale rework 2026-06-12 (after the art-audit session)
+
+Verified: typecheck ✓, 55/55 ✓, build ✓, stress bit-identical (0.53ms/day),
+12-shot battery + QA assertions green, 164 settlements at ~150fps, zero
+console errors. Gemini before/after (vs pre-rework baseline): settlement art
+1→9, scale fantasy 2→9, micro readability 2→8, lighting 2→7, citizens 3→7.
+
+- **Owner-generated batch 9/10 art** (`assets_src/raw/9|10/`, spec in
+  `ASSET_PROMPTS.md`): pipeline gained a connected-component slicer
+  (`slicePieces` in process-assets.mjs — works for strips AND grids; merges
+  fragments only when count > expected) → 19 building pieces + 22 decor
+  sprites in `public/assets/pieces|decor/`. **Still missing: 04_storage /
+  05_civic / 06_market** (prompts ready; granary→shed→hut etc. substitution
+  chains in the layout engine pick them up automatically once processed).
+- **Cluster engine** (`render/settlementCluster.ts` + settlementLayer):
+  hash2-seeded deterministic layouts per (settlement id, tier, pop bucket of
+  35) — camps: fire+tents; villages: well/shrine + granary + 4-10 huts;
+  towns: hall + market + 12-30 mixed buildings + stone/palisade wall ring
+  (0.7 chance, gate south, towers on diagonals) + lamps; ruins: scattered
+  broken pieces. Per-building night lift copies + window lamp glows (in
+  glowContainer). Legacy single sprites remain the zero-art fallback.
+  Cluster tint = season grade × wet darkening (rain) — winter towns no
+  longer read as summer stickers. Center glow halves when a cluster exists.
+- **Zoom bands**: `render/macroLayer.ts` — below zoom 0.95 the strategic
+  layer owns the screen (constant screen-size civ-tinted tier glyphs,
+  war-front pulses at frontier midpoints, animated trade-flow beads between
+  trading seats, plague/famine rings); clusters crossfade out below 1.3.
+  Citizens fade 1.6→3.0, action icons 3.2→4.2.
+- **Action icons** (7 CC BY glyphs, `icons/action_*.svg`, 4 fetched + 3
+  aliased; ATTRIBUTION.md updated): overhead glyphs per agent state at close
+  zoom; work-dust puffs on working citizens; caravan dust trails behind
+  traders; inspector citizen view gained a "heading to" row (i18n'd).
+- **Settlement overlays**: status glyph above cluster (plague > famine >
+  raided <45d, tinted, pulsing, zoom>1.2), construction scaffold while
+  founded <120d or upgraded <90d.
+- **Terrain**: bake-time biome edge fog (neighbor palette color, half-tile
+  gradient, water edges stay crisp), per-biome multiply grade, runtime
+  `render/decorLayer.ts` scatter (rocks/trees/reeds/bushes by biome,
+  seasonal tints, skips roads/settlement-adjacent tiles, throttled rebuild
+  on territory/roads/season change).
+- **QA battery**: art-audit-shots now 12 shots (all four seasons) + layer
+  assertions via the probe's `layers()` (macro glyphs visible, citizens
+  culled at macro / full at close, clusters+lamps in use, glow ≤3× footprint,
+  decor present) — exits 1 on violation. `settlementLayer.audit()` feeds it.
+- Gemini's remaining top-3 for a future pass: macro-night glow could clamp
+  harder (floors already lowered once), terrain tile monotony (needs
+  transition/variation art), road rendering (1px lines clip under walls).
+- Gotcha: probe scripts must compare `tier === 2` (numeric enum), not
+  `'town'` — the string compare silently matches nothing.
 
 Note: `.mcp.json` now registers a Playwright MCP server (msedge, headless) so
 future sessions can drive the game interactively instead of via one-shot

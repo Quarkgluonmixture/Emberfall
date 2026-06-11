@@ -61,8 +61,8 @@ export class MusicManager {
   private current: MusicTrack | null = null;
   private muted: boolean;
   private unlocked = false;
-  /** The theme plays once at boot; afterwards the ambience logic takes over. */
-  private themeDone = false;
+  /** The theme plays once at boot (when enabled); then ambience takes over. */
+  private themeDone = !BALANCE.audio.playBootTheme;
   private mood: Mood | null = null;
   private moodLeft = 0;
   private holdLeft = 0;

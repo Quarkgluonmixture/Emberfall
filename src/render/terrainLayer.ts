@@ -49,6 +49,8 @@ export class TerrainLayer {
       next swap must hard-cut instead of fading from a dead texture. */
   private justInvalidated = false;
   private cache = new Map<Season, RenderTexture>();
+  /** Most-recently-used first; 4x bakes are ~65MB each, so keep only two. */
+  private cacheOrder: Season[] = [];
   private cachedVersion = -1;
   /** Per-season luminance gains equalizing the 3 art variants of each biome. */
   private gains = new Map<Season, number[][]>();
@@ -104,6 +106,7 @@ export class TerrainLayer {
       this.justInvalidated = true;
       for (const rt of this.cache.values()) rt.destroy(true);
       this.cache.clear();
+      this.cacheOrder = [];
       this.cachedVersion = terrainVersion;
     }
     let rt = this.cache.get(season);
@@ -112,6 +115,16 @@ export class TerrainLayer {
         ? this.buildFromTiles(season, this.textures.terrainTiles)
         : this.buildFlat(season);
       this.cache.set(season, rt);
+    }
+    // LRU: big bakes get evicted once neither displayed nor mid-crossfade.
+    this.cacheOrder = [season, ...this.cacheOrder.filter((s) => s !== season)];
+    while (this.cacheOrder.length > 2) {
+      const evict = this.cacheOrder[this.cacheOrder.length - 1];
+      const old = this.cache.get(evict);
+      if (!old || old === rt || old === this.prevSprite.texture) break;
+      old.destroy(true);
+      this.cache.delete(evict);
+      this.cacheOrder.pop();
     }
     if (this.sprite.texture !== rt) {
       const fade = BALANCE.render.seasonFadeSeconds;

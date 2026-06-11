@@ -7,6 +7,18 @@ import type { GameTextures } from './textures';
 
 const WORKING_STATES = new Set(['gathering', 'building', 'farming']);
 
+/** Action icons are white mask glyphs — tint them per state so a farming
+    icon reads as golden wheat, not floating white shapes. */
+const ACTION_TINT: Record<string, number> = {
+  gathering: 0xc9a35f,
+  farming: 0xe3c45c,
+  building: 0xd99e56,
+  trading: 0xf0cd8a,
+  fighting: 0xe05a4a,
+  fleeing: 0xf09a4a,
+  resting: 0x9ab8d9,
+};
+
 export class CitizenLayer {
   container = new Container();
   private pool: Sprite[] = [];
@@ -138,6 +150,7 @@ export class CitizenLayer {
       if (iconTex) {
         ic.visible = true;
         ic.texture = iconTex;
+        ic.tint = ACTION_TINT[a.state] ?? 0xffffff;
         const w = cfg.actionIconSize;
         ic.scale.set(w / iconTex.width);
         ic.position.set(a.x, a.y - cfg.citizenHeight - 1.2);

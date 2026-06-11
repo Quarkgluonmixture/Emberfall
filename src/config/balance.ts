@@ -258,6 +258,10 @@ export const BALANCE = {
   },
 
   audio: {
+    /** Play the one-shot boot theme (Cinder Lullaby) before the seasonal
+        ambience. Off by default — the owner found a passage of it unsettling;
+        flip to true (or remap theme.mp3 in MUSIC_MAP) to bring it back. */
+    playBootTheme: false,
     /** Master music volume (0..1). */
     musicVolume: 0.5,
     /** Seconds to crossfade between tracks. */
@@ -310,8 +314,11 @@ export const BALANCE = {
     ruinBonusMinAgeDays: 360,
   },
   render: {
-    /** Terrain bake resolution multiplier (1 = 8px/tile). Real tile art uses 2. */
-    terrainBakeScale: 2,
+    /** Terrain bake resolution multiplier (1 = 8px/tile). Real tile art bakes
+        at 4 (32px/tile, still within the ~45px/tile the sheets provide) so
+        terrain holds up next to the high-res building pieces at close zoom.
+        GPU cost: ~65MB per cached season — the layer keeps an LRU of 2. */
+    terrainBakeScale: 4,
     /** Target on-map width (world px) of settlement sprites per tier.
         Spread widened (camp shrunk, town grown past 3 tiles) so growth from
         camp to town reads as real scale, not an icon swap. */

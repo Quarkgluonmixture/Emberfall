@@ -2,59 +2,44 @@
 
 _Model: gemini-3.1-pro-preview · 2026-06-12 · seed 48 · 12 shots from `docs/art-audit/current/`, one call per shot_
 
-Here is the ranked action-item list, ordered by the highest leverage (player impact relative to implementation effort) to the lowest. 
+- [ ] **Add UI Backplates to World Elements**
+In-world settlement text and overhead citizen action icons vanish directly into chaotic rooflines and busy terrain art. Place dark, semi-transparent pills behind settlement name labels and citizen icons to ensure they read cleanly regardless of the background art. *Impact: High*
 
-- [ ] **Ambient Nighttime Moonlight**
-  **Problem:** The game lacks nighttime moonlight, turning the world into an impenetrable, pitch-black wash at night.
-  **Fix:** Inject a subtle blue ambient base to the night mode so landmasses, water, and geography remain readable in the dark.
-  **Impact:** High
+- [ ] **Overhaul Night Settlement Lighting**
+Settlement lights render as harsh, sharp-edged orange UI squares that leave the actual buildings as pitch-black smudges. Replace the square UI light blocks with soft, circular, radiating glow alphas that illuminate and highlight the tops of the buildings inside the walls. *Impact: High*
 
-- [ ] **On-Map Text Shadows and Glows**
-  **Problem:** Settlement labels and text overlays are completely swallowed by the muddy terrain due to their dark hues.
-  **Fix:** Apply a dark drop shadow or a soft glowing outline to all on-map serif labels (like "Emberstead") to guarantee contrast against dark terrain.
-  **Impact:** High
+- [ ] **Fix Value Contrast in Weather States**
+Rain looks like a flat, dirty grey filter and autumn trees perfectly camouflage into the ground, crushing all value contrast. Lighten the ground in Autumn and Rain states so trees, buildings, and citizens have distinct silhouettes, and replace the flat darkening rain filter with screen-space directional effects. *Impact: High*
 
-- [ ] **Macro-Zoom Decluttering and Anchors**
-  **Problem:** At fully zoomed-out views, citizens and roads create muddy visual noise while settlement lights are too dim to act as anchors.
-  **Fix:** Drop all rendering of citizens and roads at macro zoom. Exaggerate the thickness of territory borders, and dramatically scale up the brightness and bloom radius of settlement glows to act as clear navigational anchors.
-  **Impact:** High
+- [ ] **Scale Down and Differentiate Citizens**
+At close zoom, citizens are gigantic, scale-breaking monolithic orange meeples that lack directional facing or readable action states. Shrink the sprites to be proportionally smaller than buildings, and add visual facing (front/back/side) along with distinct color-coding to denote working, resting, and trading. *Impact: High*
 
-- [ ] **UI Panel Background Transparency**
-  **Problem:** The heavy, opaque black backgrounds of UI panels unnecessarily weigh down the composition and crowd the viewport.
-  **Fix:** Increase the transparency of the UI panel backgrounds to let the map breathe, making sure to retain the existing crisp typography (do not change the gold, white, and red text).
-  **Impact:** Medium
+- [ ] **Replace Macro Settlements with High-Contrast Icons**
+When fully zoomed out, settlements vanish into the terrain or appear as muddy grey pixel clusters. Anchor the macro view by using bold, high-contrast, varied icons that scale with population size rather than attempting to render tiny clusters of buildings. *Impact: Medium*
 
-- [ ] **Road Visibility and Edge Blending**
-  **Problem:** Inter-settlement roads are drawn as thin, low-contrast brown lines that vanish into the dark green terrain.
-  **Fix:** Widen the dirt paths and add soft edge-blending so they read clearly as connecting infrastructure rather than muddy scratches. Ensure they pop distinctly at mid-zoom.
-  **Impact:** Medium
+- [ ] **Thicken and Outline Roads**
+Roads are currently thin, faint dirt lines that are completely swallowed by high-frequency grass, snow, and mountain textures. Widen the road network lines and add a subtle dark edge or drop shadow so they punch through the environment and are easily trackable from town to town. *Impact: Medium*
 
-- [ ] **Settlement Glow Gradients and Localization**
-  **Problem:** At mid and close zooms, settlement lights are blown-out, uniform blobs that completely obscure the buildings beneath them.
-  **Fix:** Transition settlement glows into soft alpha gradients that tint the area rather than blowing it out. Add localized light sources (hearths, lit windows) so the underlying architecture is highlighted instead of erased.
-  **Impact:** High
+- [ ] **Add Global Night Illumination**
+Night lighting currently swallows the world into a flat, pitch-black indistinguishable mass outside of settlements. Introduce ambient cool blue moonlight to maintain topological depth across the terrain, and add subtle specular highlights (rim-lighting) along coastlines to separate land from water. *Impact: Medium*
 
-- [ ] **Settlement Grounding and Hierarchy**
-  **Problem:** Dense buildings lack baseplates or shadows, looking like chaotic, floating mounds of pixels pasted onto the map.
-  **Fix:** Add dark baseplates, edge blending, and ambient occlusion shadows beneath settlements to separate them cleanly from the grass and dirt. Break up the dense stacking of rooftops by introducing visual hierarchy and negative space.
-  **Impact:** High
+- [ ] **Redesign Event and Crisis Visuals**
+High-stakes events lack atmospheric tension, with wars rendering as glitchy dark-grey vertical stripes and fires appearing as tiny muddy smudges. Remove the grey vertical lines and replace them with glowing, high-contrast border friction lines, scorched earth decals, and larger, brighter fire VFX. *Impact: Medium*
 
-- [ ] **Citizen Scaling and Simulation VFX**
-  **Problem:** Massive citizen sprites obscure structures, and simulation events like crises entirely lack on-map visual markers.
-  **Fix:** Drastically downscale oversized citizen meeples at close zoom. Render distinct overhead action icons (working, trading) and crisis VFX (fire, smoke) directly onto the map to visually telegraph the simulation state.
-  **Impact:** High
+- [ ] **Standardize and Smooth Territory Borders**
+Borders swing between being unreadable 1px thin lines or aggressively jagged 90-degree neon stair-steps. Draw a smooth, anti-aliased perimeter line paired with a subtle, semi-transparent inner color fill, utilizing bold semi-transparent fills when fully zoomed out. *Impact: High*
 
-- [ ] **Terrain Tiling, Noise, and Biome Readability**
-  **Problem:** Mountains and forests suffer from severe repetition, and extreme weather/biomes turn the map into monochromatic sludge.
-  **Fix:** Reduce the density and tiling repetition of mountain and forest sprites to establish clear foreground/background hierarchy. Ensure terrain values remain distinct so autumn biomes or heavy rain do not destroy readability.
-  **Impact:** Medium
+- [ ] **Space Out Settlement Interiors**
+Buildings are densely packed into overlapping, monochromatic brown and orange blobs that destroy any sense of town layout, hierarchy, or scale. Stop endlessly stacking identical house sprites and introduce clear negative space for streets and plazas, utilizing varied building shapes to differentiate camps, villages, and towns. *Impact: High*
 
-- [ ] **Organic Grid Smoothing and Blending**
-  **Problem:** Territory borders, coastlines, and palisades are rendered as rigid, blocky, stair-stepped lines that violently clash with the organic art style.
-  **Fix:** Replace tan right-angles, stair-stepped territory borders, and perfectly square palisades with smooth, blended curves that dynamically adapt to the natural geography. Hide the strict geometric grid entirely at mid-zoom, and use subtle regional tinting for territory borders.
-  **Impact:** High
+- [ ] **Break the Settlement Grid**
+Every settlement is encased in an identical, perfectly square palisade wall that behaves like a rigid rubber stamp and ignores natural geography. Replace these square enclosures with organic, irregularly shaped walls that conform smoothly to both the terrain and the population footprint. *Impact: High*
 
-- [ ] **Close-Zoom Asset Clipping**
-  **Problem:** At close zoom, structural elements like walls and houses chaotically clip through one another and natural water features.
-  **Fix:** Complete a close-zoom asset clipping audit to ensure walls do not float unconnected or slice through houses and rivers.
-  **Impact:** Medium
+- [ ] **Smooth Tile and Coastline Transitions**
+Coastlines and riverbanks suffer from aggressive, 90-degree stair-stepped grid alignments that violently clash with the organic terrain textures. Implement blending, alphas, or organic transition tiles for water-to-sand, grass-to-rock, and rivers to completely eliminate the jagged grid lines. *Impact: High*
+
+- [ ] **Add Depth to Mountain Terrain**
+Mountains appear as flat, high-frequency static pasted directly over the grid without volume. Add shading, ambient occlusion, and an organic base transition to make the mountains look like they naturally rise from the earth. *Impact: Medium*
+
+- [ ] **Fix Settlement Clipping Intersections**
+Environmental features like rivers currently cut cleanly through solid stone settlement walls. Create proper bridge or wall-gate visual intersections wherever terrain features intersect with settlement defenses. *Impact: Low*

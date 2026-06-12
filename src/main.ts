@@ -5,6 +5,7 @@
  */
 import type { Ticker } from 'pixi.js';
 import { MusicManager } from './audio/music';
+import { SfxManager } from './audio/sfx';
 import { BALANCE } from './config/balance';
 import {
   AUTOSAVE_KEY,
@@ -53,6 +54,7 @@ let fpsCapIndex = 0;
 let preAttract = { cinema: false, story: false };
 
 const music = new MusicManager();
+const sfx = new SfxManager();
 const inspector = new Inspector();
 const civPanel = new CivPanel((civId) => inspector.select({ kind: 'civ', id: civId }));
 const debugOverlay = new DebugOverlay();
@@ -104,6 +106,8 @@ const menu = new MenuPanel({
   getDebug: () => debugOverlay.visible,
   onToggleMusic: toggleMusic,
   getMusic: () => music.enabled,
+  onToggleSfx: () => sfx.toggle(),
+  getSfx: () => sfx.enabled,
 });
 
 function toggleMusic(): void {
@@ -232,6 +236,7 @@ function loop(ticker: Ticker): void {
   }
   agents.update(dt * Math.min(speed, BALANCE.agents.maxSpeedFactor), state, darkness);
   music.update(dt, state, season, darkness);
+  sfx.update(dt, state, renderer.camera.viewTileBounds());
 
   renderer.frame({
     state,
@@ -303,6 +308,9 @@ async function start(newSim: Simulation): Promise<void> {
     if (director.active) stopAttract();
   };
   created.app.ticker.add(loop);
+  // Transient event FX are wall-clock animated — suppress them in probe
+  // sessions so the screenshot battery stays pixel-deterministic.
+  created.fx.suppress = params.get('probe') !== null;
   renderer = created;
   applyFpsCap();
   autosaveTimer = 0;

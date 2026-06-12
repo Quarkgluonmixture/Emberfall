@@ -35,6 +35,11 @@ invariants live in `CLAUDE.md` — read it before changing sim or pipeline code.
   seed gallery (8 curated), stress mode (`?stress=1`).
 - **Music**: 9 Suno tracks, seasonal/night/mood logic; boot theme disabled
   by default (`audio.playBootTheme`).
+- **Event juice**: chronicle-driven map FX (rings/sparks/dust per event
+  kind, `render/fxLayer.ts`) + synthesized WebAudio one-shots (bells/horns/
+  rumbles, `audio/sfx.ts`, no assets needed, Esc-menu toggle). Both skip
+  bulk fast-forwards; FX fully suppressed under `?probe=1` so batteries
+  stay pixel-deterministic (lift via `renderer.fx.suppress = false`).
 - **UI**: bilingual en/zh everywhere, Esc settings menu (styled, hotkey
   grid), icon set (game-icons.net CC BY, see `icons/ATTRIBUTION.md`).
 - **Probe API** (`?probe=1`): `window.__emberfall` — advanceDays, centerOn,
@@ -53,7 +58,7 @@ src/render/   renderer, camera, terrainLayer (4× RT bake), settlementLayer +
               decorLayer, citizenLayer (+action icons), roadLayer, territoryLayer,
               markerLayer, atmosphere, textures (fallbacks + piece/decor loading)
 src/showcase/ interest, director, stress
-src/audio/    music.ts
+src/audio/    music.ts, sfx.ts (synthesized event one-shots)
 src/ui/       hud, menu, civPanel, inspector, chroniclePanel, historyPanel,
               biographyPanel, worldStory, seedGallery, debugOverlay, icons, i18n
 src/persist/  save.ts

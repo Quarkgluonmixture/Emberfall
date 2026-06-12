@@ -266,6 +266,8 @@ export const BALANCE = {
     playBootTheme: false,
     /** Master music volume (0..1). */
     musicVolume: 0.5,
+    /** Master volume for the synthesized event sound effects (0..1). */
+    sfxVolume: 0.5,
     /** Seconds to crossfade between tracks. */
     musicFadeSeconds: 2.5,
     /** Real seconds an event mood holds the music after its latest trigger. */

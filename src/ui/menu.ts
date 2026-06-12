@@ -9,6 +9,8 @@ export interface MenuCallbacks {
   getDebug: () => boolean;
   onToggleMusic: () => void;
   getMusic: () => boolean;
+  onToggleSfx: () => void;
+  getSfx: () => boolean;
 }
 
 export class MenuPanel {
@@ -27,6 +29,7 @@ export class MenuPanel {
       else if (act === 'fps') this.cb.onCycleFps();
       else if (act === 'debug') this.cb.onToggleDebug();
       else if (act === 'music') this.cb.onToggleMusic();
+      else if (act === 'sfx') this.cb.onToggleSfx();
       else if (act === 'resume') this.toggle(false);
       this.render();
     });
@@ -60,6 +63,7 @@ export class MenuPanel {
       ${row(t('menu.fps'), 'fps', fpsLabel)}
       ${row(t('menu.debug'), 'debug', onOff(this.cb.getDebug()))}
       ${row(t('menu.music'), 'music', onOff(this.cb.getMusic()))}
+      ${row(t('menu.sfx'), 'sfx', onOff(this.cb.getSfx()))}
       <div class="menu-keys-title">${t('menu.keysTitle')}</div>
       <div class="menu-keys">${this.keysHtml()}</div>
       <div class="menu-row menu-resume"><button data-act="resume">${t('menu.resume')} (Esc)</button></div>`;

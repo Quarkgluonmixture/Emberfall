@@ -11,6 +11,7 @@ import { Atmosphere } from './atmosphere';
 import { Camera } from './camera';
 import { CitizenLayer } from './citizenLayer';
 import { DecorLayer } from './decorLayer';
+import { FxLayer } from './fxLayer';
 import { MacroLayer, macroBlend } from './macroLayer';
 import { MarkerLayer } from './markerLayer';
 import { RoadLayer } from './roadLayer';
@@ -43,6 +44,7 @@ export class Renderer {
   settlements: SettlementLayer;
   citizens: CitizenLayer;
   markers: MarkerLayer;
+  fx: FxLayer;
   macro: MacroLayer;
   atmosphere: Atmosphere;
 
@@ -57,6 +59,7 @@ export class Renderer {
     this.settlements = new SettlementLayer(this.textures);
     this.citizens = new CitizenLayer(this.textures);
     this.markers = new MarkerLayer(this.textures);
+    this.fx = new FxLayer(app.renderer, this.textures);
     this.macro = new MacroLayer(app.renderer);
     this.atmosphere = new Atmosphere(this.textures);
 
@@ -68,6 +71,7 @@ export class Renderer {
       this.settlements.container,
       this.citizens.container,
       this.markers.container,
+      this.fx.container,
       this.macro.container,
     );
     app.stage.addChild(
@@ -123,6 +127,7 @@ export class Renderer {
     this.settlements.container.alpha = 1 - macroBlend(this.camera.scale);
     this.citizens.update(input.agents, input.state, this.camera.scale, input.dt);
     this.markers.update(input.dt, input.state);
+    this.fx.update(input.dt, input.state);
     this.macro.update(input.dt, input.state, this.camera.scale, input.time);
 
     // The glow layer sits above the night overlay; mirror the camera transform.
@@ -152,6 +157,7 @@ export class Renderer {
   }
 
   destroy(): void {
+    this.fx.destroy();
     this.terrain.destroy();
     this.app.destroy(true, { children: true, texture: true });
   }

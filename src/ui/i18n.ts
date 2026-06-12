@@ -9,7 +9,8 @@ import { dayOfSeason, seasonOf, yearOf } from '../sim/time';
 export type Lang = 'en' | 'zh';
 
 const LANG_KEY = 'emberfall:lang';
-let lang: Lang = (typeof localStorage !== 'undefined' && (localStorage.getItem(LANG_KEY) as Lang)) || 'en';
+let lang: Lang =
+  (typeof localStorage !== 'undefined' && (localStorage.getItem(LANG_KEY) as Lang)) || 'en';
 const listeners: Array<() => void> = [];
 
 export function getLang(): Lang {
@@ -36,13 +37,22 @@ export function onLangChange(fn: () => void): void {
 const UI: Record<string, { en: string; zh: string }> = {
   // HUD
   'hud.attract': { en: 'Attract', zh: '观赏' },
-  'hud.attract.tip': { en: 'Attract mode: an automated cinematic tour (A)', zh: '观赏模式：自动运镜巡游 (A)' },
-  'hud.cinema.tip': { en: 'Cinema mode: hide all UI for recording (C)', zh: '影院模式：隐藏全部界面 (C)' },
+  'hud.attract.tip': {
+    en: 'Attract mode: an automated cinematic tour (A)',
+    zh: '观赏模式：自动运镜巡游 (A)',
+  },
+  'hud.cinema.tip': {
+    en: 'Cinema mode: hide all UI for recording (C)',
+    zh: '影院模式：隐藏全部界面 (C)',
+  },
   'hud.screenshot.tip': { en: 'Save a screenshot of the canvas (P)', zh: '保存画面截图 (P)' },
   'hud.worlds': { en: 'Worlds', zh: '世界图鉴' },
   'hud.worlds.tip': { en: 'Seed gallery: curated worlds (G)', zh: '种子画廊：精选世界 (G)' },
   'hud.save.tip': { en: 'Save world to browser storage', zh: '保存世界到浏览器存储' },
-  'hud.load.tip': { en: 'Load the most recent save (manual or autosave)', zh: '读取最近的存档（手动或自动）' },
+  'hud.load.tip': {
+    en: 'Load the most recent save (manual or autosave)',
+    zh: '读取最近的存档（手动或自动）',
+  },
   'hud.newWorld': { en: 'New World', zh: '新世界' },
   'hud.newWorld.tip': { en: 'Generate a fresh random world', zh: '生成一个全新的随机世界' },
   'hud.history.tip': { en: 'Toggle the historical record (H)', zh: '开关历史记录 (H)' },
@@ -57,6 +67,7 @@ const UI: Record<string, { en: string; zh: string }> = {
   'menu.fps.unlimited': { en: 'Unlimited', zh: '不限' },
   'menu.debug': { en: 'Debug overlay', zh: '调试面板' },
   'menu.music': { en: 'Music', zh: '音乐' },
+  'menu.sfx': { en: 'Sound effects', zh: '音效' },
   'menu.on': { en: 'On', zh: '开' },
   'menu.off': { en: 'Off', zh: '关' },
   'menu.resume': { en: 'Resume', zh: '继续' },
@@ -179,7 +190,8 @@ export function seasonName(season: Season): string {
 }
 
 export function dateText(day: number): string {
-  if (lang === 'zh') return `第${yearOf(day)}年 · ${SEASONS_ZH[seasonOf(day)]} · 第${dayOfSeason(day)}日`;
+  if (lang === 'zh')
+    return `第${yearOf(day)}年 · ${SEASONS_ZH[seasonOf(day)]} · 第${dayOfSeason(day)}日`;
   return `Year ${yearOf(day)} · ${SEASONS_EN[seasonOf(day)]} · Day ${dayOfSeason(day)}`;
 }
 

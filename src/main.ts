@@ -332,11 +332,7 @@ window.addEventListener('keydown', (e) => {
     // Close whatever is open first; with nothing open, toggle the menu.
     if (menu.visible) {
       menu.toggle(false);
-    } else if (
-      inspector.selection !== null ||
-      historyPanel.visible ||
-      gallery.visible
-    ) {
+    } else if (inspector.selection !== null || historyPanel.visible || gallery.visible) {
       inspector.select(null);
       if (historyPanel.visible) historyPanel.toggle();
       if (gallery.visible) gallery.toggle(false);
@@ -359,6 +355,10 @@ if (params.get('probe')) {
     },
     get state() {
       return sim.state;
+    },
+    /** Renderer handle for layer-attribution debugging (probe only). */
+    get renderer() {
+      return renderer;
     },
     /** Synchronously fast-forward n days; returns the new day. */
     advanceDays(n: number): number {
@@ -428,7 +428,9 @@ void start(Simulation.create(initialSeed)).then(() => {
       debugOverlay.extra = text;
       debugOverlay.toggle(true);
       hud.showToast(
-        report.identical ? 'Stress test passed — bit-identical.' : 'Stress test FAILED determinism!',
+        report.identical
+          ? 'Stress test passed — bit-identical.'
+          : 'Stress test FAILED determinism!',
       );
     }, 150);
   }

@@ -77,19 +77,31 @@ export class DecorLayer {
     const { width, height, terrain, seed } = state.world;
     const ts = BALANCE.map.tileSize;
 
-    // No decor under or right beside settlements and ruins.
+    // No decor under or right beside settlements and ruins. Landmark decor
+    // (canopies, mountain formations) is sprite-sized like a building block
+    // and town clusters span 2-5 tiles — without the wider per-tier ring a
+    // canopy anchored beside a town pokes its crown into the empty plaza
+    // and reads as a giant tree swallowing the buildings.
     const blocked = new Set<number>();
-    const block = (cx: number, cy: number, r: number): void => {
+    const blockedLandmark = new Set<number>();
+    const block = (set: Set<number>, cx: number, cy: number, r: number): void => {
       for (let dy = -r; dy <= r; dy++) {
         for (let dx = -r; dx <= r; dx++) {
           const nx = cx + dx;
           const ny = cy + dy;
-          if (nx >= 0 && ny >= 0 && nx < width && ny < height) blocked.add(ny * width + nx);
+          if (nx >= 0 && ny >= 0 && nx < width && ny < height) set.add(ny * width + nx);
         }
       }
     };
-    for (const s of state.settlements) block(s.x, s.y, 2);
-    for (const r of state.ruins) block(r.x, r.y, 1);
+    for (const s of state.settlements) {
+      block(blocked, s.x, s.y, 2);
+      block(blockedLandmark, s.x, s.y, 4 + s.tier);
+    }
+    for (const r of state.ruins) {
+      block(blocked, r.x, r.y, 1);
+      block(blockedLandmark, r.x, r.y, 3);
+    }
+    const LANDMARK = new Set(['canopy', 'mountain_formation']);
 
     for (let y = 0; y < height; y++) {
       for (let x = 0; x < width; x++) {
@@ -112,6 +124,7 @@ export class DecorLayer {
           }
           acc += c;
           if (roll >= acc) continue;
+          if (LANDMARK.has(kind) && blockedLandmark.has(i)) break;
           const list = decor[kind];
           if (!list?.length) break;
           const variant = Math.floor(hash2(seed ^ 0xdec1, x, y) * list.length);

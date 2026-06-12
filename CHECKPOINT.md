@@ -5,8 +5,8 @@ zh localization, Gemini art-audit workflow, settlement-scale rework
 (procedural building clusters, zoom bands, action icons, activity overlays,
 terrain decor/grading/4× bake, walls with dedicated vertical art, repo
 hygiene), **terrain & roads art pass** (procedural shoreline, layered road
-strokes + wall-edge trim, 6-variant terrain support — batch 13 spec written,
-art pending in `assets_src/raw/13/`) · **64/64 tests · lint clean ·
+strokes + wall-edge trim, batch-13 art landed: 6 tile variants per biome) ·
+**64/64 tests · lint clean ·
 stress bit-identical ~0.4-0.6ms/day · 164 settlements @ ~150fps** · pushed
 (see git log) · per-session details in `docs/sessions/`
 
@@ -82,11 +82,13 @@ docs/         art-audit/ (battery + Gemini reports), sessions/ (work logs)
   walk over cluster rooftops (no building collision)
 - River T-junctions / 2-wide river blobs fall back to the straight tile
 - Single manual save slot
-- Terrain tiling repetition: engine now supports 6 variants/biome with
-  3-variant fallback; batch 13 spec in ASSET_PROMPTS — **art not generated
-  yet** (drop into `assets_src/raw/13/`, run process-assets)
 - Shoreline is procedural bands (bake-time); coastline geometry itself is
   still tile-stepped at the closest zooms
+- Batch-12 mountain/canopy landmark decor keeps brown rock tones over
+  winter snow (decor foliage tints, the rock formations don't)
+- Single-image art:audit critiques skew harsh and individual claims can be
+  wrong (e.g. "no action icons" when they're visible) — use for direction,
+  verify specifics before acting
 - Harshest seeds (48/99) can end at ~2 strong civs over 150y (acceptable);
   a world that burns all 16 civ slots stops rebirthing
 - Browser throttles when the window is minimized

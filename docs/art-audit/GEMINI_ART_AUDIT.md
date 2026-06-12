@@ -1,64 +1,112 @@
 # Gemini Art Audit — Emberfall
 
-_Model: gemini-3.1-pro-preview · 2026-06-11 · seed 48 · 10 shots from `docs/art-audit/current/`_
+_Model: gemini-3.1-pro-preview · 2026-06-12 · seed 48 · 12 shots from `docs/art-audit/current/`, one call per shot_
 
-Here is the visual review of the Emberfall screenshots.
+### [macro day] Whole 160x100 world at noon, fully zoomed out. (01-macro-day.jpg)
+The overall 2-second read is muddy and underlit for a "noon" setting, dominated by flat olive greens and navy blues that entirely lack daytime brightness or contrast. Terrain transitions are jarring, with harsh, stair-stepped orange sand crashing directly into dark green grass without any blending or coastal framing. Mountain ranges fail to read as elevated geography, appearing instead as flat patches of dense grey-brown static. Territory borders use thin, 1-pixel colored lines that severely lack contrast, causing the dark red and blue borders to vanish completely into the dark terrain. Settlements fail to convey scale or civilization; they are reduced to microscopic colored diamonds that get lost in the surrounding visual noise. Citizens and roads are completely invisible at this zoom level, stripping the map of any sense of active life, movement, or infrastructure. The UI panels are highly legible with crisp typography, but their heavy, mostly opaque dark backgrounds awkwardly suffocate the map corners. Ultimately, the lack of ambient sunlight, volume, or readable landmarks makes this fully zoomed-out view feel like a lifeless, flat grid rather than a thriving simulated world.
 
-### SCORING (1 to 10)
-- **macro readability:** 5
-- **terrain beauty:** 3
-- **terrain clarity:** 6
-- **settlement readability:** 4
-- **settlement scale fantasy:** 2
-- **building variety:** 3
-- **lighting quality:** 2
-- **glow control:** 2
-- **citizen readability:** 5
-- **action readability:** 3
-- **event readability:** 4
-- **UI integration:** 8
-- **screenshot appeal:** 3
+### [macro night] Whole world at midnight: settlement lights, glow control. (02-macro-night.jpg)
+The two-second read fails because the map is an impenetrable wash of dark blues and greens, making the world feel dead rather than active and nocturnal. Settlement lights are the primary visual blocker; the faint orange pixels are far too dim and lack the bloom radius needed to communicate a thriving civilization at midnight. Terrain distinction is entirely lost in the shadows, with dark forests, grey mountains, and navy oceans bleeding together due to completely flattened value contrast. Territory borders appear as hairline colored strokes that are easily swallowed by the murky background, offering no quick read on empire expansion or borders. At this macro scale, it is impossible to distinguish between a large town and a tiny camp because every settlement is reduced to the same meager point of light. Conversely, the UI panels read exceptionally well with crisp gold, white, and red typography, though their brightness highlights just how under-illuminated the game canvas is. To restore overall appeal and readability, the night mode needs a base ambient moonlight to separate landmasses from water, and settlement glows must be dramatically scaled up in brightness and intensity to act as clear visual anchors.
+
+### [mid day] Default play zoom (2.2x) on the largest settlement region (Briarcairn) at noon. (03-mid-day.jpg)
+At a two-second glance, the screenshot reads as a muddy, dark-green landmass trapped within jarring, highly geometric territory borders. The thick, jagged stair-stepping of the orange and green border lines clashes aggressively with the organic, painted style of the underlying terrain, looking more like a debug overlay than a diegetic map feature. Settlements manage to pop against the dark grass thanks to their warm orange rooftops, but their perfectly square, stamped-on wooden palisades look artificial and fail to adapt visually to the nearby coastlines or rocky hills. The grey mountain clusters are highly repetitive and overly detailed, creating dense pockets of visual noise rather than acting as distinct, readable geographical barriers. Furthermore, the brown dirt roads connecting these towns are far too thin and lack the contrast necessary to stand out against the heavily textured forest ground. Citizens and their individual actions are completely imperceptible at this mid-zoom level, robbing the simulation of its "aquarium" vitality. While the dark, semi-transparent UI panels provide clean, legible text that stays out of the way, the central game view is ultimately dragged down by the severe aesthetic collision between rigid grid boundaries and free-form 2D art.
+
+### [mid night] Same framing at midnight: lighting quality and building visibility. (04-mid-night.jpg)
+The initial read instantly conveys a nighttime map with active settlements, but the overall contrast is far too low across the terrain. The warm orange settlement glows provide strong focal points, yet they are rendered as blown-out, uniform blobs that completely obscure any underlying architecture, making all towns look identical in scale. Terrain distinction fails severely; forests, mountains, and plains merge into a murky, muddy dark green mass that makes geographic navigation nearly impossible. Settlement name labels (like "Emberstead" and "Briarcairn") are dark grey against a near-black background, rendering them entirely illegible without straining. The territory border lines are faintly visible but lack the luminance required to clearly define civilization boundaries in the dark. Roads and citizens are completely swallowed by the shadows, offering zero readability at this zoom level. Conversely, the UI panels (top bar, chronicle, civilization list) maintain excellent readability, standing out crisply against the darkened play area without glaring. To fix this shot, the terrain needs a subtle ambient "moonlight" blue to reveal topology, the settlement glows need an alpha gradient to expose building silhouettes beneath them, and the text labels desperately require a lighter hue or a soft glow.
+
+### [close settlement] Close-up of the largest settlement at 4.5x: building art, grounding, glow. (05-close-settlement.jpg)
+The image suffers from catastrophic visual clutter driven by massive swarms of oversized, bright orange citizen sprites that completely obscure the buildings and terrain beneath them. Settlements are constructed as rigid, perfectly rectangular walled enclosures that look mechanically stamped onto the map without organic integration into the surrounding forests or rivers. The dense packing of red and blue rooftops inside these walls creates a noisy, confusing texture that lacks visual hierarchy or distinct focal points. Coastline transitions are visually offensive, relying on blocky, sharp right angles and a thick, unnatural tan border that violently clashes with the deep blue water. Dirt paths are thin, muddy brown lines that lack the necessary contrast to stand out against the dark, mottled green background. Furthermore, the lighting is entirely flat, missing any ambient occlusion or promised glow to ground the structures or citizens, making the assets look like floating stickers. Finally, while the dark UI panels are cleanly readable, the total absence of on-map territory borders or tinting makes it impossible to visually connect the civilizations listed in the top-left menu to the chaotic physical world.
+
+### [close citizens] Citizen close-up at 6.5x: action icons above heads — can you tell who is working, trading, resting? (06-close-citizens.jpg)
+The biggest visual blocker in this close-up is the complete absence of citizen action icons; every figure is an identical orange meeple, making it impossible to tell who is working, trading, or resting. These orange figures severely lack contrast, blending dangerously into the brown wooden rooftops and dirt roads. At this zoom level, settlement construction is disastrously chaotic, with stone and wood walls haphazardly clipping through houses, rivers, and standing entirely unconnected. The terrain suffers from jarring stylistic clashes, most notably the harsh, unblended rectangular tile edges of the water in the bottom right against the softer painted grass. Lighting is entirely flat without any ambient occlusion or glow, causing the heavily layered assets—trees, houses, walls, and citizens—to look like cheap stickers rather than a cohesive environment. While the dark UI panels provide good contrast, the small, unshadowed serif town labels like "Emberreach" get completely lost against the noisy, muddy background textures. Roads are flat brown shapes pasted over the grass without edge blending, and territory borders are non-existent beyond small, easy-to-miss colored banners. Ultimately, 2-second comprehension fails because the scene is a visually dense jumble of poorly layered assets devoid of clear hierarchy, shadowing, or distinct focal points.
+
+### [winter] Mid-winter (snow terrain, snowfall if rolled) over the same region. (07-winter.jpg)
+The stark, jagged orange territory border immediately hijacks the eye, clashing aggressively with the muted winter palette and flattening the natural coastline. The snow terrain itself reads as a noisy, muddy gray gravel rather than a crisp winter blanket, reducing the overall atmospheric contrast. While the warm brown tones of settlements like Emberrea and Briarstead separate well from the cold ground, their dense, perfectly square palisade walls make them look like rigid, identical stamps rather than organically grown towns. Internal settlement details and citizen actions are completely lost in a murky tangle of brown and grey pixels at this zoom level. UI integration is inconsistent; the top bar and left civilization list are cleanly separated, but the bottom-left chronicle text is tiny and densely packed, straining readability. Finally, the complete absence of glowing windows, hearths, or localized lighting leaves the winter scene feeling cold and devoid of life, resulting in a visually cluttered and flat screenshot.
+
+### [rain] Heavy rain over the largest settlement region, noon, default zoom. (08-rain.jpg)
+The heavy rain effect acts as a murky, desaturated wash over the entire screen, severely degrading contrast and making the map look muddy rather than atmospheric. Forests, mountains, and rivers blend into a uniform, low-value sludge because the global lighting lacks localized highlights to offset the storm's darkness. Settlement palisades and rooftops share similar brown and orange values with the underlying dirt, causing walled towns like Briarstead to compress into dense, unreadable clumps. Citizens are entirely lost at this zoom level, appearing as indistinct, low-contrast noise swallowed by the darkened terrain. The stark, jagged orange and red territory borders are the biggest visual blockers in the scene, violently clashing with the softer pixel art of the map and dominating the visual hierarchy. While the dark UI panels with gold text read clearly, their heavy, opaque black backgrounds further weigh down an already gloomy composition. To salvage the shot's appeal, the rain overlay needs higher transparency, settlements require glowing elements (like lit windows or torches) to pop against the dark weather, and the territory borders must be blended or softened to integrate with the environment.
+
+### [active crisis or war] War frontier between two civilizations: border friction, skirmish markers, military readability. (09-war-crisis.jpg)
+The promised "war frontier" completely fails to communicate visually; without reading the tiny red sword icons in the top-left UI panel, it is impossible to tell a conflict is occurring. Any skirmish markers, troop movements, or combat effects are entirely swallowed by the overwhelming, high-contrast noise of the snowy terrain texture. Territory borders are drawn as harsh, rigid stair-stepping lines that painfully highlight the underlying grid and clash with the organic landscape. Settlement structures are enclosed in perfectly square wooden palisades, creating artificial boxes that look pasted onto the map rather than naturally built into it. The mountain sprites on the right are aggressively repetitive and visually dense, destroying depth and hiding the settlements nestled among them. Furthermore, the granular snow texture completely masks the faint, stringy road networks that should be connecting these frontier towns. Crucial crisis indicators like fire, smoke, or dramatic lighting are completely absent, leaving allegedly threatened settlements looking identical to peaceful ones. While the translucent territory color overlays help identify faction ownership, they unfortunately turn the bright winter snow into muddy, unappealing patches. Ultimately, the shot fails the 2-second comprehension test because the lack of visual hierarchy and localized action makes the "war" entirely invisible on the map.
+
+### [town upgrade / large settlement] Largest town (Briarcairn, pop 320) with surroundings: scale fantasy, road connections. (10-town-large.jpg)
+1. The immediate 2-second read is overwhelmingly cluttered due to the stark contrast between the bright, overlapping orange settlement roofs and the dark, heavily noise-filled terrain textures. 
+2. The settlement sprites, such as Briarcairn and Aldergate, completely fail to convey organized scale; they appear as chaotic, illegible mounds of stacked buildings and palisades stamped directly over one another. 
+3. Terrain distinction is ruined by severe tiling repetition, particularly in the mountain and forest areas where identically stamped assets create a highly textured, distracting background without any natural flow. 
+4. The coastline is defined by harsh, stair-stepped geometric blocks lined with a bright sand color, creating an unnatural, rigid border against the flat blue water texture. 
+5. Inter-settlement roads are rendered as very thin, low-contrast brown lines that frequently disappear into the dark green grass and forest tiles, failing to clearly communicate connections. 
+6. The glowing orange territory borders explicitly highlight the underlying square grid, entirely breaking the illusion of an organic, growing landscape. 
+7. Citizens, units, or granular actions are completely indiscernible at this zoom level, swallowed entirely by the muddy ground and dense structural overlaps. 
+8. While the dark UI panels contrast cleanly against the map, the bottom-left event log is packed with small, tightly spaced text that is difficult to scan quickly. 
+9. Overall, the total lack of atmospheric lighting, depth, or negative space flattens the image, making the "large town" look like a messy pile of assets rather than a thriving fantasy civilization.
+
+### [summer] Mid-summer over the same region, noon, default zoom. (11-summer.jpg)
+The immediate visual read is completely hijacked by the jagged, neon territory borders that tightly hug the coastlines, clashing aggressively with the earthy map tones. These thick orange and green border lines create a harsh staircase effect, destroying any natural feel of the land-water transition. The summer terrain fails to look lush; it is a muddy, repetitive sea of noisy green textures that flattens the landscape and obscures elevation. Settlements fail as visual focal points, appearing instead as dark, cluttered brown blobs confined within rigid, perfectly square palisades. The lack of internal contrast within these settlements makes it impossible to distinguish individual buildings, let alone any citizen activity, at this standard zoom level. Environmental effects are poorly integrated; the flat, tiled water lacks depth, and the faint white streaks indicating rain do nothing to shift the flat mid-day lighting. While the dark UI panels remain cleanly legible against the noisy background, the overall screenshot suffers from a broken visual hierarchy where ugly UI border lines overpower the simulation itself.
+
+### [autumn] Mid-autumn over the same region, noon, default zoom. (12-autumn.jpg)
+At first glance, the scene reads as a muddy, monochromatic wash of rust and brown, completely lacking the value contrast needed to establish a visual hierarchy. The autumn terrain fails to separate from the central mountain ranges, as both share the exact same dark brown and muddy midtones. Settlements like "Briarstead" and "Aldergate" are dense, chaotic clusters of brown and red pixels that bleed entirely into the surrounding dirt due to a lack of distinct baseplates or solid silhouettes. The stark, 1-pixel jagged cyan and orange territory outlines clash violently with the organic background, drawing too much eye track without effectively tinting or grouping their internal areas. Roads appear as noisy, hatched grey lines that add to the visual clutter rather than guiding the eye smoothly between hubs. At this zoom level, individual citizens are utterly imperceptible, swallowed by the noisy textures of the settlements and terrain. While the dark UI panels provide clean legibility, the main viewport feels flat and baked, completely missing the shadows, ambient occlusion, or lighting gradients required to give the environment depth and aesthetic appeal.
 
 ---
 
-### A. Top 10 problems, ranked by severity.
-1. **Harsh Grid:** Obtrusive 1x1 grid lines destroy immersion, making the world look like a spreadsheet.
-2. **Broken Night Lighting:** Night is just giant, blown-out orange blobs on pure black, completely obscuring the world, buildings, and terrain.
-3. **Lack of Settlement Scale:** Settlements look like flat, noisy stickers pasted onto a single tile; there is no sense of a 300-person town vs. a 50-person village.
-4. **Artificial Roads:** Roads are 1-pixel-thin, perfectly straight vector lines that cut unnaturally across organic terrain.
-5. **Jagged Borders:** Civilization borders are harsh, aliased stair-steps that clash with the visual style.
-6. **Citizen Noise:** At mid-zoom, citizens look like a swarm of identical yellow dots, creating massive visual static.
-7. **Noisy Textures:** Terrain (especially mountains and water) relies on repetitive, high-frequency pixel patterns that look messy from a distance.
-8. **Unfinished Coastlines:** Land meets water with a hard, unstyled edge; there is no transition, beach, or shallow water depth.
-9. **Scale Mismatch:** Individual citizen sprites are nearly half the size of an entire settlement icon.
-10. **Muddy Silhouettes:** Settlement buildings are drawn with low contrast, making them look like dark smudges rather than distinct structures.
+Here is the visual audit synthesized strictly from the provided per-shot critiques. 
 
-### B. Top 10 concrete fixes, ranked by impact.
-1. **Implement terrain blending:** Use marching squares or edge transitions to completely hide the tile grid.
-2. **Fix ambient night:** Change the pure black night overlay to a readable deep navy/purple so terrain remains visible.
-3. **Nerf the glow:** Drastically reduce the radius and opacity of settlement point lights so they illuminate buildings rather than hiding them.
-4. **Ground the settlements:** Draw a dirt/paved base layer underneath settlements to visually connect them to the map.
-5. **Curve the roads:** Replace straight point-to-point lines with splines or pathfinding-based organic curves.
-6. **Soften borders:** Thicken the civilization border lines and apply anti-aliasing or a semi-transparent inner glow.
-7. **LOD Culling:** Completely hide all citizens at macro zoom to clean up the screen.
-8. **Expand settlement footprints:** Make large towns visually spill over into adjacent tiles instead of just swapping a 1x1 icon.
-9. **Simplify terrain art:** Flatten the colors in mountains and forests, relying on broad shapes and shadows rather than noisy pixel textures.
-10. **Add coastlines:** Introduce transitional tiles for sand/dirt where land meets the sea.
+### Visual Audit Scores
+*   **Macro readability:** 2/10
+*   **Terrain beauty:** 3/10
+*   **Terrain clarity:** 2/10
+*   **Settlement readability:** 3/10
+*   **Settlement scale fantasy:** 2/10
+*   **Building variety:** 3/10
+*   **Lighting quality:** 2/10
+*   **Glow control:** 2/10
+*   **Citizen readability:** 2/10
+*   **Action readability:** 1/10
+*   **Event readability:** 1/10
+*   **UI integration:** 7/10
+*   **Screenshot appeal:** 3/10
 
-### C. Specific instructions for settlement visuals.
-Stop using single, noisy icons. Settlements must feel grounded in the world. Draw a dirt or stone base underneath them that blends into the surrounding grass/sand tiles. As a settlement grows from a camp to a town, its visual footprint *must* expand to occupy more area, not just swap to a slightly different icon of the exact same size. Simplify the building silhouettes; currently, they look like muddy, dark clumps of pixels. Use higher contrast between rooftops and walls.
+***
 
-### D. Specific instructions for terrain visuals.
-The grid must be eliminated immediately. The visual transition between grass, forest, mountain, and water needs blending tiles. Water requires depth and movement—currently, it is a flat, repeating wallpaper pattern. Mountains look like noisy gray blocks; group them into continuous ranges with shared highlights and shadows instead of individual textured squares.
+### A. Top 10 Problems (Ranked by Severity)
+1. **Flat, muddy lighting:** The game completely lacks ambient occlusion, daytime contrast, and nighttime moonlight, turning the world into an impenetrable, low-contrast wash. 
+2. **Invisible simulation/Action readability failure:** Citizens are identical orange meeples without action icons; crises/wars entirely lack on-map visual markers like fire or smoke.
+3. **Rigid, grid-bound geometry:** Territory borders, coastlines, and settlement palisades are rendered as harsh, blocky, stair-stepped lines that violently clash with the painted art style.
+4. **Catastrophic night mode glows:** At night, settlement lights are either too dim to be seen at macro-zoom or rendered as blown-out, uniform blobs that completely obscure the buildings beneath them at closer zooms.
+5. **Visually noisy terrain tiling:** Mountains and forests suffer from severe repetition, creating dense pockets of visual static that ruin depth and swallow surrounding settlements.
+6. **"Sticker" settlements with zero grounding:** Buildings lack baseplates or grounding shadows, and are densely packed into perfectly square walls, making them look like chaotic, floating mounds of pixels pasted onto the map.
+7. **Illegible on-map typography:** Settlement labels and text overlays are completely swallowed by the muddy terrain due to dark hues and a lack of text shadows/glows.
+8. **Broken scale and clipping:** At close zoom, massive citizen sprites obscure structures, while walls, rivers, and houses clip chaotically through one another.
+9. **Invisible infrastructure:** Inter-settlement roads are drawn as thin, low-contrast brown lines that completely vanish into the dark green terrain.
+10. **Suffocating UI backgrounds:** While the UI text itself is excellent, the heavy, opaque black backgrounds of the UI panels unnecessarily weigh down the composition and crowd the viewport.
 
-### E. Specific instructions for night lighting and glow.
-The current night mode is broken. Ambient night color should never be pure black; use a dark, cool slate blue so the terrain, roads, and borders remain readable. The settlement lights are completely blowing out the image—reduce the glow radius by at least 80% and lower the additive intensity. The light should *illuminate* the buildings, not act as an opaque orange sun that covers them up. 
+### B. Top 10 Concrete Fixes (Ranked by Impact)
+1. **Implement ambient nighttime moonlight:** Inject a subtle blue ambient base to the night mode so landmasses, water, and geography remain readable in the dark.
+2. **Add citizen action icons and UI VFX:** Render distinct overhead action icons (working, trading) and crisis VFX (fire, smoke) directly onto the map to communicate simulation state.
+3. **Smooth the grid:** Replace stair-stepped territory borders, blocky coastlines, and square palisades with blended, organic curves that hug the natural geography.
+4. **Fix settlement lighting:** Apply an alpha gradient to settlement glows so they tint the area rather than blowing out as solid blobs, and add localized light sources (hearths, lit windows) to individual structures.
+5. **Ground the structures:** Add dark baseplates, edge blending, and ambient occlusion shadows beneath settlements so they separate cleanly from the noisy grass and dirt.
+6. **Overhaul on-map text:** Apply a dark drop shadow or a soft glowing outline to all on-map serif labels (like "Emberstead") to guarantee contrast against dark terrain.
+7. **Thicken and blend roads:** Widen the dirt paths and add soft edge-blending so they read clearly as connecting infrastructure rather than muddy scratches.
+8. **Declutter terrain sprites:** Reduce the density and tiling repetition of the mountain and forest sprites to establish clear foreground/background hierarchy.
+9. **Scale and organize close-zoom assets:** Downscale the oversized citizen sprites and prevent structural elements (stone/wood walls) from haphazardly clipping through natural water features.
+10. **Lighten UI backgrounds:** Retain the crisp typography but increase the transparency of the UI panel backgrounds to let the map breathe.
 
-### F. Specific instructions for zoom-level rendering.
-Manage visual hierarchy strictly based on camera distance. At macro zoom, hide citizens entirely; the player only needs to see biomes, borders, and settlement locations. At mid-zoom, reduce citizen contrast so they don't look like television static. Reserve the current citizen sprites and their specific animations (walking, fighting) exclusively for close zoom.
+### C. Specific Instructions for Settlement Visuals
+Stop stamping perfectly square, rigid wooden palisades onto the map. Walls must adapt dynamically and organically to the surrounding forests and coastlines. Break up the chaotic density of stacked red and blue rooftops by introducing visual hierarchy, negative space, and distinct baseplates that ground the structures. At close zoom, completely audit asset clipping—walls should not float unconnected or slice through houses and rivers. 
 
-### G. What should NOT be changed because it already works.
-The UI panels, typography, and layout are excellent. The text color choices, dark semi-transparent backgrounds, and cleanly integrated event feed look like a polished, modern game. The core color coding for civilizations (orange, green, blue, pink, purple) is distinct and highly readable. 
+### D. Specific Instructions for Terrain Visuals
+Terrain values must be distinct; do not let autumn biomes or heavy rain turn the map into a monochromatic sludge. Coastlines require immediate attention to remove the unnatural tan right-angles and replace them with smooth transitions into the water. Break up the dense, static-like repetition of mountain clusters. Territory borders must not act as jarring, jagged neon staircases; soften them or use subtle regional tinting that respects the organic art.
 
-### H. A one-paragraph art direction summary for the next implementation pass.
-Transition the game from a "grid-based board game prototype" to a "living diorama." Your immediate priority is softening every harsh line: blend the terrain tiles, curve the roads organically, and smooth the civilization borders. Ground your cities into the earth by giving them dirt bases and expanding footprints, breaking away from the single-tile sticker look. Finally, overhaul the lighting to create a moody but readable night scene, dialing back the blinding orange glows so the world's atmosphere enhances, rather than obscures, the simulation.
+### E. Specific Instructions for Night Lighting and Glow
+Nighttime cannot be pitch black. Establish an ambient moonlight pass to ensure forests, mountains, and oceans are distinct. Settlement glows must be entirely re-engineered: at macro zoom, dramatically scale up their brightness and bloom radius to act as clear navigational anchors. At mid/close zoom, transition these glows into soft alpha gradients and localized building lights (windows, torches) so the underlying architecture is highlighted, not erased by a uniform orange blob.
+
+### F. Specific Instructions for Zoom-Level Rendering
+*   **Macro (Fully Zoomed Out):** Exaggerate the brightness of settlement anchors and the thickness of borders. Drop all rendering of citizens and roads—they are currently contributing to muddy noise.
+*   **Mid (Default Play):** Ensure dirt roads and organic settlement walls pop. Hide the strict geometric grid entirely to sell the illusion of a living map.
+*   **Close (Settlements/Citizens):** Drastically reduce the scale of citizen meeples so they stop obscuring the architecture. Expose action icons above heads to communicate the simulation. 
+
+### G. What Should NOT Be Changed
+Do not change the typography or layout of the UI panels (top bar, chronicle, civilization list). The crisp gold, white, and red text provides excellent, legible contrast. Additionally, the warm orange hue of the settlement rooftops works well; it naturally pops against the dark green grass in daylight and should be preserved.
+
+### H. Art Direction Summary
+The next implementation pass must pivot from a rigid, grid-locked prototype to an atmospherically lit, organic simulation. We must obliterate all visual evidence of the underlying tile grid—replacing stair-stepped borders, square palisades, and right-angle coastlines with smooth, blended curves. The lighting system requires a massive overhaul to introduce volume: implement ambient moonlight at night to restore geographic readability, and transition settlement lights from solid, blown-out blobs to localized, architecture-revealing glows. Finally, restore the "aquarium" fantasy by introducing clear visual telegraphing—action icons over citizens, and distinct fire/smoke VFX during crises—so the map actually looks alive instead of just being a static, noisy painting.

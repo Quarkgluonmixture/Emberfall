@@ -235,6 +235,16 @@ export class TerrainLayer {
         }
         sp.width = ts;
         sp.height = ts;
+        // The mountain art carries a vertical ridge spine in most variants;
+        // tiled across a range it reads as parallel stripes (worst against
+        // winter snow). A deterministic quarter-turn per tile breaks the
+        // ridges into a crosshatch — rock under snow tolerates the rotated
+        // lighting where other biomes wouldn't.
+        if (t === Terrain.Mountain) {
+          sp.anchor.set(0.5);
+          sp.rotation = (Math.floor(hash2(seed ^ 0x3f1d, x, y) * 4) * Math.PI) / 2;
+          sp.position.set((x + 0.5) * ts, (y + 0.5) * ts);
+        }
         // The painted tiles are darker than the flat palette; lift the bake.
         // Variant gain flattens brightness differences between the art
         // variants; the biome grade nudges each biome toward one hue family.

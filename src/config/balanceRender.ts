@@ -46,11 +46,12 @@ export const RENDER_BALANCE = {
       long alpha blends of misaligned pixel art read as a double exposure. */
   seasonFadeSeconds: 0.5,
   /** Bake-time neutral overlay that softens terrain contrast so actors pop.
-      Spring instead gets a fresh green correction (its art runs olive). */
+      Spring keeps a faint fresh-green unifier (batch-13 art is already
+      fresh — the old 0.05 was a correction for the olive batch-5 art). */
   terrainSoftenColor: 0x8a8578,
   terrainSoftenAlpha: 0.1,
   springTintColor: 0x8efaa4,
-  springTintAlpha: 0.05,
+  springTintAlpha: 0.02,
   /** Bake-time multiply over deep water: enforces the hue while letting the
       brighter wave pixels punch through (normal-blend looked like a decal). */
   waterFlattenColor: 0x598ab5,

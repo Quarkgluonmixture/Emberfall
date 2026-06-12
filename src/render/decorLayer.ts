@@ -21,7 +21,11 @@ const SCATTER: Partial<Record<Terrain, [string, number, number][]>> = {
     ['tree_broadleaf', 0.085, 6.8],
     ['rock', 0.015, 4.0],
   ],
-  [Terrain.Mountain]: [['rock', 0.1, 4.6]],
+  // Mountains tile repetitively — heavy rock + conifer scatter breaks it up.
+  [Terrain.Mountain]: [
+    ['rock', 0.2, 4.8],
+    ['tree_conifer', 0.05, 5.2],
+  ],
   [Terrain.Tundra]: [
     ['tree_conifer', 0.06, 5.6],
     ['rock', 0.045, 4.2],

@@ -49,8 +49,11 @@ const PIECE_W: Record<string, number> = {
   wall_straight: 7,
   wall_tower: 6,
   wall_gate: 8.5,
+  /** Dedicated N-S wall art (batch 11) — preferred for side runs when present. */
+  wall_vertical: 5,
   palisade_straight: 7,
   palisade_corner: 5.5,
+  palisade_vertical: 5,
   lamp: 2.2,
   scaffold: 5,
   campfire: 4,
@@ -60,6 +63,14 @@ const PIECE_W: Record<string, number> = {
 };
 
 export type HavePiece = (kind: string) => boolean;
+
+/** Global footprint multiplier — buildings sized for readable close-ups. */
+const CLUSTER_SCALE = 1.12;
+
+/** World-px width of a piece kind, cluster scale applied. */
+function pw(kind: string): number {
+  return (PIECE_W[kind] ?? 6) * CLUSTER_SCALE;
+}
 
 /** First available kind from a fallback chain, or null. */
 function pick(have: HavePiece, ...kinds: string[]): string | null {
@@ -100,11 +111,16 @@ function placeSpiral(
   opts: { lift?: boolean; lamp?: boolean } = {},
   buildable?: Buildable,
 ): boolean {
-  const w = PIECE_W[kind] ?? 6;
+  const w = pw(kind);
   const a0 = hash2(seed, slot, 11) * Math.PI * 2;
+  // Hard radius cap: when terrain vetoes everything nearby (rivers, coast),
+  // give the piece up rather than exiling it tiles away — a runaway radius
+  // blows the wall rectangle up to district size.
+  const maxR = startR + 16;
   for (let k = 0; k < 70; k++) {
     const ang = a0 + k * GOLDEN;
     const r = startR + k * 0.5 + hash2(seed, slot, 13 + (k % 5)) * 1.6;
+    if (r > maxR) break;
     const dx = Math.cos(ang) * r;
     const dy = Math.sin(ang) * r * 0.72; // squash: settlements read as ovals
     if (buildable && !buildable(dx, dy)) continue;
@@ -134,7 +150,7 @@ function put(
     kind,
     dx,
     dy,
-    w: opts.w ?? PIECE_W[kind] ?? 6,
+    w: opts.w ?? pw(kind),
     flip: opts.flip ?? false,
     rot: opts.rot,
     lift: opts.lift ?? false,
@@ -162,14 +178,14 @@ function wallRect(
   if (!straight) return;
   const corner = pick(have, stone ? 'wall_tower' : 'palisade_corner', 'palisade_corner', 'wall_tower');
   const gate = stone ? pick(have, 'wall_gate') : null;
-  const w = PIECE_W[straight] ?? 7;
+  const w = pw(straight);
   const ok = (dx: number, dy: number): boolean => !buildable || buildable(dx, dy);
 
   // Horizontal runs (top y=-ry, bottom y=+ry), overlapped for continuity.
-  const cornerHalf = corner ? (PIECE_W[corner] ?? 6) * 0.45 : 0;
+  const cornerHalf = corner ? pw(corner) * 0.45 : 0;
   const runW = rx - cornerHalf;
   const countX = Math.max(2, Math.round((2 * runW) / (w * 0.82)));
-  const gateHalf = gate ? (PIECE_W[gate] ?? 8.5) * 0.55 : 3.2;
+  const gateHalf = gate ? pw(gate) * 0.55 : 3.2;
   for (let i = 0; i <= countX; i++) {
     const dx = -runW + (2 * runW * i) / countX;
     if (ok(dx, -ry)) put(out, straight, dx, -ry);
@@ -178,13 +194,22 @@ function wallRect(
   }
   if (gate && ok(0, ry)) put(out, gate, 0, ry);
 
-  // Vertical runs: the same piece rotated upright reads as a side wall.
+  // Vertical runs. Rotating the horizontal art breaks the 3/4 perspective
+  // (reads as a fallen zigzag) and tightly stacking it braids — so: use
+  // dedicated N-S art when it exists (batch 11); until then stone sides are
+  // a chain of towers (omnidirectional silhouettes that tile downward) and
+  // palisade sides stack the log clumps, which are direction-agnostic.
+  const vert = pick(have, stone ? 'wall_vertical' : 'palisade_vertical');
+  const sideKind = vert ?? (stone ? (corner ?? straight) : straight);
+  // Stone fallback: clearly separated watchtowers (dense packing braids);
+  // palisade log clumps tile tighter without artifacts.
+  const stepY = vert ? pw(vert) * 1.15 : stone ? pw(sideKind) * 1.45 : w * 0.55;
   const runH = ry - cornerHalf;
-  const countY = Math.max(1, Math.round((2 * runH) / (w * 0.82)));
+  const countY = Math.max(1, Math.round((2 * runH) / stepY));
   for (let i = 0; i <= countY; i++) {
     const dy = -runH + (2 * runH * i) / countY;
-    if (ok(-rx, dy)) put(out, straight, -rx, dy, { rot: Math.PI / 2 });
-    if (ok(rx, dy)) put(out, straight, rx, dy, { rot: Math.PI / 2 });
+    if (ok(-rx, dy)) put(out, sideKind, -rx, dy);
+    if (ok(rx, dy)) put(out, sideKind, rx, dy, { flip: true });
   }
 
   // Corner towers/posts mask the joints between runs.
@@ -279,7 +304,8 @@ export function layoutCluster(
         rx = Math.max(rx, Math.abs(p.dx) + p.w * 0.5);
         ry = Math.max(ry, Math.abs(p.dy) + p.w * 0.35);
       }
-      wallRect(out, seed, rx + 3.5, ry + 3, have, buildable);
+      // Clamp: a stray far building must not inflate the ring to district size.
+      wallRect(out, seed, Math.min(rx + 3.5, 26), Math.min(ry + 3, 19), have, buildable);
     }
   }
 

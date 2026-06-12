@@ -559,9 +559,28 @@ body {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: 380px;
-  padding: 18px 22px;
+  width: 420px;
+  padding: 20px 26px;
   font-family: Georgia, serif;
+}
+
+#menu button {
+  background: linear-gradient(rgba(54, 45, 38, 0.95), rgba(36, 30, 25, 0.95));
+  border: 1px solid var(--panel-border);
+  color: var(--ink);
+  border-radius: 5px;
+  padding: 6px 14px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 13px;
+  letter-spacing: 0.5px;
+  transition: border-color 0.15s, color 0.15s, box-shadow 0.15s;
+}
+
+#menu button:hover {
+  border-color: var(--ember);
+  color: var(--ember);
+  box-shadow: 0 0 8px rgba(214, 106, 50, 0.25);
 }
 
 #menu h2 {
@@ -588,16 +607,54 @@ body {
   color: var(--ember);
 }
 
+.menu-keys-title {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--panel-border);
+  color: var(--ember);
+  font-size: 12px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+}
+
 .menu-keys {
-  margin: 14px 0 4px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 18px;
+  margin: 10px 0 4px;
   color: var(--ink-dim);
-  font-size: 11px;
-  line-height: 1.5;
+  font-size: 12px;
+}
+
+.menu-keys .keyrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.kbd {
+  display: inline-block;
+  min-width: 24px;
+  text-align: center;
+  padding: 1px 6px;
+  border: 1px solid var(--panel-border);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  background: rgba(18, 15, 12, 0.85);
+  color: var(--ink);
+  font-family: Consolas, monospace;
+  font-size: 10.5px;
 }
 
 .menu-resume {
   justify-content: center;
-  margin-top: 12px;
+  margin-top: 14px;
+}
+
+.menu-resume button {
+  border-color: var(--ember);
+  color: var(--ember);
+  padding: 7px 28px;
 }
 
 /* ── Cinema mode: pure canvas + world story ──────── */

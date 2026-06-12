@@ -328,13 +328,14 @@ export const BALANCE = {
     /** Target on-map height (world px) of citizen sprites — kept well under
         settlement scale so people don't dwarf the buildings, but big enough
         to read against the detailed cluster rooftops. */
-    citizenHeight: 5.2,
+    citizenHeight: 5.8,
     smokeAlpha: 0.35,
     /** Frame-rate cap options cycled by the HUD button; 0 = uncapped. */
     fpsCapOptions: [60, 30, 0],
     defaultZoom: 2.2,
     minZoom: 0.6,
-    maxZoom: 8,
+    /** Raised for the cluster art era — close-ups of streets and citizens. */
+    maxZoom: 13,
     zoomStep: 1.1,
     /** Night grading: a multiply pass deepens shadows, an additive pass adds
         cool moonlight so the scene never goes flat-dead. Art-audit pass: the

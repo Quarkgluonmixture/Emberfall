@@ -143,7 +143,7 @@ export class CitizenLayer {
       const a = agents[i];
       sp.visible = true;
       sh.visible = true;
-      sh.position.set(a.x, a.y + 0.6);
+      sh.position.set(a.x, a.y + 0.35);
       sp.tint = state.civs[a.civId]?.color ?? 0xffffff;
 
       const iconTex = showIcons ? this.tex.actionIcons![a.state] : undefined;

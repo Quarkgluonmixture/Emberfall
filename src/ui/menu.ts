@@ -60,7 +60,25 @@ export class MenuPanel {
       ${row(t('menu.fps'), 'fps', fpsLabel)}
       ${row(t('menu.debug'), 'debug', onOff(this.cb.getDebug()))}
       ${row(t('menu.music'), 'music', onOff(this.cb.getMusic()))}
-      <div class="menu-keys"><b>${t('menu.keysTitle')}</b> · ${t('menu.keys')}</div>
+      <div class="menu-keys-title">${t('menu.keysTitle')}</div>
+      <div class="menu-keys">${this.keysHtml()}</div>
       <div class="menu-row menu-resume"><button data-act="resume">${t('menu.resume')} (Esc)</button></div>`;
+  }
+
+  /** "Space pause · 1/2/3 speed · …" → a kbd-chip grid, both languages. */
+  private keysHtml(): string {
+    const items = t('menu.keys')
+      .split('·')
+      .map((s) => s.trim())
+      .filter(Boolean);
+    items.push(`Esc ${t('menu.title')}`);
+    return items
+      .map((item) => {
+        const sp = item.indexOf(' ');
+        const key = sp < 0 ? item : item.slice(0, sp);
+        const label = sp < 0 ? '' : item.slice(sp + 1);
+        return `<div class="keyrow"><span class="kbd">${key}</span><span>${label}</span></div>`;
+      })
+      .join('');
   }
 }

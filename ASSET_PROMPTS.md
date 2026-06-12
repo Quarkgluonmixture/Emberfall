@@ -74,6 +74,19 @@ Processed targets: ~32–40 px wide each. Ground decals (clearings, snow patches
 are intentionally absent — those stay procedural (soft tinted patches at bake
 time), keyed decals would bring hard edges.
 
+## Batch 11 — vertical wall runs → `assets_src/raw/11/`
+
+The horizontal wall art cannot turn corners: rotating it breaks the 3/4
+perspective, and the current fallback (tightly stacked horizontal courses)
+is serviceable but not pretty. One image upgrades every town wall:
+
+| File | Size | Pieces | Prompt body (after the preamble) |
+| --- | --- | --- | --- |
+| `01_walls_vertical.png` | 1536×1024 | 2 | Two wall segments running VERTICALLY (top of image to bottom, seen in three-quarter view so the left face of each wall is visible): a straight stone wall segment with battlements, drawn as if the wall runs north-south; a sharpened wooden log palisade segment also running north-south. Each segment should tile seamlessly when repeated vertically. Horizontal row, same scale. |
+
+Processed targets: ~28 px wide each. They are auto-preferred by the town
+wall layout the moment `process-assets.mjs` runs.
+
 ## Priority order if generating in sessions
 
 1. `02_huts` + `03_houses` + `01_tents` — the cluster engine's bread and butter

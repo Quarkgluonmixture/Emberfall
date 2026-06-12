@@ -35,8 +35,11 @@ function isBackground(data, i) {
   return mx - mn <= 14 && mn >= 185;
 }
 
-/** Flood-fill transparent from the borders, then resize and save. */
-async function keyAndResize(src, dst, targetW, targetH = 0, crop = null) {
+/** Flood-fill transparent from the borders, then resize and save.
+    vtrim: crop empty rows above/below the art (whole strip, so frames stay
+    aligned) — generated sprites carry big margins that otherwise make
+    anchored feet float above the ground. */
+async function keyAndResize(src, dst, targetW, targetH = 0, crop = null, vtrim = false) {
   let img = sharp(src);
   if (crop) img = img.extract({ left: crop.x, top: crop.y, width: crop.w, height: crop.h });
   const { data, info } = await img.ensureAlpha().raw().toBuffer({ resolveWithObject: true });
@@ -71,11 +74,35 @@ async function keyAndResize(src, dst, targetW, targetH = 0, crop = null) {
     console.warn(`  SKIP ${path.basename(dst)} — keying removed ${(100 * (1 - keptFraction)).toFixed(1)}% of pixels`);
     return;
   }
-  if (!targetH) targetH = Math.round((H * targetW) / W);
-  await sharp(Buffer.from(data), { raw: { width: W, height: H, channels: 4 } })
+  let buf = Buffer.from(data);
+  let outH = H;
+  let trimNote = '';
+  if (vtrim) {
+    let top = H;
+    let bottom = 0;
+    for (let y = 0; y < H; y++) {
+      for (let x = 0; x < W; x++) {
+        if (data[(y * W + x) * 4 + 3] > 30) {
+          if (y < top) top = y;
+          if (y > bottom) bottom = y;
+          break;
+        }
+      }
+    }
+    if (bottom > top) {
+      const t0 = Math.max(0, top - 4);
+      const b0 = Math.min(H - 1, bottom + 4);
+      buf = buf.subarray(t0 * W * 4, (b0 + 1) * W * 4);
+      outH = b0 - t0 + 1;
+      trimNote = ` (vtrim ${H}→${outH} rows)`;
+    }
+  }
+  if (!targetH || vtrim) targetH = Math.round((outH * targetW) / W);
+  await sharp(buf, { raw: { width: W, height: outH, channels: 4 } })
     .resize(targetW, targetH, { fit: 'fill', kernel: 'lanczos3' })
     .png()
     .toFile(dst);
+  if (trimNote) console.log(`   ${trimNote.trim()}`);
   console.log(
     `  ${path.basename(dst)}  ${targetW}x${targetH}  (kept ${(keptFraction * 100).toFixed(0)}% of pixels)`,
   );
@@ -333,6 +360,20 @@ if (fs.existsSync(path.join(rawRoot, '9'))) {
   }
 }
 
+// Folder 11: dedicated N-S wall art (vertical runs of town walls).
+if (fs.existsSync(path.join(rawRoot, '11'))) {
+  console.log('Vertical wall pieces (folder 11):');
+  const piecesDir = path.join(outDir, 'pieces');
+  fs.mkdirSync(piecesDir, { recursive: true });
+  const src = path.join(rawRoot, '11', '01_walls_vertical.png');
+  if (fs.existsSync(src)) {
+    await slicePieces(src, [
+      [path.join(piecesDir, 'wall_vertical.png'), 28],
+      [path.join(piecesDir, 'palisade_vertical.png'), 28],
+    ]);
+  }
+}
+
 if (fs.existsSync(path.join(rawRoot, '10'))) {
   console.log('Terrain decor (folder 10):');
   const decorDir = path.join(outDir, 'decor');
@@ -358,10 +399,10 @@ await keyAndResize(fx[3], out('fx_snowflake.png'), 16, 16, { x: 887, y: 0, w: 88
 
 console.log('Citizens (folder 3):');
 const cit = sources('3');
-await keyAndResize(cit[0], out('citizen_walk.png'), 192, 96);
-await keyAndResize(cit[1], out('citizen_work.png'), 192, 96);
-await keyAndResize(cit[2], out('citizen_fight.png'), 192, 96);
-await keyAndResize(cit[3], out('citizen_rest.png'), 96, 96);
+await keyAndResize(cit[0], out('citizen_walk.png'), 192, 0, null, true);
+await keyAndResize(cit[1], out('citizen_work.png'), 192, 0, null, true);
+await keyAndResize(cit[2], out('citizen_fight.png'), 192, 0, null, true);
+await keyAndResize(cit[3], out('citizen_rest.png'), 96, 0, null, true);
 
 console.log('Settlements (folder 4):');
 const set = sources('4');

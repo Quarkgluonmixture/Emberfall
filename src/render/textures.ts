@@ -103,6 +103,9 @@ export const DECOR_KINDS: [string, number][] = [
   ['tree_conifer', 4],
   ['reed', 4],
   ['bush', 4],
+  // Batch-12 landmarks: oversized formations breaking biome tiling.
+  ['mountain_formation', 3],
+  ['canopy', 2],
 ];
 
 /** Multiply a 0xRRGGBB color by a brightness factor. */

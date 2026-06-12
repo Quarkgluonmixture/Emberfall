@@ -18,12 +18,14 @@ const SCATTER: Partial<Record<Terrain, [string, number, number][]>> = {
     ['rock', 0.012, 4.2],
   ],
   [Terrain.Forest]: [
+    ['canopy', 0.045, 13],
     ['tree_broadleaf', 0.085, 6.8],
     ['rock', 0.015, 4.0],
   ],
-  // Mountains tile repetitively — heavy rock + conifer scatter breaks it up.
+  // Mountains tile repetitively — landmark formations + heavy scatter.
   [Terrain.Mountain]: [
-    ['rock', 0.2, 4.8],
+    ['mountain_formation', 0.06, 15],
+    ['rock', 0.16, 4.8],
     ['tree_conifer', 0.05, 5.2],
   ],
   [Terrain.Tundra]: [
@@ -43,6 +45,8 @@ const SCATTER: Partial<Record<Terrain, [string, number, number][]>> = {
 
 /** Seasonal multiply tints per decor kind (spring/summer/autumn/winter). */
 const SEASON_TINT: Record<string, [number, number, number, number]> = {
+  mountain_formation: [0xffffff, 0xffffff, 0xf2e8da, 0xdde5f0],
+  canopy: [0xd8f5c8, 0xffffff, 0xe8a85e, 0xb9c2cc],
   tree_broadleaf: [0xd8f5c8, 0xffffff, 0xe8a85e, 0xb9c2cc],
   tree_conifer: [0xeaffea, 0xffffff, 0xe8f0dd, 0xdde8f5],
   bush: [0xd8f5c8, 0xffffff, 0xdfa868, 0xb9c2cc],

@@ -374,6 +374,28 @@ if (fs.existsSync(path.join(rawRoot, '11'))) {
   }
 }
 
+// Folder 12: large landmark decor breaking up biome tiling repetition.
+if (fs.existsSync(path.join(rawRoot, '12'))) {
+  console.log('Terrain landmarks (folder 12):');
+  const decorDir = path.join(outDir, 'decor');
+  fs.mkdirSync(decorDir, { recursive: true });
+  const mountains = path.join(rawRoot, '12', '01_mountain_formations.png');
+  if (fs.existsSync(mountains)) {
+    await slicePieces(mountains, [
+      [path.join(decorDir, 'mountain_formation_0.png'), 90],
+      [path.join(decorDir, 'mountain_formation_1.png'), 90],
+      [path.join(decorDir, 'mountain_formation_2.png'), 90],
+    ]);
+  }
+  const canopies = path.join(rawRoot, '12', '02_forest_canopies.png');
+  if (fs.existsSync(canopies)) {
+    await slicePieces(canopies, [
+      [path.join(decorDir, 'canopy_0.png'), 80],
+      [path.join(decorDir, 'canopy_1.png'), 80],
+    ]);
+  }
+}
+
 if (fs.existsSync(path.join(rawRoot, '10'))) {
   console.log('Terrain decor (folder 10):');
   const decorDir = path.join(outDir, 'decor');

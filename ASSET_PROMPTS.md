@@ -87,6 +87,21 @@ is serviceable but not pretty. One image upgrades every town wall:
 Processed targets: ~28 px wide each. They are auto-preferred by the town
 wall layout the moment `process-assets.mjs` runs.
 
+## Batch 12 — terrain variety (anti-repetition) → `assets_src/raw/12/`
+
+The biome tiles only have 3 variants each, so big mountain ranges and forests
+read as repeating wallpaper (worst in autumn). Large landmark decor breaks the
+tiling without touching the terrain pipeline — these render as oversized decor
+sprites scattered over the matching biomes.
+
+| File | Size | Pieces | Prompt body (after the preamble) |
+| --- | --- | --- | --- |
+| `01_mountain_formations.png` | 1536×1024 | 3 | Three large rocky mountain formations in a horizontal row, same scale: a twin-peaked craggy summit with snow dusting; a long weathered ridge spine with exposed strata; a dramatic single crag with scree slopes at its base. Grey-brown stone, mossy footings. These are landmark formations, larger and more detailed than common boulders. |
+| `02_forest_canopies.png` | 1536×1024 | 2 | Two large broadleaf forest canopy clusters in a horizontal row, same scale: a dense interlocking crown of five or six mature oaks reading as one mass; a looser grove with a clearing hint at its center. Neutral mid-green foliage (the game tints per season — avoid autumn or spring coloring). |
+
+Processed targets: formations ~90 px wide, canopies ~80 px. On-map: formations
+span ~2 tiles over mountain ranges, canopies over forest interiors.
+
 ## Priority order if generating in sessions
 
 1. `02_huts` + `03_houses` + `01_tents` — the cluster engine's bread and butter

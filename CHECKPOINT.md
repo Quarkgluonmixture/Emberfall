@@ -1,397 +1,98 @@
 # Emberfall — Checkpoint
 
-**Date:** 2026-06-12 · **State:** Phase 3 complete + treaties & tribute, localization, Gemini art-audit workflow, **settlement-scale rework (procedural building clusters from batch-9 art, zoom bands, action icons, activity overlays, terrain decor + grading, QA-asserted battery)** — Gemini verdict "resounding success": settlement art 1→9, scale fantasy 2→9, lighting 2→7 · **All 55 tests green · stress bit-identical at ~0.4–0.6ms/day · 164 settlements @ ~150fps** · pushed through this session's commits (see git log)
+**Date:** 2026-06-12 · **State:** Phases 1-3 complete + treaties & tribute,
+zh localization, Gemini art-audit workflow, **settlement-scale rework**
+(procedural building clusters, zoom bands, action icons, activity overlays,
+terrain decor/grading/4× bake, walls with dedicated vertical art, repo
+hygiene: CLAUDE.md + lint + CI + cluster tests) · **64/64 tests · lint clean ·
+stress bit-identical ~0.4-0.6ms/day · 164 settlements @ ~150fps** · pushed
+(see git log) · per-session details in `docs/sessions/`
 
 A browser idle civilization aquarium: Vite + TypeScript + PixiJS 8 + Vitest.
-`npm install && npm run dev` from a clean checkout, open `http://localhost:5173`.
+`npm install && npm run dev` from a clean checkout. Conventions and sacred
+invariants live in `CLAUDE.md` — read it before changing sim or pipeline code.
 
 ## What exists right now
 
-**Phase 1 — core simulation & game** (complete)
-- 160×100 seed-deterministic world: 9 biomes, rivers, elevation/moisture/temperature; wildfire burns + spring regrowth recorded as terrain diffs so saves replay them
-- 5 civilizations: population, food/wood/stone/knowledge/faith/culture/military, 2 culture traits each, territory, full relation matrix (neutral/trade/alliance/rivalry/war with border friction, incidents, war exhaustion)
-- Settlements camp→village→town (gather radius widens by tier), seasonal food economy, morale; all 10 emergent events (famine, plague w/ spread+immunity, migration→new colonies, border skirmish+capture, succession, schism, wildfire, flood, golden age, collapse→**ruins on map**), civ fall
-- Hybrid agents: aggregate sim authoritative; ≤600 visible citizens near camera (walk/work/fight/rest animations, civ-tinted, flee/trade/build behaviors)
-- Chronicle (storybook prose, with x/y coords), History panel by year, inspector (tile/citizen/settlement/civ), civ roster, time controls (pause/1×/5×/20×), save/load + autosave (3 min, separate slot, Load picks newest)
-- Determinism: single mulberry32 sim stream, state saved/restored; cosmetic systems use separate streams. Save→load→run is bit-identical (test-proven)
-
-**Art pass** (complete — GPT-Image generated, processed by pipeline)
-- Terrain: 4 season sheets × 9 biomes × 3 variants, baked at 2× per season
-- Settlements (camp/village/town/ruins), banner, citizens (4 anim strips), glow, smoke, rain/snow — all with procedural fallbacks if any file is missing
-- Raw exports had FAKE transparency (baked checkerboard) → pipeline chroma-keys via border flood-fill; bright assets (banner/smoke/glow/rain) were regenerated on solid black (`assets_src/raw/6/`) and extracted by dark-key / luminance-as-alpha
-
-**Phase 2 — showcase layer** (complete)
-- Attract mode (`A`, `?attract=1`): interest-scored auto-director, breaking-event interrupts, capitals/frontiers/wide-shot rotation, drift+push-in, any input exits
-- Cinematic camera (eased flights, log-space zoom), cinema mode (`C`), screenshot (`P`), World Story overlay (`W`), seed gallery (`G`, 8 curated worlds, regenerate via script), event marker pulse rings, FPS cap (60/30/∞), polish (dual-layer glow, gusty weather, soft borders, fading labels)
-- Stress mode (`?stress=1`): 100y × 2 runs → **bit-identical, ~0.36ms/day, year-100 world: 122 settlements / 34k pop, zero console errors**
-
-**Music** (complete — see other-session notes in git log / ASSET_MANIFEST)
-- `src/audio/music.ts`: theme-once at boot → seasonal base, night layer (hysteresis), chronicle-driven moods (war > disaster > goldenAge) with hold timers, 2.5s crossfades, 12s anti-thrash, autoplay unlock on first input, mute persisted (`M` / 🎵)
-- 9 Suno tracks; mapping lives in `scripts/process-assets.mjs` MUSIC_MAP → `public/assets/music/`
+- **Simulation** (Pixi-free, deterministic, save/load bit-identical):
+  160×100 seeded world, 9 biomes, rivers; 5-16 civs with full diplomacy
+  (trade/alliance/rivalry/war, treaties + tribute, truces), settlements
+  camp→village→town, 10+ emergent events (famine, plague, migration,
+  skirmish/capture, schism, wildfire, flood, golden age, collapse→ruins),
+  civ rebirth from ruins, derived road network with caravans, chronicle
+  (en/zh re-renderable templates), biographies, history panel, inspector.
+- **Rendering**: settlements are procedural building clusters from 26 piece
+  sprites (tents→walled towns with hall/market/lamps; ruins as broken
+  pieces; substitution chains while art is missing; season/weather tinting);
+  zoom bands (macro glyph layer with war fronts + trade flows ↔ clusters ↔
+  citizens with per-state action icons); terrain baked at 4× per season
+  (LRU 2) with biome grading + edge fog; decor scatter incl. landmark
+  formations; two-pass night with per-building window lamps; activity
+  overlays (scaffolds, caravan trails, crisis glyphs).
+- **Showcase**: attract mode, cinematic camera, cinema mode, world story,
+  seed gallery (8 curated), stress mode (`?stress=1`).
+- **Music**: 9 Suno tracks, seasonal/night/mood logic; boot theme disabled
+  by default (`audio.playBootTheme`).
+- **UI**: bilingual en/zh everywhere, Esc settings menu (styled, hotkey
+  grid), icon set (game-icons.net CC BY, see `icons/ATTRIBUTION.md`).
+- **Probe API** (`?probe=1`): `window.__emberfall` — advanceDays, centerOn,
+  setAmbient, stepAgents, layers(), weatherAt — all headless scripts use it.
 
 ## Source map
 
 ```
-src/config/   balance.ts (ALL tuning incl. audio), terrainConfig, civConfig, seedGallery (GENERATED)
-src/core/     types.ts (all data shapes), rng.ts (seeded PRNG + hash2)
-src/world/    worldgen.ts (fBm, biomes, rivers), world.ts (tile helpers)
-src/sim/      simulation.ts (day-tick orchestrator), resources/growth/diplomacy/treaties/
-              territory/events/chronicle/founding/agents/weather/time/rebirth/roads —
-              Pixi-free, deterministic
-src/render/   renderer, camera (+flights), terrainLayer (RT bake, river pieces, variant
-              equalization), roadLayer, territoryLayer, settlementLayer (zoom-damped
-              glow/smoke/ruins), citizenLayer (anims), markerLayer (+wildfire FX),
-              atmosphere (night/dusk/particles), textures (procedural + asset loading)
-src/showcase/ interest.ts (shot scoring, tested), director.ts, stress.ts (tested)
+src/config/   balance.ts (ALL tuning incl. audio+render), terrainConfig, civConfig, seedGallery (GENERATED)
+src/core/     types.ts, rng.ts (seeded PRNG + hash2)
+src/sim/      simulation.ts + resources/growth/diplomacy/treaties/territory/events/
+              chronicle/founding/agents/weather/time/rebirth/roads — Pixi-free
+src/render/   renderer, camera, terrainLayer (4× RT bake), settlementLayer +
+              settlementCluster (layout engine), macroLayer (strategic band),
+              decorLayer, citizenLayer (+action icons), roadLayer, territoryLayer,
+              markerLayer, atmosphere, textures (fallbacks + piece/decor loading)
+src/showcase/ interest, director, stress
 src/audio/    music.ts
-src/ui/       hud, civPanel, inspector, chroniclePanel, historyPanel, biographyPanel,
-              worldStory, seedGallery, debugOverlay, icons (kind→SVG glyph mapping),
-              i18n (en/zh dictionary + zh chronicle templates), menu (Esc settings)
-src/persist/  save.ts (manual + autosave slots; world regen from seed + diffs)
-test/         11 suites / 55 tests: worldgen, resources, growth, diplomacy, treaties,
-              events, save, interest, stress, rebirth, roads
+src/ui/       hud, menu, civPanel, inspector, chroniclePanel, historyPanel,
+              biographyPanel, worldStory, seedGallery, debugOverlay, icons, i18n
+src/persist/  save.ts
+test/         12 suites / 64 tests (sim + cluster layout engine)
+scripts/      lib/browser.mjs (shared probe boilerplate), gemini-cli.mjs
+docs/         art-audit/ (battery + Gemini reports), sessions/ (work logs)
 ```
 
 ## Scripts
 
 | Command | Purpose |
 | --- | --- |
-| `npm run dev / build / test / typecheck` | standard |
-| `node scripts/process-assets.mjs` | raw art+music (`assets_src/`) → `public/assets/` (chroma-key, resize, music rename) |
-| `npx vite-node scripts/longrun.ts` | 10-year headless balance probe (pop, tiers, event histogram) |
-| `npx vite-node scripts/curate-seeds.ts` | re-score 120 seeds → regenerates `src/config/seedGallery.ts` |
-| `node scripts/smoke.mjs` / `smoke-showcase.mjs` | headless-Edge visual verification (needs dev server running) |
-| `node scripts/verify-{roads,stress,i18n,biography}.mjs` / `art-shots.mjs` | feature-specific headless probes (needs dev server; check BASE port) |
-| `npx vite-node scripts/{rebirth,treaty}-probe.ts` | century-scale sim probes (rebirth survival, treaty A/B) |
-| `npm run art:shots / art:audit / art:review` | deterministic 10-shot battery → Gemini art critique → before/after verdict (see art-audit session) |
-
-`assets_src/raw/` and `assets_src/music/` are gitignored sources-of-truth kept
-locally; processed outputs in `public/assets/` are committed, so a clean clone
-is fully playable.
+| `npm run dev / build / test / typecheck / lint / format` | standard gate |
+| `npm run art:shots` | 12-shot deterministic battery + QA layer assertions (needs dev server; `BASE`/`SEED`/`OUT` env) |
+| `npm run art:audit` / `art:review` | Gemini critique → `docs/art-audit/GEMINI_*.md` / before-after verdict |
+| `node scripts/process-assets.mjs` | raw art+music → `public/assets/` (folder map in script header; prompts in `ASSET_PROMPTS.md`) |
+| `npx vite-node scripts/longrun.ts` | 10-year headless balance probe |
+| `npx vite-node scripts/curate-seeds.ts` | re-score seeds → regenerates seed gallery (run after balance changes) |
+| `node scripts/verify-{roads,stress,i18n,biography}.mjs` | feature probes (need dev server; pass `BASE`) |
+| `node scripts/probe-cluster-perf.mjs` | late-game fps probe (year 100) |
+| `npx vite-node scripts/{rebirth,treaty}-probe.ts` | century-scale sim probes |
 
 ## Known limitations
 
-- Non-caravan agents still walk straight lines (caravans follow roads; field
-  walks are short enough not to matter); fights visual-only
-- River bend/mouth tiles wired (2026-06-11 asset session); T-junctions and 2-tile-wide river blobs still fall back to the straight tile
+- Non-caravan agents walk straight lines; fights visual-only; citizens can
+  walk over cluster rooftops (no building collision)
+- River T-junctions / 2-wide river blobs fall back to the straight tile
 - Single manual save slot
-- Empire convergence largely solved by treaties (see treaty session A/B:
-  civ falls 7/4/9/15 → 1/0/3/6); harshest seeds (48/99) can still end at
-  ~2 strong civs over 150 years — acceptable drama, tune
-  `balance.diplomacy.treaty*` if not
-- A world that burns all 16 civ slots (MAX_CIVS) stops rebirthing — "the age
-  of legends ends"; acceptable for now
-- Curated seed descriptions' "vitality" lines reflect current balance constants — re-run `curate-seeds.ts` after balance changes
-- Browser throttles when the window is minimized (fine on a visible second monitor)
-- Music mood pairing for the 4 non-season tracks was inferred from titles + loudness — swap in MUSIC_MAP if any feels wrong
+- Terrain tiling repetition only mitigated (landmark decor) — real fix is
+  more tile variants per biome (next art round, spec TBD in ASSET_PROMPTS)
+- Road rendering is still thin dirt strokes; clips under wall pieces
+- Macro-night glow could clamp harder on dense late-game maps
+- Harshest seeds (48/99) can end at ~2 strong civs over 150y (acceptable);
+  a world that burns all 16 civ slots stops rebirthing
+- Browser throttles when the window is minimized
 
-## Playtest 2026-06-11 (headless screenshots, seed 48, ~15 game-years)
+## Session logs
 
-Drove the game with `scripts/play-session{,2,3}.mjs` (new; need dev server,
-write PNGs to `scripts/out/play/`). Zero console errors across all runs.
-Sim is lively: by year 6 there were 2 wars, plagues, famines, floods, village
-promotions; chronicle prose + history panel + inspector (citizen/civ) +
-attract mode all work as designed. **Daytime close zoom looks great** in all
-seasons — crisp tiles, citizens visibly working. Medium-zoom night reads as a
-pretty "city lights" map.
+Per-session details (what shipped, verification, gotchas) live in
+`docs/sessions/<date>.md`. Add a section there each session; keep this file
+to live state only.
 
-Found problems, in priority order:
-
-1. **Night glow washout (P0)** — settlement glow scales with world zoom; at
-   close zoom each night glow becomes a screen-filling fireball that hides the
-   settlement, terrain and citizens (see `20-cycle-08.png`); at far zoom many
-   glows merge into orange mush that erases territory reading
-   (`08-late-game.png`). Fix: attenuate glow alpha/size as a function of zoom
-   (clamp in screen-space), keep current look only near the medium zoom it was
-   tuned at.
-2. **Tile-variant patchwork (minor)** — at close zoom the 3 luminance-varied
-   tile variants form visible rectangular patches (clearest in autumn,
-   `20-cycle-02.png`). Consider normalizing variant brightness.
-3. Known limitations confirmed in play: straight-line agents, one river
-   orientation, no rebirth after civ falls.
-
-## Phase 3 — "The Living World" (largely DONE, see sim session below)
-
-1. ~~Glow fix~~ ✓ 2. ~~Roads + caravans~~ ✓ 3. ~~Ruins resettlement + civ
-rebirth~~ ✓ (plus river bends + wildfire FX from the asset session, and
-tile-variant equalization). Both playtest problems below are fixed.
-
-Deferred to phase 4: minimap, timeline scrubber, idle auto-attract, camera
-cuts, general-agent pathfinding (only caravans use roads), localized
-seed-gallery descriptions (generated English text). Peace treaties &
-tribute: DONE. Per-civ biographies: DONE. Chinese localization + Esc
-settings menu: DONE (see sessions below).
-
-## Asset session 2026-06-11 (parallel with the playtest above)
-
-- **River bends + mouths**: `assets_src/raw/8/` → `terrain_river_<season>.png`
-  (3 variants × bend/mouth rows); `terrainLayer.riverPiece()` picks
-  straight/bend/mouth + rotation from orthogonal neighbors at bake time.
-- **Wildfire flame FX**: `assets_src/raw/7/` → `fx_wildfire.png` (4-frame
-  luma-alpha strip); `MarkerLayer` spawns a deterministic flame cluster on
-  wildfire/wildfireWild chronicle events (~6 s, cosmetic only).
-- **35 UI/event icons** fetched from game-icons.net (CC BY 3.0) into
-  `public/assets/icons/` (`event_<kind>.svg` matches sim event kinds 1:1,
-  season_*, ui_*); white-on-transparent SVG, attribution in
-  `icons/ATTRIBUTION.md`. Wired into HUD/chronicle/history/civ-panel via
-  `src/ui/icons.ts` (CSS-mask spans tinted by currentColor): every chronicle
-  kind has a glyph (a second 8-icon batch covers village/town/peace/alliance/
-  tradeOpened/rivalry/incidentGood/incidentBad; wildfireWild/rebirth/
-  resettleRuin/relationsCooled alias neighbors), HUD speed/save/load/history/
-  debug buttons use icons, the date shows a season glyph, civ-roster badges
-  (war/golden-age/crisis) use the same set. Gotcha: icon urls must be
-  root-absolute — a relative `url()` inside a CSS custom property resolves
-  against `/src/style.css`, not the document.
-- Probes: `scripts/probe-river.ts` / `probe-fire.ts` print bend/mouth/wildfire
-  coordinates for a seed; `scripts/probe-visuals.mjs` screenshots them
-  (boot camera centers on the first capital at zoom 2.2).
-- Typecheck + 40/40 tests green; probe run had zero console errors.
-
-## Sim session 2026-06-11 (parallel with the asset session)
-
-All verified: typecheck ✓, 48/48 tests ✓, stress `?stress=1` **bit-identical**
-at 0.477ms/day (122 settlements / 32k pop at year 100), zero console errors.
-
-- **Night glow fix (P0 from playtest)** — three damps in `settlementLayer`:
-  zoom damp past `glowRefZoom` (close-ups show lamps, not fireballs), far
-  floors below `glowFarZoom` (distinct dots instead of orange wash), and a
-  1/√density damp by settlement count so dense late-game maps stay readable.
-  Population size contribution clamped. All knobs in `balance.render`.
-- **Tile-variant equalization** — `terrainLayer.variantGains()` measures each
-  art variant's mean luminance via `extract.pixels` at first bake and tints
-  variants toward their biome mean (clamped 0.85–1.2); kills the patchwork.
-- **Civ rebirth + ruins resettlement** (`src/sim/rebirth.ts`, tested) — when
-  civs < 5, after a cooldown, a new culture rises from a quiet unclaimed ruin
-  (with ≤2 civs alive, also from claimed ruins far from settlements). Reborn
-  civs: 80 pop, may inherit a fallen civ's trait, open trade with the nearest
-  neighbor, and get grace years (no war via diplomacy clamp, plague immunity,
-  morale floor). Any civ down to ≤2 settlements keeps a last-stand morale
-  floor — this alone cut civ falls on some seeds from 13 to 2. Migration
-  prefers mossy (1y+) ruins; `resettleRuin` chronicle kind. New SimState
-  fields `lastRebirthDay`, `Civilization.foundedDay` (old saves default 0).
-  Probes: `scripts/rebirth-probe.ts`, `rebirth-autopsy.ts`.
-- **Roads + caravans** (`src/sim/roads.ts` + `render/roadLayer.ts`, tested) —
-  derived (never saved) road network rebuilt every `roads.recalcDays`:
-  per-civ spanning tree + trade-pair links, A* with terrain costs (fords
-  cost 6, passes 30) and a 0.5× discount on existing road tiles so routes
-  merge into trunks. Rendered as jittered dirt strokes (width/alpha by usage
-  level) between terrain and territory; re-baked only on `roadsVersion`
-  change. Trading agents follow `state.roadPaths` waypoints — visible
-  caravans on roads. `scripts/verify-roads.mjs` screenshots the network.
-- Seed gallery regenerated (all 8 picks now keep 5 civs alive).
-
-## Treaties & tribute session 2026-06-11 (after the sim session)
-
-Verified: typecheck ✓, 55/55 tests ✓ (7 new in `test/treaties.test.ts`),
-build ✓, longrun histogram sane, seed gallery regenerated (8/8 keep 5 civs).
-
-- **Peace treaties** (`src/sim/treaties.ts`, runs between events and
-  diplomacy): once a war is ≥`treatyMinWarDays` old, the side whose military
-  is below `treatySurrenderRatio` of the winner's (or any cornered civ with
-  ≤2 settlements, at `treatyLastStandMult` odds) sues for peace daily at
-  `treatySurrenderChance`. Signing snaps the relation to `treatyScore`
-  neutral, lifts morale on both sides, and sets terms on the `Relation`:
-  `truceDays` (240 — clamped above war in `updateDiplomacy`, same mechanism
-  as rebirth grace) and `tributeDays`/`tributeFrom` (180 — daily food/wood
-  flows seat→seat from the payer's surplus, never below
-  `tributeFood/WoodReserve`). New chronicle kinds `treatySigned` (imp 3) and
-  `tributeEnds` (imp 1); icon aliases dove/caravan; inspector relation rows
-  show "truce Nd · paying/owed tribute". Saves: optional `RelationPair`
-  fields, old saves load unchanged. All knobs in `balance.diplomacy`
-  (new keys only).
-- **Why**: 150-year A/B probe (`scripts/treaty-probe.ts`, treaties off vs
-  on, 5 seeds): civ falls 7/4/9/15 → 1/0/3/6, top-civ settlement share
-  100%→30% (seed 21) and 100%→73% (seed 99), peaceful seed 7 unchanged.
-  Empire convergence is now the exception, not the rule. War declarations
-  rise with treaties on — survivorship, not a bug: more civs alive to fight,
-  each war ends at the table instead of in ashes.
-
-## Art grading session 2026-06-11 (Gemini-3.1-Pro-reviewed, after treaties)
-
-Owner complaint: "整体有点丑，光影季节变化生硬". Two review rounds with
-`gemini-3.1-pro-preview` via gemini CLI (run it with `C:\tools\node22\node.exe`
-— system Node 18 crashes it; round 1 was accidentally BLIND: `@file`
-attachments under gitignored `scripts/out/` are refused, stage review images
-in a non-ignored dir). All changes render-side; 55/55 tests, stress
-bit-identical at 0.60ms/day, zero console errors.
-
-- **Season crossfade** (`terrainLayer`): prev-bake sprite fades out over
-  `seasonFadeSeconds` (0.5s — longer alpha blends of misaligned pixel art
-  read as double exposure, per review). Hard-cuts on `terrainVersion`
-  invalidation (the old RT is destroyed — fading from it crashed with
-  "alphaMode of null" until guarded by `justInvalidated`).
-- **Two-pass night** (`atmosphere`): multiply `#0e132a`×darkness deepens
-  shadows keeping local contrast; additive `#0c1b2e`@0.4 moonlight lift
-  (first try `#1a3d61`@0.3 read "milky" per review). Dusk is now a vertical
-  purple→orange multiply gradient (`#4a2c41`→`#d46a32`@0.5) with a wider
-  smooth bell window in main.ts; screen vignette @0.36.
-- **Bake polish** (`terrainLayer`): deep-water multiply tint `#598ab5`@0.65
-  (kills wave moiré, lets foam punch through); neutral soften `#8a8578`@0.10
-  — except spring, which gets a fresh-green correction `#8efaa4`@0.05 (its
-  art runs olive/murky).
-- **Lamps & grounding** (`settlementLayer`): two-stage tungsten glow — core
-  tint `#ffe2a8`, wide spill `#d96b14` at 3.2× radius — plus slow breathing
-  and a soft black ground shadow under each settlement.
-- **Territory** (round 3): additive borders were judged a regression ("sci-fi
-  neon", blown out on snow) — reverted to normal @0.65 with a 1px black
-  underline that grounds the line on the terrain.
-- **Round 3 additions**: black contact shadows under citizen sprites (they
-  vanished into same-hue autumn terrain) and an additive `#ffebc2`@0.18
-  daylight lift on settlement sprites fading with darkness (raw art read as
-  charcoal silhouettes in sunlight).
-- **Round 4 verdict (Gemini, viewing final shots)**: "shippable — polished,
-  atmospheric, ready to go"; optional future nicety: 1px inner highlight on
-  territory borders.
-- `scripts/art-shots.mjs` captures the season/dusk/boundary battery (note:
-  headless pages throttle the ambient clock — timing math is unreliable,
-  sample and pick instead).
-
-## Repo-polish session 2026-06-11 (README, CI, biographies — after treaties)
-
-Verified: typecheck ✓, 55/55 ✓, biography panel driven in-browser
-(`scripts/verify-biography.mjs`, zero console errors). No commits made.
-
-- **README.md** refreshed for the public GitHub repo: features list (incl.
-  treaties, rebirth, roads), 4 screenshots copied from gitignored
-  `scripts/out/art/` into committed `docs/` (JPEG-compressed, 564KB total),
-  controls table fixed (`M` was missing), seed recommendations updated to
-  the current regenerated gallery (seed 48 is no longer in it — 79 is the
-  new river pick), Credits section for the CC BY icon attribution.
-- **CI**: `.github/workflows/ci.yml` — push/PR → Node 18 (deps are pinned
-  for 18) + npm cache → `npm ci`, `tsc --noEmit`, `vitest run`.
-- **Per-civ biographies** (`src/ui/biographyPanel.ts`): "read their story"
-  link in the inspector's civ view; self-contained DOM panel (no main.ts
-  wiring), chronicle filtered by civId-or-name-mention, importance ≥2 plus
-  personal minor kinds, year-grouped with event icons, deeds summary line
-  (wars/treaties/golden ages/towns/colonies), Esc closes, hidden in cinema
-  mode. Works for fallen civs — their stories are the best ones.
-
-## Localization + Esc menu session 2026-06-11 (after repo polish)
-
-Verified: typecheck ✓, 55/55 ✓, build ✓, stress bit-identical (0.41ms/day),
-`scripts/verify-i18n.mjs` drives menu + language switch headlessly, zero
-console errors.
-
-- **i18n** (`src/ui/i18n.ts`): `t(key)` dictionary (en/zh) for all UI chrome
-  — HUD, menu, civ roster, inspector, history, biography, world story,
-  weather, toasts, dates (`第3年 · 春 · 第7日`) — plus vocabularies for
-  terrain/tiers/traits/relations/agent-states and a full zh mirror of every
-  chronicle template. Language persisted (`emberfall:lang`).
-- **Chronicle localization without breaking determinism**: `pushEvent` now
-  picks the variant index with the exact arithmetic `rng.pick` used (bit
-  -identical stream, test-proven) and stores `variant` + `params` on the
-  entry; stored English `text` stays canonical (old saves render as-is),
-  and the UI re-renders entries in the current language via `entryText()`.
-  ZH template variant counts MUST match `sim/chronicle.ts` exactly.
-- **Esc menu** (`src/ui/menu.ts`, `#menu`): language (English/中文), FPS cap
-  (moved out of the HUD), debug overlay toggle (was a HUD icon), music
-  toggle, hotkey reference, Resume. Esc closes open panels first; with
-  nothing open it toggles the menu. HUD gained a ⚙ button; HUD relabels
-  itself on language change.
-
-## Art-audit workflow + readability pass 2026-06-11 (after localization)
-
-Verified: typecheck ✓, 55/55 ✓, build ✓, stress bit-identical (0.390ms/day),
-zero console errors across all battery runs.
-
-- **Probe API** (`?probe=1`, main.ts): `window.__emberfall` —
-  `advanceDays(n)` (synchronous whole-day ticks), `centerOn(tx,ty,zoom)`,
-  `setAmbient(v)` (freezes the visual day/night cycle; 0=midnight, 0.5=noon),
-  `stepAgents(seconds)` (fixed-step citizen movement while sim time is
-  frozen), `weatherAt(day)`/`seasonAt(day)`, `setSpeed`, `state` getter.
-  Never active without the URL param. This replaced all wall-clock timing in
-  screenshot scripts — batteries are now deterministic per seed.
-- **Workflow** (`npm run art:shots / art:audit / art:review`):
-  `art-audit-shots.mjs` captures a 10-shot battery (macro/mid day+night,
-  close settlement/citizens in spring, town, rain, mid-winter, war frontier
-  via relation-matrix scan) into committed `docs/art-audit/current/` (+
-  manifest.json with per-shot context). `art-audit.mjs` sends them with
-  `docs/art-audit/AUDIT_PROMPT.md` (13 scored categories, owner-provided) to
-  gemini-3.1-pro-preview → `GEMINI_ART_AUDIT.md` + distilled
-  `GEMINI_ACTION_ITEMS.md`. `art-review.mjs` compares `baseline/` vs
-  `current/` pair-by-pair → `GEMINI_REVIEW.md`. Shared invocation rules in
-  `scripts/gemini-cli.mjs` (node22 path, JSON envelope, no output paths in
-  prompts, attachments must not be gitignored).
-- **Readability pass** (top 5 of the audit, all render-side; audit scored
-  lighting 2/10, glow 2/10, scale fantasy 2/10):
-  1. Night floor: `nightMulColor` `0x0e132a`→`0x2b3a5c` @0.86 — midnight is
-     slate blue, terrain/roads/borders stay readable.
-  2. Glow nerf: `glowSizeScale` 0.62→0.36, `glowMaxAlpha` 0.5→0.36, halo
-     spill 0.32/3.2×→0.2/2.5×, far floors lowered; new
-     `settlementNightLiftAlpha` 0.55 re-lights the building art itself at
-     night (lamp-lit structures instead of sprites hiding under blobs).
-  3. Citizen LOD: container alpha fades over zoom 1.6→3.0 (new
-     `citizenFadeZoom*` knobs), `citizenHeight` 6→4.5, smaller contact
-     shadows — no more mid-zoom dot swarms.
-  4. Settlement grounding/scale: earth-tone base patch under every
-     settlement (`settlementBase*`), `settlementWidths` [12,16,22]→[11,17,26].
-  5. Borders: 2px line @0.55 (was 1px @0.65) + 5px inner band @0.09.
-- **Gemini verdict** (10 before/after pairs): 9 improved, 1 unchanged.
-  Lighting 2→8, glow control 2→9, terrain beauty 3→8, macro readability 5→9,
-  screenshot appeal 3→8. Remaining (next art pass): settlement footprint
-  sprawl (scale fantasy still 2/10 — needs multi-tile art, deliberately out
-  of scope), building variety/contrast, citizen action readability.
-- Gotcha: `verify-stress.mjs` and friends default to port 5174 — pass
-  `BASE=http://localhost:5173` when the dev server holds 5173.
-
-## Settlement-scale rework 2026-06-12 (after the art-audit session)
-
-Verified: typecheck ✓, 55/55 ✓, build ✓, stress bit-identical (0.53ms/day),
-12-shot battery + QA assertions green, 164 settlements at ~150fps, zero
-console errors. Gemini before/after (vs pre-rework baseline): settlement art
-1→9, scale fantasy 2→9, micro readability 2→8, lighting 2→7, citizens 3→7.
-
-- **Owner-generated batch 9/10 art** (`assets_src/raw/9|10/`, spec in
-  `ASSET_PROMPTS.md`): pipeline gained a connected-component slicer
-  (`slicePieces` in process-assets.mjs — works for strips AND grids; merges
-  fragments only when count > expected) → 26 building pieces + 22 decor
-  sprites in `public/assets/pieces|decor/`. Batch 9 complete (04/05/06
-  delivered later the same session): villages get real wells/shrines +
-  granaries, towns get market stalls. Walls were also reworked from ellipse
-  sampling to connected rectangles (rotated side runs, corner towers, south
-  gate) with a `buildable()` water veto — coastal towns open to the sea.
-- **Cluster engine** (`render/settlementCluster.ts` + settlementLayer):
-  hash2-seeded deterministic layouts per (settlement id, tier, pop bucket of
-  35) — camps: fire+tents; villages: well/shrine + granary + 4-10 huts;
-  towns: hall + market + 12-30 mixed buildings + stone/palisade wall ring
-  (0.7 chance, gate south, towers on diagonals) + lamps; ruins: scattered
-  broken pieces. Per-building night lift copies + window lamp glows (in
-  glowContainer). Legacy single sprites remain the zero-art fallback.
-  Cluster tint = season grade × wet darkening (rain) — winter towns no
-  longer read as summer stickers. Center glow halves when a cluster exists.
-- **Zoom bands**: `render/macroLayer.ts` — below zoom 0.95 the strategic
-  layer owns the screen (constant screen-size civ-tinted tier glyphs,
-  war-front pulses at frontier midpoints, animated trade-flow beads between
-  trading seats, plague/famine rings); clusters crossfade out below 1.3.
-  Citizens fade 1.6→3.0, action icons 3.2→4.2.
-- **Action icons** (7 CC BY glyphs, `icons/action_*.svg`, 4 fetched + 3
-  aliased; ATTRIBUTION.md updated): overhead glyphs per agent state at close
-  zoom; work-dust puffs on working citizens; caravan dust trails behind
-  traders; inspector citizen view gained a "heading to" row (i18n'd).
-- **Settlement overlays**: status glyph above cluster (plague > famine >
-  raided <45d, tinted, pulsing, zoom>1.2), construction scaffold while
-  founded <120d or upgraded <90d.
-- **Terrain**: bake-time biome edge fog (neighbor palette color, half-tile
-  gradient, water edges stay crisp), per-biome multiply grade, runtime
-  `render/decorLayer.ts` scatter (rocks/trees/reeds/bushes by biome,
-  seasonal tints, skips roads/settlement-adjacent tiles, throttled rebuild
-  on territory/roads/season change).
-- **QA battery**: art-audit-shots now 12 shots (all four seasons) + layer
-  assertions via the probe's `layers()` (macro glyphs visible, citizens
-  culled at macro / full at close, clusters+lamps in use, glow ≤3× footprint,
-  decor present) — exits 1 on violation. `settlementLayer.audit()` feeds it.
-- Gemini's remaining top-3 for a future pass: macro-night glow could clamp
-  harder (floors already lowered once), terrain tile monotony (needs
-  transition/variation art), road rendering (1px lines clip under walls).
-- Gotcha: probe scripts must compare `tier === 2` (numeric enum), not
-  `'town'` — the string compare silently matches nothing.
-
-Note: `.mcp.json` now registers a Playwright MCP server (msedge, headless) so
-future sessions can drive the game interactively instead of via one-shot
-scripts; dev server may land on 5174/5175 if older instances hold 5173.
-The MCP browser can be flaky after HMR reloads — kill stale
-`ms-playwright-mcp` Edge processes if it reports "browser already in use";
-the `scripts/*.mjs` probes are the reliable fallback. `--output-dir
-.playwright-mcp` is set (gitignored), so MCP screenshots/snapshots no longer
-litter the repo root — pass bare filenames and Read them from there (config
-change takes effect on the next session restart).
+Note: `.mcp.json` registers a Playwright MCP server (msedge, headless); it
+can wedge after HMR reloads — the `scripts/*.mjs` probes are the reliable
+fallback. MCP output goes to gitignored `.playwright-mcp/`.

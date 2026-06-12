@@ -10,38 +10,20 @@
  * Needs `npm run dev` running (port auto-detected 5173-5175, or BASE env).
  * Output: docs/art-audit/current/*.jpg + manifest.json (OUT env overrides).
  */
-import { chromium } from 'playwright-core';
 import fs from 'node:fs';
+import { launchGame } from './lib/browser.mjs';
 
-const EDGE = 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe';
 const SEED = Number(process.env.SEED ?? 48);
 const OUT = process.env.OUT ?? 'docs/art-audit/current';
 fs.mkdirSync(OUT, { recursive: true });
 
-async function detectBase() {
-  if (process.env.BASE) return process.env.BASE;
-  for (const port of [5173, 5174, 5175]) {
-    try {
-      const res = await fetch(`http://localhost:${port}/`, { signal: AbortSignal.timeout(1500) });
-      if (res.ok) return `http://localhost:${port}`;
-    } catch {
-      /* next port */
-    }
-  }
-  throw new Error('No dev server found on 5173-5175. Run `npm run dev` first.');
-}
-
-const BASE = await detectBase();
-const browser = await chromium.launch({ executablePath: EDGE, headless: true });
-const page = await browser.newPage({ viewport: { width: 1600, height: 900 } });
-const errors = [];
-page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
-page.on('pageerror', (e) => errors.push(`PAGEERROR: ${e.message}`));
+const game = await launchGame({ seed: SEED });
+const { page, errors, base: BASE } = game;
 
 const manifest = [];
 async function shot(file, label, description) {
   await page.waitForTimeout(400); // let the locked lighting/camera settle
-  await page.screenshot({ path: `${OUT}/${file}.jpg`, type: 'jpeg', quality: 90 });
+  await page.screenshot({ path: `${OUT}/${file}.jpg`, type: 'jpeg', quality: 82 });
   const day = await page.evaluate('__emberfall.day');
   manifest.push({ file: `${file}.jpg`, label, description, day, seed: SEED });
   console.log(`  ✓ ${file} (day ${day})`);
@@ -67,9 +49,6 @@ async function assertLayers(where, checks) {
 const ef = (expr) => page.evaluate(expr);
 
 console.log(`Battery: seed ${SEED} → ${OUT} (base ${BASE})`);
-await page.goto(`${BASE}/?seed=${SEED}&probe=1`, { waitUntil: 'load', timeout: 30000 });
-await page.waitForSelector('#app canvas', { timeout: 20000 });
-await page.waitForTimeout(2500);
 await ef('__emberfall.setSpeed(0)');
 await ef('__emberfall.setAmbient(0.5)'); // noon
 
@@ -244,7 +223,6 @@ await shot(
 manifest.sort((a, b) => a.file.localeCompare(b.file));
 fs.writeFileSync(`${OUT}/manifest.json`, JSON.stringify(manifest, null, 2));
 console.log(`Manifest: ${OUT}/manifest.json`);
-console.log(errors.length ? `CONSOLE ERRORS:\n${errors.join('\n')}` : 'no console errors');
+const errorCount = await game.close();
 console.log(failures.length ? `QA FAILURES:\n${failures.join('\n')}` : 'all QA assertions passed');
-await browser.close();
-process.exit(errors.length || failures.length ? 1 : 0);
+process.exit(errorCount || failures.length ? 1 : 0);

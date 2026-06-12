@@ -2,20 +2,10 @@
  * Late-game cluster perf probe: fast-forward to year ~100 (120+ settlements),
  * toggle the debug overlay, sample FPS at mid and far zoom. Needs dev server.
  */
-import { chromium } from 'playwright-core';
+import { launchGame } from './lib/browser.mjs';
 
-const EDGE = 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe';
-const BASE = process.env.BASE ?? 'http://localhost:5174';
-
-const browser = await chromium.launch({ executablePath: EDGE, headless: true });
-const page = await browser.newPage({ viewport: { width: 1600, height: 900 } });
-const errors = [];
-page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
-page.on('pageerror', (e) => errors.push(`PAGEERROR: ${e.message}`));
-
-await page.goto(`${BASE}/?seed=48&probe=1`, { waitUntil: 'load', timeout: 30000 });
-await page.waitForSelector('#app canvas', { timeout: 20000 });
-await page.waitForTimeout(2500);
+const game = await launchGame({ seed: 48 });
+const { page } = game;
 await page.evaluate('__emberfall.setSpeed(0)');
 console.log('advancing to year 100…');
 await page.evaluate('__emberfall.advanceDays(12000 - __emberfall.day)');
@@ -57,6 +47,5 @@ for (const [label, x, y, z] of [
   void fps;
 }
 
-console.log(errors.length ? `CONSOLE ERRORS:\n${errors.join('\n')}` : 'no console errors');
-await browser.close();
-process.exit(errors.length ? 1 : 0);
+const errorCount = await game.close();
+process.exit(errorCount ? 1 : 0);

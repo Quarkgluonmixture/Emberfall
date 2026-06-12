@@ -255,8 +255,9 @@ export function layoutCluster(
     if (crates && hash2(seed, 4, 1) < 0.6) placeSpiral(out, seed, 4, crates, 3.6, {}, buildable);
   } else if (tier === 1) {
     // Village: centre well/shrine, granary, 4-10 huts.
+    const okV = (dx: number, dy: number): boolean => !buildable || buildable(dx, dy);
     const centre = pick(have, hash2(seed, 10, 1) < 0.55 ? 'well' : 'shrine', 'well', 'shrine', 'campfire');
-    if (centre) put(out, centre, 0, 0.8);
+    if (centre && okV(0, 0.8)) put(out, centre, 0, 0.8);
     const granary = pick(have, 'granary', 'shed', 'crates');
     if (granary) placeSpiral(out, seed, 11, granary, 5.2, {}, buildable);
     const count = Math.min(10, 4 + bucket);
@@ -266,17 +267,21 @@ export function layoutCluster(
       if (hut) placeSpiral(out, seed, 20 + i, hut, 5, { lift: true, lamp: i < 2 }, buildable);
     }
     const lamp = pick(have, 'lamp');
-    if (lamp && bucket >= 3) put(out, lamp, 3.2, 2.6, { lamp: true });
+    if (lamp && bucket >= 3 && okV(3.2, 2.6)) put(out, lamp, 3.2, 2.6, { lamp: true });
   } else {
     // Town: hall, market square, 12-30 mixed buildings, lamps, wall chance.
+    // Fixed plaza pieces still respect the terrain veto — a coastal plaza
+    // must not put its market stalls in the surf.
+    const ok = (dx: number, dy: number): boolean => !buildable || buildable(dx, dy);
     const hall = pick(have, 'hall');
-    if (hall) put(out, hall, 0, -4.5, { lift: true, lamp: true });
+    if (hall && ok(0, -4.5)) put(out, hall, 0, -4.5, { lift: true, lamp: true });
     const stallA = pick(have, 'stall_0', 'crates');
     const stallB = pick(have, 'stall_1', 'shed');
-    if (stallA) put(out, stallA, -4.5, 2.4, { flip: true });
-    if (stallB) put(out, stallB, 4.5, 2.6);
+    if (stallA && ok(-4.5, 2.4)) put(out, stallA, -4.5, 2.4, { flip: true });
+    if (stallB && ok(4.5, 2.6)) put(out, stallB, 4.5, 2.6);
     const shrine = pick(have, 'shrine', 'well');
-    if (shrine && hash2(seed, 40, 1) < 0.6) put(out, shrine, hash2(seed, 40, 2) < 0.5 ? -7 : 7, -1.5);
+    const shrineDx = hash2(seed, 40, 2) < 0.5 ? -7 : 7;
+    if (shrine && hash2(seed, 40, 1) < 0.6 && ok(shrineDx, -1.5)) put(out, shrine, shrineDx, -1.5);
 
     const fixed = out.length;
     const count = Math.min(30, 12 + Math.max(0, bucket - 3) * 2) - fixed;
@@ -293,8 +298,8 @@ export function layoutCluster(
 
     const lamp = pick(have, 'lamp');
     if (lamp) {
-      put(out, lamp, -3.4, 3.4, { lamp: true });
-      put(out, lamp, 3.4, -1.8, { lamp: true });
+      if (ok(-3.4, 3.4)) put(out, lamp, -3.4, 3.4, { lamp: true });
+      if (ok(3.4, -1.8)) put(out, lamp, 3.4, -1.8, { lamp: true });
     }
 
     if (hash2(seed, 901, 1) < 0.7) {

@@ -1,11 +1,19 @@
 /**
- * Asset pipeline: turn raw GPT-Image exports (assets_src/raw/<1..5>/) into
- * game-ready PNGs in public/assets/.
+ * Asset pipeline: turn raw GPT-Image exports (assets_src/raw/<n>/) into
+ * game-ready PNGs in public/assets/. Run: node scripts/process-assets.mjs
+ *
+ * Raw folder map (prompt specs in ASSET_PROMPTS.md):
+ *   1  effects (snowflake; rest superseded by 6)     6  black-bg fx (banner/smoke/glow/rain)
+ *   2  (unused)                                      7  wildfire flame strip (black-bg)
+ *   3  citizen anim strips                           8  river bend/mouth seasonal sheets
+ *   4  settlement single sprites (legacy fallback)   9  building pieces → pieces/
+ *   5  terrain seasonal sheets                      10  terrain decor grids → decor/
+ *  11  vertical wall pieces → pieces/               12  landmark decor (mountains/canopies) → decor/
  *
  * The raw exports have FAKE transparency (a checkerboard baked into opaque
  * pixels), so sprites are chroma-keyed: flood-fill from the borders removing
  * neutral bright pixels, which preserves warm/colored artwork inside.
- * Run: node scripts/process-assets.mjs
+ * Bright/white art is regenerated on solid black and dark-keyed instead.
  */
 import sharp from 'sharp';
 import fs from 'node:fs';

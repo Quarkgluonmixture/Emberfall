@@ -10,7 +10,9 @@
  * instead of burning retries.
  */
 import fs from 'node:fs';
-import { MODEL, runGeminiVerified } from './gemini-cli.mjs';
+import { MODEL, ensureQuota, runGeminiVerified } from './gemini-cli.mjs';
+
+await ensureQuota();
 
 const DIR = 'docs/sfx-audition';
 // candidate file → the event slot it would fill.

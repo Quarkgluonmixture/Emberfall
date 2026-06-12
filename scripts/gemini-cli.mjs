@@ -14,6 +14,8 @@
  *   Keep it to a couple of images per call; loop for batteries (see art-review).
  */
 import { spawnSync } from 'node:child_process';
+import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 
 const NODE22 = 'C:\\tools\\node22\\node.exe';
@@ -27,6 +29,87 @@ const GEMINI_JS = path.join(
   'gemini.js',
 );
 export const MODEL = process.env.GEMINI_MODEL ?? 'gemini-3.1-pro-preview';
+
+/**
+ * Remaining-quota fraction (0..1) for MODEL via the same Code Assist
+ * endpoint the CLI uses (see scripts/gemini-quota.mjs for the full table).
+ * Returns null when the check itself fails — callers should proceed, the
+ * per-call token gate still protects them. Call this BEFORE batteries:
+ * near zero the CLI degrades SILENTLY (drops attachments) before erroring.
+ */
+/** The CLI's public OAuth client, read from its installed bundle at runtime
+    (installed-app constants, not user secrets — but keeping the literal out
+    of the repo appeases GitHub push protection and survives rotation). */
+export function cliOAuthClient() {
+  const bundleDir = path.dirname(GEMINI_JS);
+  for (const f of fs.readdirSync(bundleDir).filter((n) => n.endsWith('.js'))) {
+    const src = fs.readFileSync(path.join(bundleDir, f), 'utf8');
+    const id = src.match(/OAUTH_CLIENT_ID = "([^"]+)"/)?.[1];
+    const secret = src.match(/OAUTH_CLIENT_SECRET = "([^"]+)"/)?.[1];
+    if (id && secret) return { id, secret };
+  }
+  throw new Error('OAuth constants not found in the gemini-cli bundle.');
+}
+
+export async function quotaFraction(model = MODEL) {
+  try {
+    const client = cliOAuthClient();
+    const creds = JSON.parse(
+      fs.readFileSync(path.join(os.homedir(), '.gemini', 'oauth_creds.json'), 'utf8'),
+    );
+    const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        client_id: client.id,
+        client_secret: client.secret,
+        refresh_token: creds.refresh_token,
+        grant_type: 'refresh_token',
+      }),
+    });
+    const { access_token } = await tokenRes.json();
+    const post = async (method, body) => {
+      const r = await fetch(`https://cloudcode-pa.googleapis.com/v1internal:${method}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${access_token}` },
+        body: JSON.stringify(body),
+      });
+      return r.json();
+    };
+    const load = await post('loadCodeAssist', {
+      metadata: {
+        ideType: 'IDE_UNSPECIFIED',
+        platform: 'PLATFORM_UNSPECIFIED',
+        pluginType: 'GEMINI',
+      },
+    });
+    const quota = await post('retrieveUserQuota', { project: load.cloudaicompanionProject });
+    const bucket = quota.buckets?.find((b) => b.modelId === model);
+    return bucket
+      ? { fraction: bucket.remainingFraction ?? null, resetTime: bucket.resetTime }
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Abort loudly when MODEL's quota is empty; warn when it's running low. */
+export async function ensureQuota(minFraction = 0.1) {
+  const q = await quotaFraction();
+  if (!q || q.fraction == null) return;
+  if (q.fraction === 0) {
+    throw new Error(
+      `${MODEL} quota is EXHAUSTED (resets ${q.resetTime}). Near-zero quota also degrades silently — do not burn retries; rerun after the reset.`,
+    );
+  }
+  if (q.fraction < minFraction) {
+    console.warn(
+      `⚠ ${MODEL} quota at ${Math.round(q.fraction * 100)}% (resets ${q.resetTime}) — calls may degrade silently; the token gate will flag blind calls.`,
+    );
+  } else {
+    console.log(`${MODEL} quota: ${Math.round(q.fraction * 100)}% remaining`);
+  }
+}
 
 /** Run gemini with a prompt (may contain @file attachments); returns the response text.
     `runGeminiVerified` additionally returns hard evidence that the call was real. */

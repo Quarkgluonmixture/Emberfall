@@ -19,7 +19,9 @@
  */
 import fs from 'node:fs';
 import sharp from 'sharp';
-import { MODEL, runGeminiVerified } from './gemini-cli.mjs';
+import { MODEL, ensureQuota, runGeminiVerified } from './gemini-cli.mjs';
+
+await ensureQuota();
 
 /** Token-evidence gate: the CLI's system preamble is ~10.7k tokens and each
     attached image adds ~1130 prompt tokens (calibrated 2026-06-12). A call

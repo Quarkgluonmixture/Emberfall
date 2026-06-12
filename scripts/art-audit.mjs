@@ -12,7 +12,9 @@
  * (2026-06-12 session log has the autopsy; art-review.mjs hit it first).
  */
 import fs from 'node:fs';
-import { MODEL, runGemini, runGeminiVerified } from './gemini-cli.mjs';
+import { MODEL, ensureQuota, runGemini, runGeminiVerified } from './gemini-cli.mjs';
+
+await ensureQuota();
 
 /** Token-evidence gate (calibrated 2026-06-12): each attached image adds
     ~1130 prompt tokens over the ~10.7k bare-call baseline. */

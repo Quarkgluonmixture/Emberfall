@@ -9,6 +9,9 @@
  *   bare `-p > out.md` pollutes the output with conversational fragments.
  * - Never put output file paths inside the prompt (gemini write_file's them itself).
  * - `@path` attachments matching .gitignore are refused — keep audit images in docs/.
+ * - Batching many @-attachments in one call fails SILENTLY (~a dozen+ images →
+ *   none attached, the model confabulates a review from the prompt alone).
+ *   Keep it to a couple of images per call; loop for batteries (see art-review).
  */
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';

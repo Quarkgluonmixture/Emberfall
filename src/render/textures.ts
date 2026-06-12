@@ -443,7 +443,9 @@ export async function loadRealTextures(tex: GameTextures): Promise<number> {
   let decorCount = 0;
   for (const [base, variants] of DECOR_KINDS) {
     const list = (
-      await Promise.all(Array.from({ length: variants }, (_, i) => tryLoad(`decor/${base}_${i}.png`)))
+      await Promise.all(
+        Array.from({ length: variants }, (_, i) => tryLoad(`decor/${base}_${i}.png`)),
+      )
     ).filter((t): t is Texture => t !== null);
     if (list.length > 0) {
       decor[base] = list;

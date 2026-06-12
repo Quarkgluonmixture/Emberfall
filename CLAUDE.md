@@ -32,9 +32,10 @@ bit-identical check.
   `sim/chronicle.ts` AND a zh mirror in `ui/i18n.ts` with the **same variant
   count** (the sim stores the picked variant index; mismatch silently falls
   back to English). New kinds also need an icon entry in `ui/icons.ts`.
-- **Balance protocol**: all tuning lives in `src/config/balance.ts`. Sim-side
-  changes ⇒ re-run `curate-seeds.ts` and sanity-check `longrun.ts`; the
-  `render:` section is cosmetic and free to change.
+- **Balance protocol**: sim tuning lives in `src/config/balance.ts`; cosmetic
+  tuning in `src/config/balanceRender.ts` (still accessed as `BALANCE.render`).
+  Sim-side changes ⇒ re-run `curate-seeds.ts` and sanity-check `longrun.ts`;
+  balanceRender is free to change.
 - **Saves**: new `SimState`/`Civilization`/`Relation` fields must be optional
   or defaulted so old saves load (see `persist/save.ts`, `SAVE_VERSION`).
 - **UI strings** go through `t(key)` (en/zh) — never literals. CSS `url()`

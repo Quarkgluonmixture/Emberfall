@@ -37,7 +37,7 @@
   {
     "file": "06-close-citizens.jpg",
     "label": "close citizens",
-    "description": "Citizen close-up at 6.5x: can you tell who is working, walking, fighting, resting?",
+    "description": "Citizen close-up at 6.5x: action icons above heads — can you tell who is working, trading, resting?",
     "day": 600,
     "seed": 48
   },
@@ -65,8 +65,22 @@
   {
     "file": "10-town-large.jpg",
     "label": "town upgrade / large settlement",
-    "description": "Largest 2 (Briarcairn, pop 320) with surroundings: scale fantasy, road connections.",
+    "description": "Largest town (Briarcairn, pop 320) with surroundings: scale fantasy, road connections.",
     "day": 600,
+    "seed": 48
+  },
+  {
+    "file": "11-summer.jpg",
+    "label": "summer",
+    "description": "Mid-summer over the same region, noon, default zoom.",
+    "day": 640,
+    "seed": 48
+  },
+  {
+    "file": "12-autumn.jpg",
+    "label": "autumn",
+    "description": "Mid-autumn over the same region, noon, default zoom.",
+    "day": 670,
     "seed": 48
   }
 ]

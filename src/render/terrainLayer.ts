@@ -4,7 +4,15 @@
  * cost is a single sprite. With real tile art loaded, tiles are baked from
  * the seasonal sheets at higher resolution; otherwise flat shaded colors.
  */
-import { Container, Graphics, RenderTexture, Sprite, Texture as PixiTexture, type Renderer, type Texture } from 'pixi.js';
+import {
+  Container,
+  Graphics,
+  RenderTexture,
+  Sprite,
+  Texture as PixiTexture,
+  type Renderer,
+  type Texture,
+} from 'pixi.js';
 import { BALANCE } from '../config/balance';
 import { TERRAIN_DEFS } from '../config/terrainConfig';
 import { hash2 } from '../core/rng';
@@ -25,7 +33,9 @@ const BIOME_GRADE: Record<number, number> = {
   [Terrain.Tundra]: 0xeef4fb,
 };
 
-/** 64×1 white→transparent alpha ramp, tinted per neighbor biome at bake. */
+/** 64×1 white→transparent alpha ramp, tinted per neighbor biome at bake.
+    Ease-out falloff (≈(1−t)²) — a linear tail ends in a readable hard line
+    once several ramps stack along a shoreline. */
 function gradientRamp(): Texture {
   const canvas = document.createElement('canvas');
   canvas.width = 64;
@@ -33,6 +43,8 @@ function gradientRamp(): Texture {
   const ctx = canvas.getContext('2d')!;
   const g = ctx.createLinearGradient(0, 0, 64, 0);
   g.addColorStop(0, 'rgba(255,255,255,1)');
+  g.addColorStop(0.3, 'rgba(255,255,255,0.49)');
+  g.addColorStop(0.6, 'rgba(255,255,255,0.16)');
   g.addColorStop(1, 'rgba(255,255,255,0)');
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, 64, 1);
@@ -165,6 +177,35 @@ export class TerrainLayer {
     return shade * jitter;
   }
 
+  /** A ramp sprite fading inward from the given side of tile (x, y).
+      Side order matches the neighbor scan: 0 W, 1 E, 2 N, 3 S. The optional
+      t0/len (fractions of the edge) cover only part of the edge, letting
+      callers subdivide an edge into independently jittered runs. */
+  private edgeRamp(
+    x: number,
+    y: number,
+    side: number,
+    ts: number,
+    depth: number,
+    color: number,
+    alpha: number,
+    t0 = 0,
+    len = 1,
+  ): Sprite {
+    const HALF_PI = Math.PI / 2;
+    const fog = new Sprite(this.ramp!);
+    fog.rotation = side === 0 ? 0 : side === 1 ? Math.PI : side === 2 ? HALF_PI : -HALF_PI;
+    fog.width = depth;
+    fog.height = len * ts;
+    fog.tint = color;
+    fog.alpha = alpha;
+    if (side === 0) fog.position.set(x * ts, (y + t0) * ts);
+    else if (side === 1) fog.position.set((x + 1) * ts, (y + 1 - t0) * ts);
+    else if (side === 2) fog.position.set((x + 1 - t0) * ts, y * ts);
+    else fog.position.set((x + t0) * ts, (y + 1) * ts);
+    return fog;
+  }
+
   /** Bake real tile art: one sprite per tile rendered once into the cache. */
   private buildFromTiles(season: Season, tiles: Texture3): RenderTexture {
     const bake = BALANCE.render.terrainBakeScale;
@@ -206,43 +247,54 @@ export class TerrainLayer {
 
     // Biome edge blending: where two land biomes meet, fog a half-tile of the
     // neighbor's palette color across the seam so texture cuts read as
-    // transitions instead of grid lines. Water edges stay crisp.
+    // transitions instead of grid lines. Land-river edges stay crisp (the
+    // river art carries its own banks); ocean edges get the shoreline below.
     if (!this.ramp) this.ramp = gradientRamp();
+    const cfgR = BALANCE.render;
     const isWater = (t: Terrain): boolean => t === Terrain.Ocean || t === Terrain.River;
+    // Neighbor offsets in side order: 0 W, 1 E, 2 N, 3 S.
+    const SIDES: [number, number, number][] = [
+      [-1, 0, 0],
+      [1, 0, 1],
+      [0, -1, 2],
+      [0, 1, 3],
+    ];
     const depth = ts * 0.5;
-    const HALF_PI = Math.PI / 2;
+    const sandDepth = ts * cfgR.shoreSandDepth;
     for (let y = 0; y < height; y++) {
       for (let x = 0; x < width; x++) {
         const t = terrain[y * width + x] as Terrain;
         if (isWater(t)) continue;
-        // Neighbor order: W, E, N, S → rotation/position of the inward fog.
-        const sides: [number, number, number, number][] = [
-          [x - 1, y, 0, 0],
-          [x + 1, y, 1, Math.PI],
-          [x, y - 1, 2, HALF_PI],
-          [x, y + 1, 3, -HALF_PI],
-        ];
-        for (const [nx, ny, side, rot] of sides) {
+        for (const [dx, dy, side] of SIDES) {
+          const nx = x + dx;
+          const ny = y + dy;
           if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue;
           const nt = terrain[ny * width + nx] as Terrain;
-          if (nt === t || isWater(nt)) continue;
-          const fog = new Sprite(this.ramp);
-          fog.rotation = rot;
-          fog.width = depth;
-          fog.height = ts;
-          fog.tint = TERRAIN_DEFS[nt].seasonColors[season];
-          fog.alpha = 0.22;
-          if (side === 0) fog.position.set(x * ts, y * ts);
-          else if (side === 1) fog.position.set((x + 1) * ts, (y + 1) * ts);
-          else if (side === 2) fog.position.set((x + 1) * ts, y * ts);
-          else fog.position.set(x * ts, (y + 1) * ts);
-          container.addChild(fog);
+          if (nt === t) continue;
+          if (nt === Terrain.Ocean) {
+            // Shoreline, land side: sand fades inland from the waterline.
+            const j = 1 + (hash2(seed ^ 0x5a4d, x * 4 + side, y) - 0.5) * 2 * cfgR.shoreJitter;
+            container.addChild(
+              this.edgeRamp(
+                x,
+                y,
+                side,
+                ts,
+                sandDepth,
+                cfgR.shoreSandColor,
+                cfgR.shoreSandAlpha * j,
+              ),
+            );
+          } else if (!isWater(nt)) {
+            container.addChild(
+              this.edgeRamp(x, y, side, ts, depth, TERRAIN_DEFS[nt].seasonColors[season], 0.22),
+            );
+          }
         }
       }
     }
     // Calm deep-water noise with a multiply tint: enforces the blue while the
     // brighter wave pixels still punch through (kills the distance moiré).
-    const cfgR = BALANCE.render;
     if (cfgR.waterFlattenAlpha > 0) {
       const water = new Graphics();
       for (let y = 0; y < height; y++) {
@@ -256,6 +308,64 @@ export class TerrainLayer {
       water.blendMode = 'multiply';
       container.addChild(water);
     }
+    // Shoreline, ocean side: a shallow-water band and a thin foam seam hug
+    // every land edge. Drawn after the water flatten so they stay luminous;
+    // alpha-jittered per edge so the band doesn't read as a grid outline.
+    // River mouths are skipped — that art carries its own blend.
+    const shallowDepth = ts * cfgR.shoreShallowDepth;
+    const foamW = ts * cfgR.shoreFoamWidth;
+    const foam = new Graphics();
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        if ((terrain[y * width + x] as Terrain) !== Terrain.Ocean) continue;
+        for (const [dx, dy, side] of SIDES) {
+          const nx = x + dx;
+          const ny = y + dy;
+          if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue;
+          if (isWater(terrain[ny * width + nx] as Terrain)) continue;
+          // Two stacked ramps: a continuous base band (no jitter — close-up
+          // it must read as one smooth gradient, not patches) plus a faint
+          // half-edge jittered layer whose depth wanders, so the outer
+          // boundary stays organic without per-edge alpha steps.
+          container.addChild(
+            this.edgeRamp(
+              x,
+              y,
+              side,
+              ts,
+              shallowDepth * 0.75,
+              cfgR.shoreShallowColor,
+              cfgR.shoreShallowAlpha * 0.7,
+            ),
+          );
+          for (let h = 0; h < 2; h++) {
+            const j =
+              1 + (hash2(seed ^ 0xc0a7, x * 8 + side * 2 + h, y) - 0.5) * 2 * cfgR.shoreJitter;
+            const dj = 0.85 + hash2(seed ^ 0x77e1, x * 8 + side * 2 + h, y) * 0.55;
+            container.addChild(
+              this.edgeRamp(
+                x,
+                y,
+                side,
+                ts,
+                shallowDepth * dj,
+                cfgR.shoreShallowColor,
+                cfgR.shoreShallowAlpha * 0.45 * j,
+                h * 0.5,
+                0.5,
+              ),
+            );
+          }
+          const fj = 1 + (hash2(seed ^ 0xf0a3, x * 4 + side, y) - 0.5) * 2 * cfgR.shoreJitter;
+          if (side === 0) foam.rect(x * ts, y * ts, foamW, ts);
+          else if (side === 1) foam.rect((x + 1) * ts - foamW, y * ts, foamW, ts);
+          else if (side === 2) foam.rect(x * ts, y * ts, ts, foamW);
+          else foam.rect(x * ts, (y + 1) * ts - foamW, ts, foamW);
+          foam.fill({ color: cfgR.shoreFoamColor, alpha: cfgR.shoreFoamAlpha * fj });
+        }
+      }
+    }
+    container.addChild(foam);
     // Soften terrain contrast so settlements/citizens pop above it. Spring's
     // art runs olive, so it gets a fresh green correction instead of neutral.
     const softColor = season === 0 ? cfgR.springTintColor : cfgR.terrainSoftenColor;

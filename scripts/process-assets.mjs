@@ -80,7 +80,9 @@ async function keyAndResize(src, dst, targetW, targetH = 0, crop = null, vtrim =
   }
   const keptFraction = 1 - removed / (W * H);
   if (keptFraction < 0.01) {
-    console.warn(`  SKIP ${path.basename(dst)} — keying removed ${(100 * (1 - keptFraction)).toFixed(1)}% of pixels`);
+    console.warn(
+      `  SKIP ${path.basename(dst)} — keying removed ${(100 * (1 - keptFraction)).toFixed(1)}% of pixels`,
+    );
     return;
   }
   let buf = Buffer.from(data);
@@ -334,17 +336,83 @@ async function slicePieces(src, outNames, gap = 28) {
 }
 
 const PIECE_SETS = [
-  ['01_tents.png', [['tent_0', 44], ['tent_1', 44]]],
-  ['02_huts.png', [['hut_0', 48], ['hut_1', 48], ['hut_2', 48]]],
-  ['03_houses.png', [['house_0', 52], ['house_1', 52], ['house_2', 52]]],
-  ['04_storage.png', [['granary', 44], ['shed', 44], ['crates', 30]]],
-  ['05_civic.png', [['shrine', 34], ['well', 30]]],
-  ['06_market.png', [['stall_0', 40], ['stall_1', 40]]],
+  [
+    '01_tents.png',
+    [
+      ['tent_0', 44],
+      ['tent_1', 44],
+    ],
+  ],
+  [
+    '02_huts.png',
+    [
+      ['hut_0', 48],
+      ['hut_1', 48],
+      ['hut_2', 48],
+    ],
+  ],
+  [
+    '03_houses.png',
+    [
+      ['house_0', 52],
+      ['house_1', 52],
+      ['house_2', 52],
+    ],
+  ],
+  [
+    '04_storage.png',
+    [
+      ['granary', 44],
+      ['shed', 44],
+      ['crates', 30],
+    ],
+  ],
+  [
+    '05_civic.png',
+    [
+      ['shrine', 34],
+      ['well', 30],
+    ],
+  ],
+  [
+    '06_market.png',
+    [
+      ['stall_0', 40],
+      ['stall_1', 40],
+    ],
+  ],
   ['07_temple.png', [['hall', 96]]],
-  ['08_walls_stone.png', [['wall_straight', 56], ['wall_tower', 48], ['wall_gate', 64]]],
-  ['09_palisade.png', [['palisade_straight', 48], ['palisade_corner', 44]]],
-  ['10_props.png', [['lamp', 22], ['scaffold', 40], ['campfire', 32]]],
-  ['11_ruins.png', [['ruin_0', 40], ['ruin_1', 44], ['ruin_2', 40]]],
+  [
+    '08_walls_stone.png',
+    [
+      ['wall_straight', 56],
+      ['wall_tower', 48],
+      ['wall_gate', 64],
+    ],
+  ],
+  [
+    '09_palisade.png',
+    [
+      ['palisade_straight', 48],
+      ['palisade_corner', 44],
+    ],
+  ],
+  [
+    '10_props.png',
+    [
+      ['lamp', 22],
+      ['scaffold', 40],
+      ['campfire', 32],
+    ],
+  ],
+  [
+    '11_ruins.png',
+    [
+      ['ruin_0', 40],
+      ['ruin_1', 44],
+      ['ruin_2', 40],
+    ],
+  ],
 ];
 // Decor sheets share one 5-row layout; sheet B continues the variant indices.
 const DECOR_ROWS = [
@@ -365,7 +433,10 @@ if (fs.existsSync(path.join(rawRoot, '9'))) {
       console.warn(`  missing ${file} (not generated yet) — skipped`);
       continue;
     }
-    await slicePieces(src, targets.map(([n, w]) => [path.join(piecesDir, `${n}.png`), w]));
+    await slicePieces(
+      src,
+      targets.map(([n, w]) => [path.join(piecesDir, `${n}.png`), w]),
+    );
   }
 }
 

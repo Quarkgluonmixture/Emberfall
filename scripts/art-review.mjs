@@ -19,7 +19,14 @@
  */
 import fs from 'node:fs';
 import sharp from 'sharp';
-import { MODEL, runGemini } from './gemini-cli.mjs';
+import { MODEL, runGeminiVerified } from './gemini-cli.mjs';
+
+/** Token-evidence gate: the CLI's system preamble is ~10.7k tokens and each
+    attached image adds ~1130 prompt tokens (calibrated 2026-06-12). A call
+    whose prompt tokens land near the bare-text size never saw the images. */
+function sawMedia(v, promptText, nImages) {
+  return v.promptTokens >= 10400 + promptText.length / 5 + nImages * 700;
+}
 
 const DIR = 'docs/art-audit';
 const BEFORE = `${DIR}/baseline`;
@@ -77,16 +84,34 @@ AFTER: @${AFTER}/${p.a.file}
 
 First word of your reply: Improved / Regressed / Unchanged. Then 1-3 sentences: what visibly differs between the two images, and whether it helps the player. Base every claim ONLY on pixel differences you can actually see — the pass may be narrow, and "Unchanged" is a perfectly good answer. Be blunt about regressions.`;
 
-  let text = runGemini(prompt);
-  let warn = suspect(text, diff);
-  if (warn) {
-    console.log(`  ${p.b.label}: verdict suspect (${warn}) — retrying once…`);
-    text = runGemini(prompt);
-    warn = suspect(text, diff);
+  // Up to 3 attempts to get a call that provably received both images
+  // (token evidence), then cross-check the verdict against the pixel diff.
+  let v = null;
+  let blind = true;
+  for (let attempt = 0; attempt < 3 && blind; attempt++) {
+    v = runGeminiVerified(prompt);
+    blind = v.model !== MODEL || !sawMedia(v, prompt, 2);
+    if (blind) {
+      console.log(
+        `  ${p.b.label}: blind call (model ${v.model}, ${v.promptTokens} prompt tokens, ${v.seconds.toFixed(1)}s) — retrying…`,
+      );
+    }
   }
-  verdicts.push({ label: p.b.label, file: p.b.file, text, diff, warn });
+  let text = v.text;
+  let warn = blind
+    ? `model never received the images (${v.promptTokens} prompt tokens after 3 attempts)`
+    : suspect(text, diff);
+  if (warn && !blind) {
+    console.log(`  ${p.b.label}: verdict suspect (${warn}) — retrying once…`);
+    const r = runGeminiVerified(prompt);
+    if (r.model === MODEL && sawMedia(r, prompt, 2)) {
+      text = r.text;
+      warn = suspect(text, diff);
+    }
+  }
+  verdicts.push({ label: p.b.label, file: p.b.file, text, diff, warn, blind });
   console.log(
-    `  ${p.b.label}: ${text.split(/\s/, 1)[0]} (diff ${(diff * 100).toFixed(1)}%${warn ? ' ⚠' : ''})`,
+    `  ${p.b.label}: ${text.split(/\s/, 1)[0]} (diff ${(diff * 100).toFixed(1)}%, ${v.promptTokens}tok, ${v.seconds.toFixed(0)}s${warn ? ' ⚠' : ''})`,
   );
 }
 

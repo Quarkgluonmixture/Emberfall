@@ -28,8 +28,24 @@ const GEMINI_JS = path.join(
 );
 export const MODEL = process.env.GEMINI_MODEL ?? 'gemini-3.1-pro-preview';
 
-/** Run gemini with a prompt (may contain @file attachments); returns the response text. */
-export function runGemini(prompt, { timeoutMs = 480000 } = {}) {
+/** Run gemini with a prompt (may contain @file attachments); returns the response text.
+    `runGeminiVerified` additionally returns hard evidence that the call was real. */
+export function runGemini(prompt, opts = {}) {
+  return runGeminiVerified(prompt, opts).text;
+}
+
+/**
+ * Like runGemini, but returns { text, model, seconds, promptTokens, evidence }.
+ * Use the evidence to detect SILENT degradation:
+ * - `model` must be the requested one (misroutes degrade quietly);
+ * - `promptTokens` must be far above the text-only size when media is
+ *   attached (each image is ~250-1000 tokens; a media call that comes back
+ *   near the bare-prompt token count never saw the attachments);
+ * - `seconds`: sub-couple-of-seconds responses to multi-image prompts are
+ *   another blind-call tell.
+ */
+export function runGeminiVerified(prompt, { timeoutMs = 480000 } = {}) {
+  const t0 = Date.now();
   const res = spawnSync(
     NODE22,
     [GEMINI_JS, '-m', MODEL, '--output-format', 'json', '--prompt', prompt],
@@ -39,7 +55,9 @@ export function runGemini(prompt, { timeoutMs = 480000 } = {}) {
   const stdout = res.stdout ?? '';
   const jsonStart = stdout.indexOf('{');
   if (jsonStart < 0) {
-    throw new Error(`gemini produced no JSON (exit ${res.status}).\nstderr: ${res.stderr?.slice(0, 2000)}`);
+    throw new Error(
+      `gemini produced no JSON (exit ${res.status}).\nstderr: ${res.stderr?.slice(0, 2000)}`,
+    );
   }
   let parsed;
   try {
@@ -49,7 +67,17 @@ export function runGemini(prompt, { timeoutMs = 480000 } = {}) {
   }
   const text = parsed.response;
   if (typeof text !== 'string' || !text.trim()) {
-    throw new Error(`gemini returned an empty .response (exit ${res.status}).\nstderr: ${res.stderr?.slice(0, 2000)}`);
+    throw new Error(
+      `gemini returned an empty .response (exit ${res.status}).\nstderr: ${res.stderr?.slice(0, 2000)}`,
+    );
   }
-  return text.trim();
+  const seconds = (Date.now() - t0) / 1000;
+  const models = parsed.stats?.models ?? {};
+  const served = Object.keys(models);
+  const model = served.length === 1 ? served[0] : served.join('+') || 'unknown';
+  let promptTokens = 0;
+  for (const m of Object.values(models)) {
+    promptTokens += m?.tokens?.prompt ?? m?.tokens?.input ?? 0;
+  }
+  return { text: text.trim(), model, seconds, promptTokens };
 }

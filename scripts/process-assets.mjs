@@ -537,6 +537,20 @@ if (fs.existsSync(path.join(rawRoot, '13'))) {
   }
 }
 
+// SFX: slot-named samples (assets_src/sfx/<sound>.ogg, see SAMPLE_NAMES in
+// src/audio/sfx.ts) copied verbatim; any missing slot keeps its WebAudio
+// synth fallback. Current samples: Kenney CC0 packs (kenney.nl).
+const sfxDir = path.join(proj, 'assets_src', 'sfx');
+if (fs.existsSync(sfxDir)) {
+  console.log('SFX samples (assets_src/sfx):');
+  const sfxOut = path.join(outDir, 'sfx');
+  fs.mkdirSync(sfxOut, { recursive: true });
+  for (const f of fs.readdirSync(sfxDir).filter((f) => /\.(ogg|mp3|wav)$/.test(f))) {
+    fs.copyFileSync(path.join(sfxDir, f), path.join(sfxOut, f));
+    console.log(`  ${f}`);
+  }
+}
+
 // Music: Suno-generated instrumentals (assets_src/music/) renamed to the
 // role-based filenames the MusicManager expects (src/audio/music.ts).
 console.log('Music (assets_src/music):');

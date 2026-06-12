@@ -109,3 +109,19 @@ Icons are white-on-transparent SVGs from game-icons.net (CC BY 3.0), fetched
 per-file author table (attribution required if redistributed). File names match
 sim event kinds 1:1 (`wildfireWild` reuses `event_wildfire.svg`); tint via CSS
 `filter` or use as masks.
+
+## SFX (public/assets/sfx/)
+
+Event one-shots for `src/audio/sfx.ts`; slot-named `<sound>.ogg`. Any missing
+slot keeps its WebAudio synth fallback, so this folder may be sparse.
+
+| Slot | Source | Status |
+| --- | --- | --- |
+| bell.ogg / bellLow.ogg | Kenney "Impact Sounds" (impactBell_heavy_001/004) | **downloaded** (CC0, kenney.nl) — provisional pick, Gemini audition pending |
+| drum.ogg | Kenney "Impact Sounds" (impactSoft_heavy_001) | **downloaded** (CC0) — provisional |
+| rumble.ogg | Kenney "Impact Sounds" (impactWood_heavy_000) | **downloaded** (CC0) — provisional |
+| horn / chime / shimmer / sting / crackle / splash / bellChord / rumbleBig | — | synth fallback (candidates staged in `docs/sfx-audition/`) |
+
+CC0: no attribution required. Audition workflow: stage candidates +
+`docs/sfx-audition/slots.json`, run `node scripts/sfx-audition.mjs` (verifies
+the served model + token evidence per call; advisory only — ears decide).

@@ -1,10 +1,12 @@
 /**
- * Event sound effects: short WebAudio-synthesized one-shots driven by newly
- * written chronicle entries (bells for growth, horns for war, rumbles for
- * collapse…). Fully procedural — no audio assets required — and purely
- * observational: the sim never depends on it. Bulk chronicle jumps (loads,
- * probe fast-forwards) are skipped, and per-sound cooldowns keep dense
- * late-game histories from machine-gunning.
+ * Event sound effects: short one-shots driven by newly written chronicle
+ * entries (bells for growth, horns for war, rumbles for collapse…). Real
+ * samples from public/assets/sfx/<sound>.ogg are preferred when present
+ * (CC0, see ASSET_MANIFEST.md); every sound also has a WebAudio-synthesized
+ * fallback so the game is fully functional with no audio assets at all.
+ * Purely observational: the sim never depends on it. Bulk chronicle jumps
+ * (loads, probe fast-forwards) are skipped, and per-sound cooldowns keep
+ * dense late-game histories from machine-gunning.
  */
 import { BALANCE } from '../config/balance';
 import type { SimState } from '../core/types';
@@ -51,6 +53,22 @@ const MUTE_KEY = 'emberfall.sfxMuted';
 const BULK_LIMIT = 8;
 const MAX_PER_FRAME = 4;
 
+/** Every sound may have a sample at assets/sfx/<name>.ogg; missing = synth. */
+const SAMPLE_NAMES: SoundName[] = [
+  'bellLow',
+  'bell',
+  'bellChord',
+  'horn',
+  'drum',
+  'rumble',
+  'rumbleBig',
+  'chime',
+  'shimmer',
+  'sting',
+  'crackle',
+  'splash',
+];
+
 export class SfxManager {
   private ctx: AudioContext | null = null;
   private master: GainNode | null = null;
@@ -60,6 +78,8 @@ export class SfxManager {
   private lastState: SimState | null = null;
   private now = 0;
   private lastPlayed = new Map<SoundName, number>();
+  private buffers = new Map<SoundName, AudioBuffer>();
+  private samplesRequested = false;
 
   constructor() {
     this.muted = localStorage.getItem(MUTE_KEY) === '1';
@@ -132,8 +152,47 @@ export class SfxManager {
       this.master.gain.value = BALANCE.audio.sfxVolume;
       this.master.connect(this.ctx.destination);
     }
+    if (!this.samplesRequested) {
+      this.samplesRequested = true;
+      for (const name of SAMPLE_NAMES) {
+        fetch(`assets/sfx/${name}.ogg`)
+          .then(async (r) => {
+            if (!r.ok) return;
+            const raw = await r.arrayBuffer();
+            const audio = await this.ctx!.decodeAudioData(raw);
+            this.buffers.set(name, audio);
+          })
+          .catch(() => undefined); // missing file → synth fallback
+      }
+    }
     if (this.ctx.state === 'suspended') void this.ctx.resume();
     return this.ctx;
+  }
+
+  /** Play a loaded sample (with pitch jitter); false = not loaded yet. */
+  private sample(name: SoundName, gain: number, rate = 1, when = 0): boolean {
+    const buf = this.buffers.get(name);
+    if (!buf) return false;
+    const ctx = this.ctx!;
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    src.playbackRate.value = rate * (0.97 + this.rand() * 0.06);
+    const env = ctx.createGain();
+    env.gain.value = gain;
+    src.connect(env);
+    env.connect(this.master!);
+    src.start(ctx.currentTime + when);
+    return true;
+  }
+
+  /** Audio-only 0..1 random (xorshift) — never the sim's RNG stream. */
+  private rand(): number {
+    let s = this.noiseSeed;
+    s ^= s << 13;
+    s ^= s >>> 17;
+    s ^= s << 5;
+    this.noiseSeed = s;
+    return (s >>> 0) / 0xffffffff;
   }
 
   private play(sound: SoundName, gain: number): void {
@@ -141,52 +200,71 @@ export class SfxManager {
     const t = ctx.currentTime + 0.01;
     switch (sound) {
       case 'bellLow':
+        if (this.sample('bellLow', gain * 0.9) || this.sample('bell', gain * 0.9, 0.78)) break;
         this.bell(t, 392, 1.6, gain * 0.8);
         break;
       case 'bell':
+        if (this.sample('bell', gain * 0.9)) break;
         this.bell(t, 523, 1.4, gain * 0.8);
         break;
       case 'bellChord':
+        if (this.sample('bellChord', gain * 0.85)) break;
+        if (this.buffers.has('bell')) {
+          // No dedicated chord sample: stagger the single bell up a triad.
+          this.sample('bell', gain * 0.7);
+          this.sample('bell', gain * 0.6, 1.12, 0.22);
+          this.sample('bell', gain * 0.5, 1.26, 0.45);
+          break;
+        }
         this.bell(t, 523, 1.8, gain * 0.7);
         this.bell(t + 0.22, 659, 1.6, gain * 0.6);
         this.bell(t + 0.45, 784, 2.0, gain * 0.55);
         break;
       case 'horn':
+        if (this.sample('horn', gain * 0.85)) break;
         this.tone(t, 'sawtooth', 196, 174, 1.1, gain * 0.5, 900);
         this.tone(t + 0.05, 'sawtooth', 98, 87, 1.15, gain * 0.4, 600);
         break;
       case 'drum':
+        if (this.sample('drum', gain * 0.9)) break;
         this.thump(t, 130, 0.25, gain * 0.9);
         this.noise(t, 0.12, gain * 0.25, 2400, 'highpass');
         break;
       case 'rumble':
+        if (this.sample('rumble', gain * 0.9)) break;
         this.noise(t, 1.1, gain * 0.55, 220, 'lowpass');
         this.thump(t, 70, 0.7, gain * 0.6);
         break;
       case 'rumbleBig':
+        if (this.sample('rumbleBig', gain) || this.sample('rumble', gain, 0.8)) break;
         this.noise(t, 2.2, gain * 0.7, 180, 'lowpass');
         this.thump(t, 55, 1.2, gain * 0.8);
         this.bell(t + 0.9, 311, 2.4, gain * 0.35);
         break;
       case 'chime':
+        if (this.sample('chime', gain * 0.8)) break;
         this.bell(t, 784, 1.2, gain * 0.5);
         this.bell(t + 0.18, 988, 1.4, gain * 0.45);
         break;
       case 'shimmer':
+        if (this.sample('shimmer', gain * 0.8)) break;
         this.bell(t, 659, 1.2, gain * 0.4);
         this.bell(t + 0.15, 831, 1.2, gain * 0.38);
         this.bell(t + 0.3, 988, 1.4, gain * 0.36);
         this.bell(t + 0.45, 1319, 1.8, gain * 0.34);
         break;
       case 'sting':
+        if (this.sample('sting', gain * 0.8)) break;
         this.tone(t, 'sine', 311, 294, 1.6, gain * 0.35, 1200);
         this.tone(t, 'sine', 330, 311, 1.6, gain * 0.3, 1200);
         break;
       case 'crackle':
+        if (this.sample('crackle', gain * 0.85)) break;
         this.noise(t, 0.9, gain * 0.4, 1800, 'bandpass');
         this.noise(t + 0.25, 0.6, gain * 0.3, 2600, 'bandpass');
         break;
       case 'splash':
+        if (this.sample('splash', gain * 0.85)) break;
         this.noise(t, 0.8, gain * 0.45, 900, 'lowpass');
         this.noise(t + 0.1, 0.5, gain * 0.3, 2000, 'highpass');
         break;

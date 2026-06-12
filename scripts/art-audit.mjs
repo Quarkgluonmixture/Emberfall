@@ -12,7 +12,13 @@
  * (2026-06-12 session log has the autopsy; art-review.mjs hit it first).
  */
 import fs from 'node:fs';
-import { MODEL, runGemini } from './gemini-cli.mjs';
+import { MODEL, runGemini, runGeminiVerified } from './gemini-cli.mjs';
+
+/** Token-evidence gate (calibrated 2026-06-12): each attached image adds
+    ~1130 prompt tokens over the ~10.7k bare-call baseline. */
+function sawMedia(v, promptText, nImages) {
+  return v.promptTokens >= 10400 + promptText.length / 5 + nImages * 700;
+}
 
 const DIR = 'docs/art-audit';
 const SHOTS = `${DIR}/current`;
@@ -24,27 +30,44 @@ if (!manifest.length) throw new Error('Empty manifest — run `npm run art:shots
 console.log(`Auditing ${manifest.length} screenshots with ${MODEL} (one call per shot)…`);
 const critiques = [];
 for (const m of manifest) {
-  const text = runGemini(
-    `You are an art director and UX readability reviewer for Emberfall, a 2D idle civilization simulation ("civilization aquarium" — the player mostly watches). Below is ONE screenshot from a deterministic play-session battery. Judge it at its intended viewing distance; do not comment on code, review only the visible result, and base every claim ONLY on what you can actually see in this image.
+  const prompt = `You are an art director and UX readability reviewer for Emberfall, a 2D idle civilization simulation ("civilization aquarium" — the player mostly watches). Below is ONE screenshot from a deterministic play-session battery. Judge it at its intended viewing distance; do not comment on code, review only the visible result, and base every claim ONLY on what you can actually see in this image.
 
 Shot: [${m.label}] ${m.description} (sim day ${m.day}, seed ${m.seed})
 Image: @${SHOTS}/${m.file}
 
-In 5-10 blunt, concrete sentences: what reads well, what fails, and the biggest visual blockers in THIS shot. Where relevant to this shot, cover: 2-second comprehension, terrain distinction and beauty, settlement readability/scale, lighting and glow, citizen/action readability, roads/borders/territory readability, UI integration, overall screenshot appeal. Use concrete visual language (colors, sizes, contrast), no generic praise.`,
+In 5-10 blunt, concrete sentences: what reads well, what fails, and the biggest visual blockers in THIS shot. Where relevant to this shot, cover: 2-second comprehension, terrain distinction and beauty, settlement readability/scale, lighting and glow, citizen/action readability, roads/borders/territory readability, UI integration, overall screenshot appeal. Use concrete visual language (colors, sizes, contrast), no generic praise.`;
+  // Token-evidence gate: retry until the call provably received the image.
+  let v = null;
+  let blind = true;
+  for (let attempt = 0; attempt < 3 && blind; attempt++) {
+    v = runGeminiVerified(prompt);
+    blind = v.model !== MODEL || !sawMedia(v, prompt, 1);
+    if (blind) {
+      console.log(
+        `  ${m.label}: blind call (model ${v.model}, ${v.promptTokens} prompt tokens) — retrying…`,
+      );
+    }
+  }
+  critiques.push({ m, text: v.text, blind });
+  console.log(
+    `  ${m.label}: ${blind ? 'BLIND ⚠' : 'done'} (${v.promptTokens}tok, ${v.seconds.toFixed(0)}s)`,
   );
-  critiques.push({ m, text });
-  console.log(`  ${m.label}: done`);
 }
 
 const critiqueList = critiques
-  .map(({ m, text }) => `### [${m.label}] ${m.description} (${m.file})\n${text}`)
+  .map(
+    ({ m, text, blind }) =>
+      `### [${m.label}] ${m.description} (${m.file})${
+        blind ? '\n> ⚠ BLIND CALL — the model never received this image; ignore this critique.' : ''
+      }\n${text}`,
+  )
   .join('\n\n');
 
 console.log('Synthesizing the full audit…');
 const audit = runGemini(
   `${promptBody}
 
-You have already examined every screenshot of the battery one by one; your grounded per-shot critiques are below. Synthesize the full audit (the scores and sections A-H above) STRICTLY from these critiques — do not invent observations they do not support. Where critiques disagree, weigh the close-zoom shots for citizen/settlement detail and the macro shots for map readability.
+You have already examined every screenshot of the battery one by one; your grounded per-shot critiques are below. Synthesize the full audit (the scores and sections A-H above) STRICTLY from these critiques — do not invent observations they do not support. Critiques marked BLIND CALL were produced without the image; ignore them entirely. Where critiques disagree, weigh the close-zoom shots for citizen/settlement detail and the macro shots for map readability.
 
 Per-shot critiques:
 

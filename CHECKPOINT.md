@@ -10,12 +10,6 @@ strokes + wall-edge trim, batch-13 art landed: 6 tile variants per biome) ·
 stress bit-identical ~0.4-0.6ms/day · 164 settlements @ ~150fps** · pushed
 (see git log) · per-session details in `docs/sessions/`
 
-**PENDING (time-gated):** Gemini pro quota was exhausted 2026-06-12; resets
-**2026-06-12T20:55Z**. After that, run `node scripts/sfx-audition.mjs`
-(candidates + slots staged in `docs/sfx-audition/`), apply verdicts per the
-plan in `docs/sessions/2026-06-12.md`, commit VERDICTS.md. Delete this
-notice once done.
-
 A browser idle civilization aquarium: Vite + TypeScript + PixiJS 8 + Vitest.
 `npm install && npm run dev` from a clean checkout. Conventions and sacred
 invariants live in `CLAUDE.md` — read it before changing sim or pipeline code.
@@ -42,10 +36,12 @@ invariants live in `CLAUDE.md` — read it before changing sim or pipeline code.
 - **Music**: 9 Suno tracks, seasonal/night/mood logic; boot theme disabled
   by default (`audio.playBootTheme`).
 - **Event juice**: chronicle-driven map FX (rings/sparks/dust per event
-  kind, `render/fxLayer.ts`) + synthesized WebAudio one-shots (bells/horns/
-  rumbles, `audio/sfx.ts`, no assets needed, Esc-menu toggle). Both skip
-  bulk fast-forwards; FX fully suppressed under `?probe=1` so batteries
-  stay pixel-deterministic (lift via `renderer.fx.suppress = false`).
+  kind, `render/fxLayer.ts`) + WebAudio one-shots (`audio/sfx.ts`,
+  sample-first: Kenney CC0 bell/drum installed post-audition, everything
+  else synth fallback — see `docs/sfx-audition/VERDICTS.md`; Esc-menu
+  toggle). Both skip bulk fast-forwards; FX fully suppressed under
+  `?probe=1` so batteries stay pixel-deterministic
+  (lift via `renderer.fx.suppress = false`).
 - **UI**: bilingual en/zh everywhere, Esc settings menu (styled, hotkey
   grid), icon set (game-icons.net CC BY, see `icons/ATTRIBUTION.md`).
 - **Probe API** (`?probe=1`): `window.__emberfall` — advanceDays, centerOn,

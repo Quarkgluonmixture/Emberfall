@@ -117,10 +117,10 @@ slot keeps its WebAudio synth fallback, so this folder may be sparse.
 
 | Slot | Source | Status |
 | --- | --- | --- |
-| bell.ogg / bellLow.ogg | Kenney "Impact Sounds" (impactBell_heavy_001/004) | **downloaded** (CC0, kenney.nl) — provisional pick, Gemini audition pending |
-| drum.ogg | Kenney "Impact Sounds" (impactSoft_heavy_001) | **downloaded** (CC0) — provisional |
-| rumble.ogg | Kenney "Impact Sounds" (impactWood_heavy_000) | **downloaded** (CC0) — provisional |
-| horn / chime / shimmer / sting / crackle / splash / bellChord / rumbleBig | — | synth fallback (candidates staged in `docs/sfx-audition/`) |
+| bell.ogg | Kenney "Impact Sounds" (impactBell_heavy_001) | **installed** (CC0, kenney.nl) — audition verdicts contradictory, kept; verify by ear |
+| drum.ogg | Kenney "Impact Sounds" (impactSoft_heavy_001) | **installed** (CC0) — audition FIT 9, best of batch |
+| bellLow / rumble | — | uninstalled after audition (FIT 3, too brief/harsh); bellLow falls back to bell.ogg @0.78×, rumble to synth |
+| horn / chime / shimmer / sting / crackle / splash / bellChord / rumbleBig | — | synth fallback (jingle candidates scored FIT 1-2 — rejected; see `docs/sfx-audition/VERDICTS.md`) |
 
 CC0: no attribution required. Audition workflow: stage candidates +
 `docs/sfx-audition/slots.json`, run `node scripts/sfx-audition.mjs` (verifies

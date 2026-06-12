@@ -244,15 +244,18 @@ function sliceStrip(base: Texture, frames: number): Texture[] {
   );
 }
 
-/** Cut a 3-column × 9-row terrain sheet into [terrain][variation] cells. */
+/** Cut a terrain sheet of square cells (9 rows × N variant columns) into
+    [terrain][variation]. The column count comes from the sheet aspect:
+    192×576 → 3 variants (batch 5), 384×576 → 6 (batch 13). */
 function sliceTerrainSheet(base: Texture): Texture[][] {
   base.source.autoGenerateMipmaps = true;
-  const cell = base.width / 3;
+  const cell = base.height / 9;
+  const cols = Math.max(1, Math.round(base.width / cell));
   const inset = cell * 0.15; // trim the grid gutters baked into the sheet
   const out: Texture[][] = [];
   for (let t = 0; t < 9; t++) {
     const row: Texture[] = [];
-    for (let v = 0; v < 3; v++) {
+    for (let v = 0; v < cols; v++) {
       row.push(
         new Texture({
           source: base.source,

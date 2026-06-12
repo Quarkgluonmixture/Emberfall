@@ -1,4 +1,4 @@
-# Emberfall — GPT-Image Prompt Spec: Batches 9 & 10
+# Emberfall — GPT-Image Prompt Spec: Batches 9–13
 
 Building pieces (batch 9) and terrain decor (batch 10) for the settlement-scale
 rework: settlements become procedural clusters assembled from individual pieces,
@@ -101,6 +101,90 @@ sprites scattered over the matching biomes.
 
 Processed targets: formations ~90 px wide, canopies ~80 px. On-map: formations
 span ~2 tiles over mountain ranges, canopies over forest interiors.
+
+## Batch 13 — terrain tile variants 3→6 → `assets_src/raw/13/`
+
+**This is an opaque big-sheet batch (like the original season sheets), NOT a
+sliced-piece batch — the shared white-background preamble above does NOT
+apply.** The sheets are processed with a plain resize (no keying, no slicing
+by components); the loader cuts a fixed grid and crops a 15% inset from each
+cell edge, so thin gutter lines between cells are expected and harmless.
+
+Why: each biome currently has only 3 tile variants, so large uniform areas
+(mountain ranges, forests, deserts) read as repeating wallpaper — the
+"braided mountains" effect. Six genuinely different layouts per biome is the
+root fix; the batch-12 landmark decor stays as garnish on top.
+
+### Format (strict)
+
+- **4 images, one per season**, saved as `assets_src/raw/13/01_spring.png`,
+  `02_summer.png`, `03_autumn.png`, `04_winter.png` — exact filenames.
+- Size: **1024×1536 (portrait)** — a grid of **6 columns × 9 rows** of square
+  tiles (~170 px each), separated by thin dark gutter lines, exactly like the
+  existing season sheets but twice the columns.
+- Fully opaque: every cell completely filled with terrain texture, top-down
+  view (NOT three-quarter — terrain is the ground plane).
+- Row order is hard-wired in the engine, top to bottom:
+  **1 Ocean · 2 Coast · 3 Grassland · 4 Forest · 5 Mountain · 6 River ·
+  7 Swamp · 8 Desert · 9 Tundra**.
+- The 6 cells of a row are **variants of the same terrain: same palette, same
+  brightness, same feature density — different arrangement**. Variety must
+  come from layout (where the rocks/tufts/cracks sit), not from recoloring.
+  The engine only equalizes small brightness drift (±15%).
+- Keep any signature feature inside the central ~70% of its cell (the edge
+  inset is cropped), and keep contrast near cell edges low so random
+  neighbors don't form visible seams.
+
+### Prompt body (shared; swap the season line per image)
+
+> Top-down terrain tile sheet for a cozy dark-fantasy strategy game,
+> painterly pixel-art hybrid, muted earthy palette, soft ambient light from
+> the upper left. A precise grid of 6 columns by 9 rows of square terrain
+> tiles separated by thin dark gutter lines; every cell completely filled
+> with seamless ground texture seen straight from above. No text, no labels,
+> no watermark, no borders beyond the gutters. Each row is one terrain type;
+> the six tiles in a row are six DIFFERENT layout variants of the same
+> terrain — identical palette and brightness, different arrangement of
+> details. Rows top to bottom: (1) deep ocean water with subtle dark waves
+> and sparse foam flecks; (2) coastal wet sand with pebbles and sparse
+> beach-grass tufts — a uniform sandy texture with NO waterline, NO sea edge;
+> (3) grassland meadow with grass tufts and tiny flowers; (4) dense
+> broadleaf forest canopy seen from above; (5) rocky mountain crags with
+> ridges and scree; (6) a straight river flowing from the top edge to the
+> bottom edge of each tile, centered, with narrow grassy banks; (7) murky
+> swamp with dark still pools, moss and reeds; (8) dry desert sand with low
+> dune ripples and scattered stones; (9) cold tundra with frost-bitten rock,
+> lichen and patchy snow.
+
+Season line to append (one per image):
+
+| File | Season line |
+| --- | --- |
+| `01_spring.png` | Spring palette: fresh light greens with budding flowers, thawed lively water, soft cool light. |
+| `02_summer.png` | Summer palette: lush saturated greens, warm golden light, deep blue water. |
+| `03_autumn.png` | Autumn palette: amber, russet and faded gold foliage, muted brown grass, cold grey-blue water. |
+| `04_winter.png` | Winter palette: snow-dusted ground, pale frozen tones, bare frosted trees, dark icy water. |
+
+Tip for cross-season consistency: generate spring first, then use image-edit
+("repaint this exact sheet in autumn palette, keep every layout identical")
+for the other three — matching layouts make the in-game season crossfade
+read as the same land changing season instead of a map swap. Independent
+generations are an acceptable fallback.
+
+**Regenerate a sheet if:** the grid is not exactly 6×9 · tile content bleeds
+across gutters · the six variants of a row are near-identical (defeats the
+whole point) or differ in palette/brightness instead of layout · the coast
+row has any directional waterline (the shoreline transition is procedural at
+bake time now) · the river row doesn't flow top-to-bottom (the engine
+rotates it for E–W runs) · any text or labels appear.
+
+### Delivery
+
+Drop the 4 files into `assets_src/raw/13/` and run
+`node scripts/process-assets.mjs` — the folder-13 handler resizes them to
+384×576 over the same `terrain_<season>.png` targets, and the loader
+auto-detects column count from the sheet aspect. **No batch 13 present →
+the old 3-variant sheets keep working unchanged** (fallback philosophy).
 
 ## Priority order if generating in sessions
 

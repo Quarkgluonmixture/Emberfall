@@ -52,7 +52,7 @@ export class TerrainLayer {
   /** Most-recently-used first; 4x bakes are ~65MB each, so keep only two. */
   private cacheOrder: Season[] = [];
   private cachedVersion = -1;
-  /** Per-season luminance gains equalizing the 3 art variants of each biome. */
+  /** Per-season luminance gains equalizing the art variants of each biome. */
   private gains = new Map<Season, number[][]>();
   /** Shared alpha ramp for biome edge fog (lazy, lives for the layer). */
   private ramp: Texture | null = null;
@@ -176,23 +176,27 @@ export class TerrainLayer {
     for (let y = 0; y < height; y++) {
       for (let x = 0; x < width; x++) {
         const t = terrain[y * width + x] as Terrain;
-        const variation = Math.floor(hash2(seed ^ 0x51ce, x, y) * 3);
+        const cells = tiles[season][t];
+        const variation = Math.floor(hash2(seed ^ 0x51ce, x, y) * cells.length);
         let sp: Sprite;
         if (t === Terrain.River && rivers) {
-          const piece = this.riverPiece(x, y, rivers[season], variation, tiles[season][t][variation]);
+          // The bend/mouth sheets stay 3-variant even when the terrain sheets
+          // carry 6 — fold the index down for the river shapes only.
+          const rv = variation % rivers[season][0].length;
+          const piece = this.riverPiece(x, y, rivers[season], rv, cells[variation]);
           sp = new Sprite(piece.tex);
           sp.anchor.set(0.5);
           sp.rotation = piece.rot;
           sp.position.set((x + 0.5) * ts, (y + 0.5) * ts);
         } else {
-          sp = new Sprite(tiles[season][t][variation]);
+          sp = new Sprite(cells[variation]);
           sp.position.set(x * ts, y * ts);
         }
         sp.width = ts;
         sp.height = ts;
         // The painted tiles are darker than the flat palette; lift the bake.
-        // Variant gain flattens brightness differences between the 3 arts;
-        // the biome grade nudges each biome toward one coherent hue family.
+        // Variant gain flattens brightness differences between the art
+        // variants; the biome grade nudges each biome toward one hue family.
         const gain = gains[t]?.[variation] ?? 1;
         const g = Math.min(1, this.shadeAt(x, y) * 1.18 * gain);
         sp.tint = scaleColor(BIOME_GRADE[t] ?? 0xffffff, g);

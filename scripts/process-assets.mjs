@@ -9,6 +9,7 @@
  *   4  settlement single sprites (legacy fallback)   9  building pieces → pieces/
  *   5  terrain seasonal sheets                      10  terrain decor grids → decor/
  *  11  vertical wall pieces → pieces/               12  landmark decor (mountains/canopies) → decor/
+ *  13  6-variant terrain sheets (supersede 5's 3-variant bake targets when present)
  *
  * The raw exports have FAKE transparency (a checkerboard baked into opaque
  * pixels), so sprites are chroma-keyed: flood-fill from the borders removing
@@ -448,6 +449,22 @@ await plainResize(ter[0], out('terrain_spring.png'), 192, 576);
 await plainResize(ter[1], out('terrain_summer.png'), 192, 576);
 await plainResize(ter[2], out('terrain_autumn.png'), 192, 576);
 await plainResize(ter[3], out('terrain_winter.png'), 192, 576);
+
+// Folder 13: 6-variant terrain sheets (6 cols × 9 rows). They overwrite the
+// folder-5 targets above; the loader detects column count from sheet aspect,
+// so a checkout without batch 13 keeps the 3-variant sheets working.
+if (fs.existsSync(path.join(rawRoot, '13'))) {
+  console.log('Terrain sheets ×6 (folder 13):');
+  const six = sources('13'); // 01_spring.png … 04_winter.png (sorted)
+  const seasons13 = ['spring', 'summer', 'autumn', 'winter'];
+  for (let i = 0; i < seasons13.length; i++) {
+    if (!six[i]) {
+      console.warn(`  missing sheet ${i + 1} (${seasons13[i]}) — folder-5 bake target kept`);
+      continue;
+    }
+    await plainResize(six[i], out(`terrain_${seasons13[i]}.png`), 384, 576);
+  }
+}
 
 // Music: Suno-generated instrumentals (assets_src/music/) renamed to the
 // role-based filenames the MusicManager expects (src/audio/music.ts).

@@ -10,6 +10,12 @@ strokes + wall-edge trim, batch-13 art landed: 6 tile variants per biome) ·
 stress bit-identical ~0.4-0.6ms/day · 164 settlements @ ~150fps** · pushed
 (see git log) · per-session details in `docs/sessions/`
 
+**PENDING (time-gated):** Gemini pro quota was exhausted 2026-06-12; resets
+**2026-06-12T20:55Z**. After that, run `node scripts/sfx-audition.mjs`
+(candidates + slots staged in `docs/sfx-audition/`), apply verdicts per the
+plan in `docs/sessions/2026-06-12.md`, commit VERDICTS.md. Delete this
+notice once done.
+
 A browser idle civilization aquarium: Vite + TypeScript + PixiJS 8 + Vitest.
 `npm install && npm run dev` from a clean checkout. Conventions and sacred
 invariants live in `CLAUDE.md` — read it before changing sim or pipeline code.

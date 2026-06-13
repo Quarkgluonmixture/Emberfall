@@ -116,7 +116,10 @@ export class Simulation {
         const result = updateSettlementGrowth(s, civ, starving.has(s.id));
         if (result.upgraded) {
           s.lastUpgradeDay = state.day;
-          pushEvent(state, rng, result.upgraded, 2, s.civId, {
+          // A camp becoming a village is demographic texture (imp 1); a town
+          // rising is a notable regional beat (imp 2).
+          const upImportance = result.upgraded === 'town' ? 2 : 1;
+          pushEvent(state, rng, result.upgraded, upImportance, s.civId, {
             name: s.name,
             pop: Math.round(s.population),
             civ: civ.name,

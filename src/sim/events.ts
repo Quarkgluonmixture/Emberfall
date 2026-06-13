@@ -43,7 +43,8 @@ export function updateAfflictions(state: SimState, rng: RNG): void {
           if (d2 > e.plagueSpreadRange ** 2) continue;
           if (rng.chance(e.plagueSpreadChance)) {
             other.plagueDays = rng.int(e.plagueDurationMin, e.plagueDurationMax);
-            pushEvent(state, rng, 'plague', 2, other.civId, {
+            // Secondary spread is texture, not an epochal beat — imp 1.
+            pushEvent(state, rng, 'plague', 1, other.civId, {
               name: other.name,
               x: other.x,
               y: other.y,
@@ -66,7 +67,10 @@ export function maybeFamine(state: SimState, s: Settlement, rng: RNG): void {
   const e = BALANCE.events;
   if (s.famineDays === 0 && s.hungerDays >= e.famineHungerDays) {
     s.famineDays = e.famineDuration;
-    pushEvent(state, rng, 'famine', 2, s.civId, { name: s.name, x: s.x, y: s.y });
+    // Recurring winter hunger is the texture of frontier life (imp 1), shown
+    // by its map FX and felt through its consequences — the settlement
+    // collapse (imp 2) or civ fall (imp 3) it may drive — not as a headline.
+    pushEvent(state, rng, 'famine', 1, s.civId, { name: s.name, x: s.x, y: s.y });
   }
 }
 
@@ -74,7 +78,9 @@ export function maybePlague(state: SimState, s: Settlement, rng: RNG): void {
   const e = BALANCE.events;
   if (s.plagueDays === 0 && s.immunityDays === 0 && rng.chance(e.plagueChancePerPop * s.population)) {
     s.plagueDays = rng.int(e.plagueDurationMin, e.plagueDurationMax);
-    pushEvent(state, rng, 'plague', 3, s.civId, { name: s.name, x: s.x, y: s.y });
+    // Like famine: texture (imp 1), surfaced by its map FX and its toll, not
+    // as a written headline for every outbreak.
+    pushEvent(state, rng, 'plague', 1, s.civId, { name: s.name, x: s.x, y: s.y });
   }
 }
 
@@ -151,7 +157,9 @@ export function maybeMigration(state: SimState, rng: RNG): void {
     state.ruins = state.ruins.filter(
       (r) => Math.abs(r.x - site.x) > 1 || Math.abs(r.y - site.y) > 1,
     );
-    pushEvent(state, rng, resettledOld ? 'resettleRuin' : 'migration', resettledOld ? 1 : 2, s.civId, {
+    // Founding a new camp is demographic texture — the saga tracks civs and
+    // towns, not every hamlet (imp 1).
+    pushEvent(state, rng, resettledOld ? 'resettleRuin' : 'migration', 1, s.civId, {
       name: s.name,
       other: colony.name,
       x: site.x,
@@ -206,7 +214,8 @@ export function warEvents(state: SimState, rng: RNG): void {
     target.morale = Math.max(0, target.morale - e.skirmishMoraleLoss);
     target.lastRaidDay = state.day;
     rel.score = Math.max(-100, rel.score - e.skirmishRelationHit);
-    pushEvent(state, rng, 'skirmish', 2, attacker.id, {
+    // The war is the story (imp 3); individual border raids are its texture.
+    pushEvent(state, rng, 'skirmish', 1, attacker.id, {
       civ: attacker.name,
       otherCiv: defender.name,
       name: target.name,
@@ -420,7 +429,9 @@ export function collapseCheck(state: SimState, rng: RNG): void {
   );
   if (dead.length === 0) return;
   for (const s of dead) {
-    pushEvent(state, rng, 'collapse', 3, s.civId, { name: s.name, x: s.x, y: s.y });
+    // A settlement abandoned is a notable regional loss (imp 2); the civ-scale
+    // epochal beat is civFell below, when the *last* settlement is gone.
+    pushEvent(state, rng, 'collapse', 2, s.civId, { name: s.name, x: s.x, y: s.y });
     state.ruins.push({ x: s.x, y: s.y, day: state.day });
   }
   if (state.ruins.length > 60) state.ruins.splice(0, state.ruins.length - 60);

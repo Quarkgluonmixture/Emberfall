@@ -104,7 +104,11 @@ export class FxLayer {
     const ts = BALANCE.map.tileSize;
     for (let i = start; i < log.length; i++) {
       const e = log[i];
-      if (e.importance < 2 || e.x === undefined || e.y === undefined) continue;
+      // FX liveliness is a separate axis from chronicle significance: a growing
+      // village or a plague flare deserves a flourish even though the written
+      // saga files it as texture. Membership in KIND_FX is the gate, not
+      // importance — so re-tiering the chronicle never starves the map.
+      if (e.x === undefined || e.y === undefined) continue;
       const spec = KIND_FX[e.kind];
       if (!spec) continue;
       const x = (e.x + 0.5) * ts;

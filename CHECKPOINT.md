@@ -1,13 +1,15 @@
 # Emberfall — Checkpoint
 
-**Date:** 2026-06-12 · **State:** Phases 1-3 complete + treaties & tribute,
+**Date:** 2026-06-13 · **State:** Phases 1-3 complete + treaties & tribute,
 zh localization, Gemini art-audit workflow, settlement-scale rework
 (procedural building clusters, zoom bands, action icons, activity overlays,
 terrain decor/grading/4× bake, walls with dedicated vertical art, repo
 hygiene), **terrain & roads art pass** (procedural shoreline, layered road
-strokes + wall-edge trim, batch-13 art landed: 6 tile variants per biome) ·
-**64/64 tests · lint clean ·
-stress bit-identical ~0.4-0.6ms/day · 164 settlements @ ~150fps** · pushed
+strokes + wall-edge trim, batch-13 art landed: 6 tile variants per biome),
+**event SFX auditioned** (bell+drum real CC0, rest synth), **chronicle saga
+legibility pass** (scale-based importance tiers; FX decoupled from importance;
+crisis dynamics bit-identical) · **64/64 tests · lint clean ·
+stress bit-identical ~0.7-0.9ms/day @100y · 164 settlements @ ~150fps** · pushed
 (see git log) · per-session details in `docs/sessions/`
 
 A browser idle civilization aquarium: Vite + TypeScript + PixiJS 8 + Vitest.
@@ -36,12 +38,20 @@ invariants live in `CLAUDE.md` — read it before changing sim or pipeline code.
 - **Music**: 9 Suno tracks, seasonal/night/mood logic; boot theme disabled
   by default (`audio.playBootTheme`).
 - **Event juice**: chronicle-driven map FX (rings/sparks/dust per event
-  kind, `render/fxLayer.ts`) + WebAudio one-shots (`audio/sfx.ts`,
-  sample-first: Kenney CC0 bell/drum installed post-audition, everything
-  else synth fallback — see `docs/sfx-audition/VERDICTS.md`; Esc-menu
-  toggle). Both skip bulk fast-forwards; FX fully suppressed under
-  `?probe=1` so batteries stay pixel-deterministic
-  (lift via `renderer.fx.suppress = false`).
+  kind, `render/fxLayer.ts`, gated on `KIND_FX` membership — independent of
+  chronicle importance) + WebAudio one-shots (`audio/sfx.ts`, sample-first:
+  Kenney CC0 bell/drum installed post-audition, everything else synth
+  fallback — see `docs/sfx-audition/VERDICTS.md`; Esc-menu toggle). Both skip
+  bulk fast-forwards; FX fully suppressed under `?probe=1` so batteries stay
+  pixel-deterministic (lift via `renderer.fx.suppress = false`).
+- **Chronicle as saga**: `importance` is a *scale* axis — imp3 epochal
+  (founding/war/treaty/capture/goldenAge/civFell/rebirth, ~4/yr, starred),
+  imp2 regional (town rise, collapse, succession, schism, diplomacy), imp1
+  texture (village, migration, skirmish, famine, plague). History panel +
+  live feed surface imp≥2; routine crises live as map FX + their consequences
+  (collapse/fall), not headlines. Crises are the macro-turnover engine, so
+  this is presentation-only (RNG-neutral) — never suppress crisis *frequency*
+  to clean the log or the world goes static.
 - **UI**: bilingual en/zh everywhere, Esc settings menu (styled, hotkey
   grid), icon set (game-icons.net CC BY, see `icons/ATTRIBUTION.md`).
 - **Probe API** (`?probe=1`): `window.__emberfall` — advanceDays, centerOn,

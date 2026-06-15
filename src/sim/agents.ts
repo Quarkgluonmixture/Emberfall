@@ -30,6 +30,10 @@ export interface Agent {
   y: number;
   tx: number;
   ty: number;
+  /** Dispersed home anchor (world px) within the cluster — idle/rest spreads
+      over the footprint instead of piling on the settlement centre. */
+  homeX: number;
+  homeY: number;
   state: AgentState;
   /** Activity adopted once the walk target is reached. */
   pendingState: AgentState;
@@ -113,14 +117,24 @@ export class AgentSystem {
   private spawn(s: Settlement): Agent {
     const px = (s.x + 0.5) * ts;
     const py = (s.y + 0.5) * ts;
+    // Dispersed home anchor across the cluster footprint (uniform over a disc,
+    // squashed like the clusters) so idle/resting citizens read as spread over
+    // the town, not stacked on its centre. Cosmetic RNG only.
+    const spread = s.tier >= 2 ? 22 : s.tier === 1 ? 13 : 6;
+    const ang = this.rng.range(0, Math.PI * 2);
+    const rad = Math.sqrt(this.rng.range(0, 1)) * spread;
+    const homeX = px + Math.cos(ang) * rad;
+    const homeY = py + Math.sin(ang) * rad * 0.82;
     return {
       id: this.nextId++,
       civId: s.civId,
       settlementId: s.id,
-      x: px + this.rng.range(-ts, ts),
-      y: py + this.rng.range(-ts, ts),
-      tx: px,
-      ty: py,
+      x: homeX + this.rng.range(-2, 2),
+      y: homeY + this.rng.range(-2, 2),
+      tx: homeX,
+      ty: homeY,
+      homeX,
+      homeY,
       state: 'idle',
       pendingState: 'idle',
       timer: this.rng.range(0, 2),
@@ -194,9 +208,9 @@ export class AgentSystem {
       return;
     }
 
-    // Night: head home and rest by the fires.
+    // Night: head to one's own home (dispersed) and rest, not the town centre.
     if (darkness > 0.55) {
-      this.walkTo(a, hx + this.rng.range(-ts, ts), hy + this.rng.range(-ts, ts), 'resting', state);
+      this.walkTo(a, a.homeX + this.rng.range(-2, 2), a.homeY + this.rng.range(-2, 2), 'resting', state);
       return;
     }
 

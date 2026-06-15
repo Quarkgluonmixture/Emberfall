@@ -243,6 +243,14 @@ function put(
   });
 }
 
+/** A gate/postern in the wall: world-px centre + outward unit normal. */
+interface Gate {
+  x: number;
+  y: number;
+  nx: number;
+  ny: number;
+}
+
 /** Wall ring extents: world-px coords of the four faces (left/top/right/bottom). */
 interface WallBox {
   x0: number;
@@ -268,10 +276,10 @@ function wallHull(
   buildable?: Buildable,
   /** Predicate: is the tile at this world-px offset a road? Drives gates. */
   roadAt?: Buildable,
-): void {
+): Gate[] {
   const stone = hash2(seed, 900, 1) < 0.6;
   const straight = pick(have, stone ? 'wall_straight' : 'palisade_straight', 'palisade_straight', 'wall_straight');
-  if (!straight) return;
+  if (!straight) return [];
   const corner = pick(have, stone ? 'wall_tower' : 'palisade_corner', 'palisade_corner', 'wall_tower');
   const gate = stone ? pick(have, 'wall_gate') : null;
   const w = pw(straight);
@@ -382,6 +390,76 @@ function wallHull(
       if (!ok(cx, cy)) continue;
       placedTowers.push([cx, cy]);
       put(out, corner, cx, cy, { layer: 1 });
+    }
+  }
+
+  // Report the gates (centre + outward normal) so the caller can grow suburbs.
+  const gates: Gate[] = [];
+  for (const gx of mainGate) gates.push({ x: gx, y: y1, nx: 0, ny: 1 });
+  for (const gx of posternTop) gates.push({ x: gx, y: y0, nx: 0, ny: -1 });
+  for (const gy of posternLeft) gates.push({ x: x0, y: gy, nx: -1, ny: 0 });
+  for (const gy of posternRight) gates.push({ x: x1, y: gy, nx: 1, ny: 0 });
+  return gates;
+}
+
+/**
+ * Grow sparse extramural suburbs outward from a town's gates — a few poorer
+ * dwellings with a garden/paddock clinging to each approach road, so a walled
+ * town doesn't stop cleanly at the wall. Bounded (|dx|,|dy| ≤ maxAbs) so the
+ * footprint stays compact and the ring isn't re-enclosed.
+ */
+function placeSuburbs(
+  out: PiecePlacement[],
+  seed: number,
+  have: HavePiece,
+  buildable: Buildable | undefined,
+  gates: Gate[],
+  maxAbs: number,
+): void {
+  const ok = (dx: number, dy: number): boolean => !buildable || buildable(dx, dy);
+  let gi = 0;
+  for (const g of gates) {
+    gi++;
+    if (hash2(seed, 300 + gi, 0) < 0.35) continue; // not every gate sprawls
+    const tx = -g.ny; // tangent along the wall face
+    const ty = g.nx;
+    const n = 1 + (hash2(seed, 300 + gi, 1) < 0.5 ? 1 : 0);
+    let dist = 4;
+    for (let k = 0; k < n; k++) {
+      const kind = pick(
+        have,
+        hash2(seed, 300 + gi, 2 + k) < 0.6 ? 'hut_0' : 'shed',
+        'hut_0',
+        'hut_1',
+        'hut_2',
+        'shed',
+        'house_0',
+      );
+      if (!kind) break;
+      const half = pw(kind) * 0.5;
+      dist += half;
+      const lat = (hash2(seed, 300 + gi, 10 + k) - 0.5) * 6;
+      const dx = g.x + g.nx * dist + tx * lat;
+      const dy = g.y + g.ny * dist + ty * lat;
+      dist += half + 2;
+      if (Math.abs(dx) > maxAbs || Math.abs(dy) > maxAbs) break;
+      if (!ok(dx, dy) || collides(out, dx, dy, pw(kind))) continue;
+      put(out, kind, dx, dy, { lift: true });
+      if (hash2(seed, 300 + gi, 20 + k) < 0.6) {
+        const yk = pick(have, 'yard_garden', 'yard_pen', 'yard_fence', 'yard_wood');
+        if (yk) {
+          const ydx = dx + tx * (half + 2.5);
+          const ydy = dy + ty * (half + 2.5);
+          if (
+            Math.abs(ydx) <= maxAbs &&
+            Math.abs(ydy) <= maxAbs &&
+            ok(ydx, ydy) &&
+            !collides(out, ydx, ydy, pw(yk))
+          ) {
+            put(out, yk, ydx, ydy, {});
+          }
+        }
+      }
     }
   }
 }
@@ -498,6 +576,21 @@ function burgagePlots(
         if (Math.abs(ydx) > cfg.maxRx || Math.abs(ydy) > cfg.maxRy) break;
         if (!ok(ydx, ydy) || collides(out, ydx, ydy, pw(yk))) continue;
         put(out, yk, ydx, ydy, {});
+      }
+      // Plot back-boundary: a short fence/hedge capping the burgage strip so
+      // ownership reads as owned land, not loose clutter.
+      const fence = pick(have, 'yard_fence');
+      if (fence) {
+        const fHalf = pw(fence) * 0.5;
+        const fdx = sx(y) + side * (depth + fHalf);
+        if (
+          Math.abs(fdx) <= cfg.maxRx &&
+          Math.abs(y) <= cfg.maxRy &&
+          ok(fdx, y) &&
+          !collides(out, fdx, y, pw(fence))
+        ) {
+          put(out, fence, fdx, y, {});
+        }
       }
     }
   }
@@ -668,7 +761,10 @@ export function layoutCluster(
     y1 = Math.min(cyb + 19, y1 + pad * 0.85);
     // A fort always walls; other roles by chance.
     if (role === 'fort' || hash2(seed, 901, 1) < 0.7) {
-      wallHull(out, seed, { x0, y0, x1, y1 }, have, wallBuildable ?? buildable, roadAt);
+      const gates = wallHull(out, seed, { x0, y0, x1, y1 }, have, wallBuildable ?? buildable, roadAt);
+      // Extramural sprawl spilling out of the gates (poorer dwellings + yards),
+      // bounded so the footprint stays compact.
+      placeSuburbs(out, seed, have, buildable, gates, 26);
     }
   }
 

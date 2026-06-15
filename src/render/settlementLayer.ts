@@ -374,6 +374,11 @@ export class SettlementLayer {
       if (v.cluster) v.cluster.tint = envTint;
       else v.sprite.tint = envTint;
       v.base.tint = baseTint;
+      // The warm ground halo anchors the cluster at macro/mid zoom but swamps
+      // the close-up (it reads as a bright disc over the streets/citizens), so
+      // fade it down past mid zoom and let the buildings carry the close read.
+      const baseFade = 1 - 0.78 * Math.min(1, Math.max(0, (scale - 3.5) / 4.5));
+      v.base.alpha = cfg.settlementBaseAlpha * baseFade;
 
       // Softer night onset: glows arrive late in the dusk and breathe slightly.
       const glowStrength = Math.pow(darkness, 1.35);

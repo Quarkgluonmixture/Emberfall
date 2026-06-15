@@ -15,7 +15,8 @@ layout with church/yards; agricultural field halo around settlements;
 irregular built-form-fitted wall hull with road-aligned gates + posterns;
 watermills on river banks; terrain-derived settlement roles
 market/abbey/fort/forest with role-specific spatial grammar (market square,
-cloister precinct, fort muster yard); burgage plots as long aligned strips;
+cloister precinct, fort keep + muster yard with barracks/stable); burgage
+plots as long aligned strips;
 outside-gate ragged suburbs; dispersed citizen crowds; close-zoom ground glow
 fade) · **64/64 tests · lint clean · stress bit-identical
 ~0.7-0.9ms/day @100y · 164 settlements @ ~150fps** · pushed (see git log) ·

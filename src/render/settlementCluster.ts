@@ -81,6 +81,10 @@ const PIECE_W: Record<string, number> = {
   mill: 10,
   jetty: 7,
   millpond: 7,
+  // Batch 22: keep is the dominant landmark (taller + wider than the hall).
+  keep: 13,
+  barracks: 11,
+  stable: 8.5,
 };
 
 export type HavePiece = (kind: string) => boolean;
@@ -747,8 +751,14 @@ export function layoutCluster(
       // The church + cloister precinct IS the core (no moot hall).
       reserve = placeAbbeyPrecinct(out, seed, have, buildable);
     } else {
-      const hall = pick(have, 'hall');
-      if (hall && ok(0, -4.5)) put(out, hall, 0, -4.5, { lift: true, lamp: true });
+      // A fort's stronghold is a stone keep; other roles get a civic hall.
+      if (role === 'fort') {
+        const keep = pick(have, 'keep', 'hall');
+        if (keep && ok(0, -5)) put(out, keep, 0, -5, { lift: true, lamp: true });
+      } else {
+        const hall = pick(have, 'hall');
+        if (hall && ok(0, -4.5)) put(out, hall, 0, -4.5, { lift: true, lamp: true });
+      }
       if (role === 'market') {
         // The street widens mid-town into an open market square ringed by
         // stalls; burgage frontage parts around the reserved square.
@@ -764,14 +774,14 @@ export function layoutCluster(
         if (shrine && hash2(seed, 40, 1) < 0.6 && ok(-7, -1.5)) put(out, shrine, -7, -1.5);
         placeSideChurch(false);
       } else if (role === 'fort') {
-        // A muster yard: open defended ground just inside the south gate, a
-        // couple of pens/stores at its edge, fewer civilian plots overall.
+        // A muster yard: open defended ground just inside the south gate,
+        // flanked by the barracks and stable; fewer civilian plots overall.
         const myY = 7;
-        reserve = (dx, dy) => Math.abs(dx) < 5 && dy > myY - 4 && dy < myY + 4;
-        const pen = pick(have, 'yard_pen', 'crates');
-        if (pen && ok(-4, myY)) put(out, pen, -4, myY);
-        const st = pick(have, 'crates', 'shed');
-        if (st && ok(4, myY - 0.5)) put(out, st, 4, myY - 0.5);
+        reserve = (dx, dy) => Math.abs(dx) < 5.5 && dy > myY - 4 && dy < myY + 4;
+        const barracks = pick(have, 'barracks', 'shed', 'granary');
+        if (barracks && ok(-5, myY)) put(out, barracks, -5, myY, { lift: true });
+        const stable = pick(have, 'stable', 'shed', 'crates');
+        if (stable && ok(5, myY - 0.3)) put(out, stable, 5, myY - 0.3, { lift: true, flip: true });
         placeSideChurch(false);
       } else {
         placeSideChurch(false);

@@ -114,6 +114,10 @@ export const PIECE_KINDS = [
   'mill',
   'jetty',
   'millpond',
+  // Batch 22: fort/castle pieces.
+  'keep',
+  'barracks',
+  'stable',
 ] as const;
 
 /** Decor base names and their variant counts (public/assets/decor/). */

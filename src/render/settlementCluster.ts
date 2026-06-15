@@ -515,6 +515,13 @@ function deriveRole(
   return 'market';
 }
 
+/** Public role lookup (same seed + derivation as the cluster) so the macro LOD
+    layer can show a glyph that matches the settlement's built role. */
+export function settlementRole(id: number, tier: number, terrainAt?: TerrainProbe): SettlementRole {
+  const seed = 0x5e771e ^ Math.imul(id + 1, 2654435761);
+  return deriveRole(seed, tier, terrainAt);
+}
+
 /**
  * Lay burgage plots along a gently bent main street: each parcel is a
  * street-front dwelling with a chain of rear yards (gardens, pens, woodpiles…)

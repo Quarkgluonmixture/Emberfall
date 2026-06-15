@@ -7,12 +7,14 @@
  */
 import { Container, Graphics, Sprite, Texture, type Renderer } from 'pixi.js';
 import { BALANCE } from '../config/balance';
-import type { SimState } from '../core/types';
+import { Terrain, type SimState } from '../core/types';
+import { settlementRole, type SettlementRole } from './settlementCluster';
 
 interface Glyph {
   sprite: Sprite;
   ring: Graphics;
   tier: number;
+  role: SettlementRole;
 }
 
 /** 0 below the band start (clusters rule), 1 fully macro. */
@@ -24,6 +26,11 @@ export function macroBlend(scale: number): number {
 export class MacroLayer {
   container = new Container();
   private glyphTex: [Texture, Texture, Texture];
+  /** Role-distinct town/village glyphs so market/abbey/fort/forest read apart
+      at macro zoom (codex review-6: settlement LOD identity). */
+  private gKeep!: Texture;
+  private gSpire!: Texture;
+  private gTree!: Texture;
   private glyphs = new Map<number, Glyph>();
   private fronts = new Graphics();
   private flows = new Graphics();
@@ -52,7 +59,53 @@ export class MacroLayer {
           .stroke({ color: 0x10100c, width: 1.5 }),
       ),
     ];
+    const ink = { color: 0x10100c, width: 1.3 } as const;
+    // Fort/castle: a crenellated tower. Abbey: a steep-roofed church/spire.
+    // Forest: a conifer. Drawn taller-than-wide; aspect preserved at runtime.
+    this.gKeep = make((g) => {
+      g.rect(2.6, 3.2, 5.8, 7.3).fill(0xffffff).stroke(ink);
+      for (const tx of [2.6, 4.7, 6.8]) g.rect(tx, 1.8, 1.4, 1.8).fill(0xffffff).stroke(ink);
+    });
+    this.gSpire = make((g) => {
+      g.rect(3, 4.6, 5, 6).fill(0xffffff).stroke(ink);
+      g.poly([2.6, 4.8, 5.5, 1.5, 8.4, 4.8]).fill(0xffffff).stroke(ink);
+    });
+    this.gTree = make((g) => {
+      g.rect(4.9, 7.8, 1.2, 2.6).fill(0xffffff).stroke(ink);
+      g.poly([5.5, 1.4, 8.6, 8.2, 2.4, 8.2]).fill(0xffffff).stroke(ink);
+    });
     this.container.addChild(this.flows, this.fronts);
+  }
+
+  /** Macro glyph matching a settlement's tier + derived role. */
+  private glyphFor(tier: number, role: SettlementRole): Texture {
+    if (tier >= 2) {
+      if (role === 'fort') return this.gKeep;
+      if (role === 'abbey') return this.gSpire;
+      return this.glyphTex[2]; // market = diamond
+    }
+    if (tier === 1) {
+      if (role === 'forest') return this.gTree;
+      if (role === 'abbey') return this.gSpire;
+      if (role === 'fort') return this.gKeep;
+      return this.glyphTex[1]; // village = square
+    }
+    return this.glyphTex[0]; // camp = dot
+  }
+
+  /** Role from the same terrain probe + seed the cluster uses. */
+  private roleFor(s: SimState['settlements'][number], state: SimState): SettlementRole {
+    const ts = BALANCE.map.tileSize;
+    const { width, height, terrain } = state.world;
+    const cx = (s.x + 0.5) * ts;
+    const cy = (s.y + 0.5) * ts;
+    const terrainAt = (dx: number, dy: number): Terrain => {
+      const tx = Math.floor((cx + dx) / ts);
+      const ty = Math.floor((cy + dy) / ts);
+      if (tx < 0 || ty < 0 || tx >= width || ty >= height) return Terrain.Ocean;
+      return terrain[ty * width + tx] as Terrain;
+    };
+    return settlementRole(s.id, s.tier, terrainAt);
   }
 
   update(dt: number, state: SimState, scale: number, time: number): void {
@@ -76,22 +129,26 @@ export class MacroLayer {
       seen.add(s.id);
       let g = this.glyphs.get(s.id);
       if (!g) {
-        const sprite = new Sprite(this.glyphTex[s.tier]);
+        const role = this.roleFor(s, state);
+        const sprite = new Sprite(this.glyphFor(s.tier, role));
         sprite.anchor.set(0.5);
         const ring = new Graphics();
         this.container.addChild(sprite, ring);
-        g = { sprite, ring, tier: s.tier };
+        g = { sprite, ring, tier: s.tier, role };
         this.glyphs.set(s.id, g);
       }
       if (g.tier !== s.tier) {
-        g.sprite.texture = this.glyphTex[s.tier];
+        // Tier change can flip the role glyph (a village fort → a keep town).
+        g.role = this.roleFor(s, state);
+        g.sprite.texture = this.glyphFor(s.tier, g.role);
         g.tier = s.tier;
       }
       g.sprite.tint = state.civs[s.civId]?.color ?? 0xffffff;
       g.sprite.position.set((s.x + 0.5) * ts, (s.y + 0.5) * ts);
-      const px = [7, 9, 12][s.tier];
+      const px = [7, 10, 14][s.tier];
+      const aspect = g.sprite.texture.height / g.sprite.texture.width;
       g.sprite.width = px * inv;
-      g.sprite.height = px * inv;
+      g.sprite.height = px * inv * aspect;
 
       // Crisis ring: plague reads sickly green, famine dry amber.
       g.ring.clear();

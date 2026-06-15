@@ -239,9 +239,12 @@ export const BALANCE = {
   agents: {
     /** Hard cap on visible citizen agents. */
     maxAgents: 600,
-    perSettlementCap: 36,
+    // Thinner crowds: oversized rally-point piles were burying the settlement
+    // layout (codex review-6). Agents are cosmetic — never write SimState — so
+    // these are render tuning, no determinism/seed-gallery impact.
+    perSettlementCap: 24,
     /** Fraction of settlement population represented as visible agents. */
-    populationFraction: 0.45,
+    populationFraction: 0.3,
     /** World pixels per second. */
     walkSpeed: 14,
     workDurationMin: 3,

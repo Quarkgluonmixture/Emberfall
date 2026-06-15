@@ -13,7 +13,9 @@ tabs, close-zoom icon de-confetti, louder roads, label polish),
 **medieval-grammar + countryside-economy pass** (KCD-style road-first town
 layout with church/yards; agricultural field halo around settlements;
 irregular built-form-fitted wall hull with road-aligned gates + posterns;
-watermills on river banks) · **64/64 tests · lint clean · stress bit-identical
+watermills on river banks; terrain-derived settlement roles
+market/abbey/fort/forest; burgage plots — street-front dwellings with rear
+yard chains) · **64/64 tests · lint clean · stress bit-identical
 ~0.7-0.9ms/day @100y · 164 settlements @ ~150fps** · pushed (see git log) ·
 per-session details in `docs/sessions/`
 
@@ -32,10 +34,12 @@ invariants live in `CLAUDE.md` — read it before changing sim or pipeline code.
   (en/zh re-renderable templates), biographies, history panel, inspector.
 - **Rendering**: settlements are procedural building clusters from 40+ piece
   sprites (tents→walled towns with hall/market/church/yards/lamps; road-first
-  KCD-style interior; irregular wall hull fit to the built form with
-  road-aligned gates + posterns; watermills on river banks; agricultural
-  field halo on surrounding grassland; ruins as broken pieces; substitution
-  chains while art is missing; season/weather tinting);
+  KCD-style interior; terrain-derived roles (market/abbey/fort/forest) biasing
+  the civic mix + walls; burgage plots — dwellings front the main street with
+  rear yard chains; irregular wall hull fit to the built form with road-aligned
+  gates + posterns; watermills on river banks; agricultural field halo on
+  surrounding grassland; ruins as broken pieces; substitution chains while art
+  is missing; season/weather tinting);
   zoom bands (macro glyph layer with war fronts + trade flows ↔ clusters ↔
   citizens with per-state action icons); terrain baked at 4× per season
   (LRU 2) with biome grading + edge fog; decor scatter incl. landmark

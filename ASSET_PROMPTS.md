@@ -82,10 +82,15 @@ is serviceable but not pretty. One image upgrades every town wall:
 
 | File | Size | Pieces | Prompt body (after the preamble) |
 | --- | --- | --- | --- |
-| `01_walls_vertical.png` | 1536×1024 | 2 | Two wall segments running VERTICALLY (top of image to bottom, seen in three-quarter view so the left face of each wall is visible): a straight stone wall segment with battlements, drawn as if the wall runs north-south; a sharpened wooden log palisade segment also running north-south. Each segment should tile seamlessly when repeated vertically. Horizontal row, same scale. |
+| `01_walls_vertical.png` | 1536×1024 | 2 | Two wall sections, each running STRAIGHT DOWN the image — its top end directly above its bottom end, NO leftward/rightward lean and NO diagonal skew, so identical copies line up edge-to-edge into one unbroken wall (no step/zigzag at the join). (1) STONE rampart: crenellated battlement running ALONG the top edge for the WHOLE length (merlons all the way down, not a cluster on top). (2) WOODEN LOG PALISADE: tight row of tall sharpened logs the whole length. Three-quarter feel comes ONLY from a thin sliver of the wall top + soft shading on the left face — the footprint stays vertical. Both ends are flush cross-sections (no tower, cap or base). Stone on the LEFT. |
 
-Processed targets: ~28 px wide each. They are auto-preferred by the town
-wall layout the moment `process-assets.mjs` runs.
+Processed targets: ~28 px wide each. The town-wall layout renders each as ONE
+continuous strip per side, scaled to span the wall (width matched to the
+horizontal run's heft, height to the side length) — so deliver a tall,
+**straight-vertical** continuous wall strip, NOT a short tile or an angled
+panel. (Earlier angled/capped tries read as a staircase or a row of posts; the
+straight-run version landed 2026-06-15.) Auto-preferred the moment
+`process-assets.mjs` runs.
 
 ## Batch 12 — terrain variety (anti-repetition) → `assets_src/raw/12/`
 

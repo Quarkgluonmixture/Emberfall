@@ -126,11 +126,14 @@ export class SettlementLayer {
     for (const p of layout) {
       const texture = pieces[p.kind];
       const sp = new Sprite(texture);
-      // Rotated wall runs pivot around their center so they stay on the line.
-      sp.anchor.set(0.5, p.rot ? 0.5 : 0.82);
+      // Rotated wall runs pivot around their center so they stay on the line;
+      // strips with an explicit height (continuous N-S walls) also center and
+      // scale their height independently of width.
+      sp.anchor.set(0.5, p.h != null ? 0.5 : p.rot ? 0.5 : 0.82);
       sp.rotation = p.rot ?? 0;
-      const sc = p.w / texture.width;
-      sp.scale.set(p.flip ? -sc : sc, sc);
+      const scX = p.w / texture.width;
+      const scY = p.h != null ? p.h / texture.height : scX;
+      sp.scale.set(p.flip ? -scX : scX, scY);
       sp.position.set(p.dx, p.dy);
       cluster.addChild(sp);
       if (p.lift) {

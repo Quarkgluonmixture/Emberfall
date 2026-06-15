@@ -16,6 +16,9 @@ export interface PiecePlacement {
   dy: number;
   /** Target world-px width. */
   w: number;
+  /** Optional target world-px height; when set the sprite scales Y
+      independently of width (continuous N-S wall strips span the side). */
+  h?: number;
   flip: boolean;
   /** Sprite rotation in radians (vertical wall runs use ±90°). */
   rot?: number;
@@ -144,13 +147,14 @@ function put(
   kind: string,
   dx: number,
   dy: number,
-  opts: { lift?: boolean; lamp?: boolean; flip?: boolean; w?: number; rot?: number } = {},
+  opts: { lift?: boolean; lamp?: boolean; flip?: boolean; w?: number; h?: number; rot?: number } = {},
 ): void {
   out.push({
     kind,
     dx,
     dy,
     w: opts.w ?? pw(kind),
+    h: opts.h,
     flip: opts.flip ?? false,
     rot: opts.rot,
     lift: opts.lift ?? false,
@@ -195,21 +199,28 @@ function wallRect(
   if (gate && ok(0, ry)) put(out, gate, 0, ry);
 
   // Vertical runs. Rotating the horizontal art breaks the 3/4 perspective
-  // (reads as a fallen zigzag) and tightly stacking it braids — so: use
-  // dedicated N-S art when it exists (batch 11); until then stone sides are
-  // a chain of towers (omnidirectional silhouettes that tile downward) and
-  // palisade sides stack the log clumps, which are direction-agnostic.
+  // (reads as a fallen zigzag), and stacking copies of the dedicated N-S art
+  // either stair-stepped (if skewed) or overshot the town (the art is one long
+  // strip). So render the dedicated art as ONE continuous piece per side,
+  // sized independently — width matched to the horizontal run's heft, height
+  // spanning the side and tucking under the corner towers. Without dedicated
+  // art, fall back to a chain of omnidirectional towers / log clumps.
   const vert = pick(have, stone ? 'wall_vertical' : 'palisade_vertical');
-  const sideKind = vert ?? (stone ? (corner ?? straight) : straight);
-  // Stone fallback: clearly separated watchtowers (dense packing braids);
-  // palisade log clumps tile tighter without artifacts.
-  const stepY = vert ? pw(vert) * 1.15 : stone ? pw(sideKind) * 1.45 : w * 0.55;
   const runH = ry - cornerHalf;
-  const countY = Math.max(1, Math.round((2 * runH) / stepY));
-  for (let i = 0; i <= countY; i++) {
-    const dy = -runH + (2 * runH * i) / countY;
-    if (ok(-rx, dy)) put(out, sideKind, -rx, dy);
-    if (ok(rx, dy)) put(out, sideKind, rx, dy, { flip: true });
+  if (vert) {
+    const sideW = w * 0.82;
+    const sideH = 2 * runH + w * 0.7;
+    if (ok(-rx, 0)) put(out, vert, -rx, 0, { w: sideW, h: sideH });
+    if (ok(rx, 0)) put(out, vert, rx, 0, { w: sideW, h: sideH, flip: true });
+  } else {
+    const sideKind = stone ? (corner ?? straight) : straight;
+    const stepY = stone ? pw(sideKind) * 1.45 : w * 0.55;
+    const countY = Math.max(1, Math.round((2 * runH) / stepY));
+    for (let i = 0; i <= countY; i++) {
+      const dy = -runH + (2 * runH * i) / countY;
+      if (ok(-rx, dy)) put(out, sideKind, -rx, dy);
+      if (ok(rx, dy)) put(out, sideKind, rx, dy, { flip: true });
+    }
   }
 
   // Corner towers/posts mask the joints between runs.

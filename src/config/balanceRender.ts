@@ -42,9 +42,11 @@ export const RENDER_BALANCE = {
   duskAlpha: 0.5,
   /** Screen-space vignette strength at the corners (0 disables). */
   vignetteAlpha: 0.36,
-  /** Seconds for the terrain bake crossfade on season change — kept short:
-      long alpha blends of misaligned pixel art read as a double exposure. */
-  seasonFadeSeconds: 0.5,
+  /** Seconds for the terrain bake crossfade on season change. The batch-13/T1
+      tiles keep the same per-tile variant layout across seasons (only the
+      palette changes), so the two bakes are aligned and a longer dissolve reads
+      as a real seasonal morph rather than a double exposure. */
+  seasonFadeSeconds: 2.0,
   /** Bake-time neutral overlay that softens terrain contrast so actors pop.
       Spring keeps a faint fresh-green unifier (batch-13 art is already
       fresh — the old 0.05 was a correction for the olive batch-5 art). */

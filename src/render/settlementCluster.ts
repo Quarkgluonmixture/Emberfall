@@ -222,23 +222,26 @@ function wallRect(
   // spanning the side and tucking under the corner towers. Without dedicated
   // art, fall back to a chain of omnidirectional towers / log clumps.
   const vert = pick(have, stone ? 'wall_vertical' : 'palisade_vertical');
-  const runH = ry - tuck;
   if (vert) {
     // Stack overlapping CELLS of the dedicated N-S art down each side: the
     // front (lower) cell occludes the one behind it, reading as a coursed wall
     // with 3/4 depth — matching the horizontal run — not one stretched strip.
     // sideW = w*0.5 renders the side tile at the SAME px scale as the
     // horizontal run, so vertical and horizontal walls read the same thickness.
+    // The tall, bottom-anchored cells reach UP, so inset the run by ~a corner
+    // so the top/bottom cells tuck UNDER the towers instead of poking past them.
     const sideW = w * 0.5;
     const stepY = sideW * 1.05;
-    const countY = Math.max(1, Math.round((2 * runH) / stepY));
+    const vRunH = ry - cornerHalf - 1;
+    const countY = Math.max(1, Math.round((2 * vRunH) / stepY));
     for (let i = 0; i <= countY; i++) {
-      const dy = -runH + (2 * runH * i) / countY;
+      const dy = -vRunH + (2 * vRunH * i) / countY;
       if (ok(-rx, dy)) put(out, vert, -rx, dy, { w: sideW });
       if (ok(rx, dy)) put(out, vert, rx, dy, { w: sideW, flip: true });
     }
   } else {
     const sideKind = stone ? (corner ?? straight) : straight;
+    const runH = ry - tuck;
     const stepY = stone ? pw(sideKind) * 1.45 : w * 0.55;
     const countY = Math.max(1, Math.round((2 * runH) / stepY));
     for (let i = 0; i <= countY; i++) {
@@ -323,17 +326,37 @@ export function layoutCluster(
     const shrineDx = hash2(seed, 40, 2) < 0.5 ? -7 : 7;
     if (shrine && hash2(seed, 40, 1) < 0.6 && ok(shrineDx, -1.5)) put(out, shrine, shrineDx, -1.5);
 
+    // Buildings on a jittered GRID filled centre-outward, with lanes between
+    // rows, so a town reads as planned streets-and-blocks rather than a packed
+    // golden-spiral blob. Each slot jitters within its cell; the central plaza,
+    // occupied cells (collision), and vetoed tiles stay clear.
     const fixed = out.length;
     const count = Math.min(30, 12 + Math.max(0, bucket - 3) * 2) - fixed;
-    for (let i = 0; i < count; i++) {
-      const roll = hash2(seed, 50 + i, 3);
+    const step = 8;
+    const slots: { dx: number; dy: number; d: number }[] = [];
+    for (let gy = -4; gy <= 4; gy++) {
+      for (let gx = -4; gx <= 4; gx++) {
+        slots.push({ dx: gx * step, dy: gy * step * 0.66, d: gx * gx + gy * gy * 1.25 });
+      }
+    }
+    slots.sort((a, b) => a.d - b.d);
+    let placed = 0;
+    for (let si = 0; si < slots.length && placed < count; si++) {
+      const dx = slots[si].dx + (hash2(seed, 50 + si, 7) - 0.5) * 2.4;
+      const dy = slots[si].dy + (hash2(seed, 50 + si, 8) - 0.5) * 1.8;
+      if (Math.abs(dx) < 3.5 && dy > -7 && dy < 4) continue; // keep the central plaza clear
+      const roll = hash2(seed, 50 + placed, 3);
       const kind =
         roll < 0.55
-          ? pick(have, `house_${Math.floor(hash2(seed, 50 + i, 4) * 3)}`, 'house_0', 'hut_0')
+          ? pick(have, `house_${Math.floor(hash2(seed, 50 + placed, 4) * 3)}`, 'house_0', 'hut_0')
           : roll < 0.85
-            ? pick(have, `hut_${Math.floor(hash2(seed, 50 + i, 5) * 3)}`, 'hut_0', 'house_0')
-            : pick(have, hash2(seed, 50 + i, 6) < 0.5 ? 'granary' : 'shed', 'shed', 'granary', 'hut_1');
-      if (kind) placeSpiral(out, seed, 50 + i, kind, 7.5, { lift: true, lamp: i < 4 }, buildable);
+            ? pick(have, `hut_${Math.floor(hash2(seed, 50 + placed, 5) * 3)}`, 'hut_0', 'house_0')
+            : pick(have, hash2(seed, 50 + placed, 6) < 0.5 ? 'granary' : 'shed', 'shed', 'granary', 'hut_1');
+      if (!kind) break; // no building art at all
+      if (buildable && !buildable(dx, dy)) continue;
+      if (collides(out, dx, dy, pw(kind))) continue;
+      put(out, kind, dx, dy, { lift: true, lamp: placed < 4 });
+      placed++;
     }
 
     const lamp = pick(have, 'lamp');

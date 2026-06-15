@@ -247,6 +247,9 @@ export function layoutCluster(
   population: number,
   have: HavePiece,
   buildable?: Buildable,
+  /** Looser veto for the wall RING only: walls may cross a river (the ring
+      stays closed) but still open to the open sea. Defaults to `buildable`. */
+  wallBuildable?: Buildable,
 ): PiecePlacement[] {
   const seed = 0x5e771e ^ Math.imul(id + 1, 2654435761);
   const out: PiecePlacement[] = [];
@@ -321,7 +324,7 @@ export function layoutCluster(
         ry = Math.max(ry, Math.abs(p.dy) + p.w * 0.35);
       }
       // Clamp: a stray far building must not inflate the ring to district size.
-      wallRect(out, seed, Math.min(rx + 3.5, 26), Math.min(ry + 3, 19), have, buildable);
+      wallRect(out, seed, Math.min(rx + 3.5, 26), Math.min(ry + 3, 19), have, wallBuildable ?? buildable);
     }
   }
 

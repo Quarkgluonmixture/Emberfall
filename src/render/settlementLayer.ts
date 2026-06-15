@@ -115,7 +115,15 @@ export class SettlementLayer {
       const t = terrain[ty * width + tx] as Terrain;
       return t !== Terrain.Ocean && t !== Terrain.River;
     };
-    const layout = layoutCluster(id, tier, population, (k) => k in pieces, buildable);
+    // Walls may span a river so the ring stays closed; they still open to the
+    // open sea. (Buildings keep the stricter veto above.)
+    const wallBuildable = (dx: number, dy: number): boolean => {
+      const tx = Math.floor((cx + dx) / ts);
+      const ty = Math.floor((cy + dy) / ts);
+      if (tx < 0 || ty < 0 || tx >= width || ty >= height) return false;
+      return (terrain[ty * width + tx] as Terrain) !== Terrain.Ocean;
+    };
+    const layout = layoutCluster(id, tier, population, (k) => k in pieces, buildable, wallBuildable);
 
     v.cluster?.destroy({ children: true });
     for (const lg of v.lampGlows) lg.destroy();

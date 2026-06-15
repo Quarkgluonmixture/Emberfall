@@ -20,15 +20,24 @@ export class CivPanel {
       const settlements = state.settlements.filter((s) => s.civId === civ.id);
       const pop = Math.round(settlements.reduce((sum, s) => sum + s.population, 0));
       const color = `#${civ.color.toString(16).padStart(6, '0')}`;
-      const wars = state.civs
+      // Recently-raided settlements = frontier under active attack.
+      const raided = settlements.filter((s) => state.day - s.lastRaidDay <= 20).length;
+      const warSpans = state.civs
         .filter(
           (o) => o.id !== civ.id && o.alive && state.relations[civ.id][o.id]?.state === 'war',
         )
-        .map((o) => o.name);
+        .map((o) => {
+          const rel = state.relations[civ.id][o.id];
+          const ratio = o.military > 0 ? civ.military / o.military : 2;
+          const col = ratio >= 1.15 ? '#7fc97f' : ratio <= 0.87 ? '#e0705a' : 'var(--ink-dim)';
+          const arrow = ratio >= 1.15 ? '▲' : ratio <= 0.87 ? '▼' : '=';
+          const title = `${o.name}: ${rel.warDays}d · military ${ratio.toFixed(2)}× · ${raided} raided`;
+          return `<span class="war" title="${title}">${o.name} <span style="color:${col}">${arrow}${ratio.toFixed(1)}×</span></span>`;
+        });
       const badges = [
         civ.goldenAgeDays > 0 ? `<span style="color:var(--ember)">${eventIconHtml('goldenAge')}</span>` : '',
         civ.crisisDays > 0 ? eventIconHtml('succession') : '',
-        wars.length > 0 ? `<span class="war">${eventIconHtml('warDeclared')} ${wars.join(', ')}</span>` : '',
+        warSpans.length > 0 ? `${eventIconHtml('warDeclared')} ${warSpans.join(' ')}` : '',
       ]
         .filter(Boolean)
         .join(' ');

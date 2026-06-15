@@ -36,18 +36,23 @@ export class HistoryPanel {
   private renderedMode: Mode | '' = '';
   private state: SimState | null = null;
 
-  constructor() {
+  constructor(private onFocus?: (x: number, y: number) => void) {
     this.root = document.getElementById('history')!;
-    // Event-delegated mode toggle (the root persists across renders).
+    // Event-delegated: mode toggle, then click-to-center on located entries.
     this.root.addEventListener('click', (e) => {
-      const el = (e.target as HTMLElement)?.closest('[data-mode]') as HTMLElement | null;
-      if (!el) return;
-      const next = el.dataset.mode as Mode;
-      if (next && next !== this.mode) {
-        this.mode = next;
-        this.renderedLength = -1; // force re-render
-        if (this.state) this.render(this.state);
+      const target = e.target as HTMLElement;
+      const tab = target?.closest('[data-mode]') as HTMLElement | null;
+      if (tab) {
+        const next = tab.dataset.mode as Mode;
+        if (next && next !== this.mode) {
+          this.mode = next;
+          this.renderedLength = -1; // force re-render
+          if (this.state) this.render(this.state);
+        }
+        return;
       }
+      const row = target?.closest('[data-x]') as HTMLElement | null;
+      if (row && this.onFocus) this.onFocus(Number(row.dataset.x), Number(row.dataset.y));
     });
   }
 
@@ -107,7 +112,9 @@ export class HistoryPanel {
       for (const e of entries) {
         if (collapsed.has(e.kind)) continue;
         const mark = e.importance === 3 ? '★ ' : '';
-        html += `<div class="entry"><span class="when">${seasonName(e.season)}</span>${eventIconHtml(e.kind)}${mark}${entryText(e)}</div>`;
+        const loc =
+          e.x !== undefined && e.y !== undefined ? ` data-x="${e.x}" data-y="${e.y}"` : '';
+        html += `<div class="entry${loc ? ' focusable' : ''}"${loc}><span class="when">${seasonName(e.season)}</span>${eventIconHtml(e.kind)}${mark}${entryText(e)}</div>`;
       }
       html += '</div>';
     }

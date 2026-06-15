@@ -23,6 +23,9 @@ interface Fx {
 /** More new entries than this in one frame = a bulk jump, not live play. */
 const BULK_LIMIT = 8;
 const MAX_LIVE = 48;
+/** Additive FX over the deep-night wash blow out; damp toward midnight so an
+    event ring stops reading as a flare regardless of what it marks. */
+const NIGHT_FX_DAMP = 0.5;
 
 /** Ring/burst recipes per chronicle kind: color, ring radius (world px),
     duration seconds, sparkle count, dust count. */
@@ -60,6 +63,8 @@ export class FxLayer {
   private ring: Texture;
   private chronicleSeen = 0;
   private lastState: SimState | null = null;
+  /** 0 = day, 1 = deepest night; scales additive FX peak alpha. */
+  private darkness = 0;
 
   constructor(
     renderer: Renderer,
@@ -72,7 +77,8 @@ export class FxLayer {
   }
 
   /** Spawn FX for fresh chronicle entries, then advance all live effects. */
-  update(dt: number, state: SimState): void {
+  update(dt: number, state: SimState, darkness = 0): void {
+    this.darkness = darkness;
     this.scan(state);
     for (let i = this.live.length - 1; i >= 0; i--) {
       const fx = this.live[i];
@@ -142,6 +148,7 @@ export class FxLayer {
     sprite.tint = spec.color;
     sprite.blendMode = 'add';
     const r = spec.r;
+    const peak = 0.85 * (1 - NIGHT_FX_DAMP * this.darkness);
     this.add({
       sprite,
       t: 0,
@@ -152,7 +159,7 @@ export class FxLayer {
         const d = (spec.slow ? 0.45 + 0.55 * grow : 0.25 + 0.75 * grow) * 2 * r;
         sp.width = d;
         sp.height = d * 0.72; // match the map's oval perspective squash
-        sp.alpha = k < 0.45 ? 0.85 : 0.85 * (1 - (k - 0.45) / 0.55);
+        sp.alpha = k < 0.45 ? peak : peak * (1 - (k - 0.45) / 0.55);
       },
     });
   }
@@ -172,6 +179,7 @@ export class FxLayer {
     const dist = spec.r * (0.5 + hash2(salt, i, 2) * 0.8);
     const size = 1.6 + hash2(salt, i, 3) * 1.8;
     const rise = 2 + hash2(salt, i, 4) * 3;
+    const peak = 0.9 * (1 - NIGHT_FX_DAMP * this.darkness);
     this.add({
       sprite,
       t: 0,
@@ -185,7 +193,7 @@ export class FxLayer {
         const s = size * (1 - k * 0.6);
         sp.width = s;
         sp.height = s;
-        sp.alpha = 0.9 * (1 - k);
+        sp.alpha = peak * (1 - k);
       },
     });
   }

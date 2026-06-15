@@ -10,8 +10,12 @@ export class ChroniclePanel {
   private lastLength = -1;
   private lastLang = '';
 
-  constructor() {
+  constructor(private onFocus?: (x: number, y: number) => void) {
     this.root = document.getElementById('chronicle')!;
+    this.root.addEventListener('click', (e) => {
+      const el = (e.target as HTMLElement)?.closest('[data-x]') as HTMLElement | null;
+      if (el && this.onFocus) this.onFocus(Number(el.dataset.x), Number(el.dataset.y));
+    });
   }
 
   update(state: SimState): void {
@@ -23,12 +27,14 @@ export class ChroniclePanel {
     // shoved offscreen by routine texture. Epochal beats get an ember mark.
     const entries = state.chronicle.filter((e) => e.importance >= 2).slice(-VISIBLE_ENTRIES);
     this.root.innerHTML = entries
-      .map(
-        (e) =>
-          `<div class="entry imp${e.importance}">${eventIconHtml(e.kind)}<span class="when">Y${
-            e.year
-          } ${seasonName(e.season)}</span>${e.importance === 3 ? '★ ' : ''}${entryText(e)}</div>`,
-      )
+      .map((e) => {
+        const loc =
+          e.x !== undefined && e.y !== undefined ? ` data-x="${e.x}" data-y="${e.y}"` : '';
+        const cls = `entry imp${e.importance}${loc ? ' focusable' : ''}`;
+        return `<div class="${cls}"${loc}>${eventIconHtml(e.kind)}<span class="when">Y${
+          e.year
+        } ${seasonName(e.season)}</span>${e.importance === 3 ? '★ ' : ''}${entryText(e)}</div>`;
+      })
       .join('');
   }
 }

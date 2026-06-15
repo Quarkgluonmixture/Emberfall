@@ -127,7 +127,7 @@ export class Renderer {
     this.settlements.container.alpha = 1 - macroBlend(this.camera.scale);
     this.citizens.update(input.agents, input.state, this.camera.scale, input.dt);
     this.markers.update(input.dt, input.state);
-    this.fx.update(input.dt, input.state);
+    this.fx.update(input.dt, input.state, input.darkness);
     this.macro.update(input.dt, input.state, this.camera.scale, input.time);
 
     // The glow layer sits above the night overlay; mirror the camera transform.

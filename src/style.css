@@ -359,6 +359,16 @@ body {
   font-style: italic;
 }
 
+#chronicle .entry.focusable,
+#history .entry.focusable {
+  cursor: pointer;
+}
+
+#chronicle .entry.focusable:hover,
+#history .entry.focusable:hover {
+  color: var(--ember);
+}
+
 #history .year-block {
   margin-bottom: 12px;
 }

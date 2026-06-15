@@ -37,8 +37,15 @@ const DEFAULT_SEED = 1337;
 let sim: Simulation;
 let renderer: Renderer | null = null;
 let agents = new AgentSystem();
-let chroniclePanel = new ChroniclePanel();
-let historyPanel = new HistoryPanel();
+/** Fly the camera to a chronicle event's location (clicked from a feed). */
+function focusTile(x: number, y: number): void {
+  if (!renderer) return;
+  const ts = BALANCE.map.tileSize;
+  renderer.camera.flyTo((x + 0.5) * ts, (y + 0.5) * ts, Math.max(renderer.camera.scale, 3.2), 0.9);
+}
+
+let chroniclePanel = new ChroniclePanel(focusTile);
+let historyPanel = new HistoryPanel(focusTile);
 
 let speedIndex = 1;
 let lastRunningSpeed = 1;
@@ -296,8 +303,8 @@ async function start(newSim: Simulation): Promise<void> {
 
   sim = newSim;
   agents = new AgentSystem();
-  chroniclePanel = new ChroniclePanel();
-  historyPanel = new HistoryPanel();
+  chroniclePanel = new ChroniclePanel(focusTile);
+  historyPanel = new HistoryPanel(focusTile);
   inspector.select(null);
 
   const created = await Renderer.create(document.getElementById('app')!, sim.state.world);

@@ -191,6 +191,43 @@ Drop the 4 files into `assets_src/raw/13/` and run
 auto-detects column count from the sheet aspect. **No batch 13 present →
 the old 3-variant sheets keep working unchanged** (fallback philosophy).
 
+## Batch 14 — clean wall set (replaces slanted runs) → `assets_src/raw/14/`
+
+The original `wall_straight` tiled as slanted capped segments and the batch-11
+vertical was one long strip; this one sheet replaces all four wall body pieces
+with a matched, cleanly-tiling set (landed 2026-06-15). Uses the shared piece
+preamble above.
+
+| File | Size | Pieces (left→right) | Prompt body (after the preamble) |
+| --- | --- | --- | --- |
+| `01_walls.png` | 1536×1024 | 4 | Four matching medieval town-wall pieces in a horizontal row, same scale, to tile into a ring: (1) STONE WALL RUN — straight left-to-right, continuous LEVEL crenellated top + wooden walkway, FLUSH vertical cut ends (no diagonal, no cap, no tower); (2) STONE WALL TILE — short section running straight DOWN (top directly above bottom, no lean), crenellation along its top edge, flush top/bottom ends so stacked copies form one wall; (3) WOODEN PALISADE RUN — straight left-to-right, tight sharpened logs, flush ends; (4) WOODEN PALISADE TILE — short straight-down logs, flush top/bottom. Same stone color/thickness/lighting; three-quarter depth from a thin face + shading only; level/straight, never a leaning panel. Stone pair left, wood pair right. |
+
+Pipeline (folder 14) slices L→R into `wall_straight` / `wall_vertical` /
+`palisade_straight` / `palisade_vertical` (overwriting folders 8/9/11). The town
+wall layout tiles the runs horizontally and STACKS the tiles down each side with
+overlap; corner towers (`wall_tower`/`palisade_corner`) draw on top.
+
+## Batch 15 — citizen variety (6 roles) → `assets_src/raw/15/`
+
+Replaces the single repeated hooded figure with six role silhouettes. Four
+sheets, one per animation state; **same six roles in the same row order** in
+every sheet (row 1 villager, 2 farmer, 3 trader, 4 worker, 5 militia, 6 elder).
+Uses the shared preamble + this override: *each figure is an animated character
+sprite; keep a CONSISTENT foot baseline and body scale across EVERY frame; only
+a small faction-color accent (scarf/sash/trim), never a whole colored robe; no
+identical hooded clones.*
+
+| File | Size | Grid | Prompt body |
+| --- | --- | --- | --- |
+| `01_walk.png` | 1536×1024 | 6 rows × 4 cols | each role's 4-frame walk cycle |
+| `02_work.png` | 1536×1024 | 6 rows × 4 cols | role-fitting work cycle (basket, hoe, crates, hammer, haul, bundle) |
+| `03_fight.png` | 1536×1024 | 6 rows × 4 cols | tense defend cycle (spear, shield, staff, tool) |
+| `04_rest.png` | 1536×1024 | 6 rows × 2 cols | idle/rest (sit, lean, talk) |
+
+Pipeline (folder 15) keys + grid-slices each sheet into `[role][frame]`; the
+renderer picks a role per agent deterministically and normalizes to a fixed body
+height. **No batch 15 → the single folder-3 citizen keeps working** (fallback).
+
 ## Priority order if generating in sessions
 
 1. `02_huts` + `03_houses` + `01_tents` — the cluster engine's bread and butter

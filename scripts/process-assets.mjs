@@ -549,6 +549,24 @@ if (fs.existsSync(path.join(rawRoot, '13'))) {
   }
 }
 
+// Folder 14: matched wall set — clean horizontal runs + modular vertical tiles
+// (4 pieces left→right: stone run, stone tile, wood run, wood tile). Supersedes
+// the slanted folder-8/9 straights and the folder-11 strip verticals.
+if (fs.existsSync(path.join(rawRoot, '14'))) {
+  console.log('Wall set (folder 14):');
+  const piecesDir = path.join(outDir, 'pieces');
+  fs.mkdirSync(piecesDir, { recursive: true });
+  const src = path.join(rawRoot, '14', '01_walls.png');
+  if (fs.existsSync(src)) {
+    await slicePieces(src, [
+      [path.join(piecesDir, 'wall_straight.png'), 56],
+      [path.join(piecesDir, 'wall_vertical.png'), 28],
+      [path.join(piecesDir, 'palisade_straight.png'), 56],
+      [path.join(piecesDir, 'palisade_vertical.png'), 28],
+    ]);
+  }
+}
+
 // SFX: slot-named samples (assets_src/sfx/<sound>.ogg, see SAMPLE_NAMES in
 // src/audio/sfx.ts) copied verbatim; any missing slot keeps its WebAudio
 // synth fallback. Current samples: Kenney CC0 packs (kenney.nl).

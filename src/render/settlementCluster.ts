@@ -227,7 +227,9 @@ function wallRect(
     // Stack overlapping CELLS of the dedicated N-S art down each side: the
     // front (lower) cell occludes the one behind it, reading as a coursed wall
     // with 3/4 depth — matching the horizontal run — not one stretched strip.
-    const sideW = w * 0.82;
+    // sideW = w*0.5 renders the side tile at the SAME px scale as the
+    // horizontal run, so vertical and horizontal walls read the same thickness.
+    const sideW = w * 0.5;
     const stepY = sideW * 1.05;
     const countY = Math.max(1, Math.round((2 * runH) / stepY));
     for (let i = 0; i <= countY; i++) {

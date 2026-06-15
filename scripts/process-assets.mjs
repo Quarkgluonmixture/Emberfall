@@ -629,6 +629,21 @@ if (fs.existsSync(path.join(rawRoot, '15'))) {
   }
 }
 
+// Folder 16: level corner tower + gatehouse matching the batch-14 walls
+// (2 pieces left→right). Supersedes the slanted folder-8 wall_tower/wall_gate.
+if (fs.existsSync(path.join(rawRoot, '16'))) {
+  console.log('Wall caps (folder 16):');
+  const piecesDir = path.join(outDir, 'pieces');
+  fs.mkdirSync(piecesDir, { recursive: true });
+  const src = path.join(rawRoot, '16', '01_wallcaps.png');
+  if (fs.existsSync(src)) {
+    await slicePieces(src, [
+      [path.join(piecesDir, 'wall_tower.png'), 56],
+      [path.join(piecesDir, 'wall_gate.png'), 72],
+    ]);
+  }
+}
+
 // SFX: slot-named samples (assets_src/sfx/<sound>.ogg, see SAMPLE_NAMES in
 // src/audio/sfx.ts) copied verbatim; any missing slot keeps its WebAudio
 // synth fallback. Current samples: Kenney CC0 packs (kenney.nl).

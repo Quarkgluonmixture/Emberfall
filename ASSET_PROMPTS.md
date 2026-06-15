@@ -227,6 +227,24 @@ identical hooded clones.*
 Pipeline (folder 15) keys + grid-slices each sheet into `[role][frame]`; the
 renderer picks a role per agent deterministically and normalizes to a fixed body
 height. **No batch 15 → the single folder-3 citizen keeps working** (fallback).
+(Pipeline also re-grounds each cell — trim, uniform height, bottom-align — so
+feet sit at the cell bottom and citizens don't float above their shadow.)
+
+## Batch 16 — level wall caps (corner tower + gatehouse) → `assets_src/raw/16/`
+
+The old `wall_tower`/`wall_gate` were slanted 3/4 pieces that clashed with the
+batch-14 level walls; this replaces them with matched LEVEL caps. Shared piece
+preamble above.
+
+| File | Size | Pieces (left→right) | Prompt body |
+| --- | --- | --- | --- |
+| `01_wallcaps.png` | 1536×1024 | 2 | Two matching stone wall pieces, same color/thickness/scale/lighting as the batch-14 walls: (1) CORNER TOWER — square, LEVEL, orthogonal (vertical sides straight, level crenellated top), with flush wall sockets exiting left/right and down so it caps a rect corner; depth from a thin top + side shading only, no lean/roof/skew; (2) GATEHOUSE — a LEVEL horizontal module that tiles into a left-to-right run: flush vertical ends at the wall's height, matching crenellated top, centered arched opening with closed wooden doors; no diagonal lean or isometric perspective. Corner tower left, gatehouse right. |
+
+Pipeline (folder 16) slices L→R into `wall_tower` / `wall_gate` (overwriting the
+folder-8 slanted ones). **Wall thickness note:** the side (N-S) tiles render at
+`sideW = pw(wall_straight) × 0.5` so a wall-thickness pixel is the same world
+size as the horizontal run — vertical and horizontal walls read identical
+thickness.
 
 ## Priority order if generating in sessions
 

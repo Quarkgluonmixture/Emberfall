@@ -326,39 +326,39 @@ export function layoutCluster(
     const shrineDx = hash2(seed, 40, 2) < 0.5 ? -7 : 7;
     if (shrine && hash2(seed, 40, 1) < 0.6 && ok(shrineDx, -1.5)) put(out, shrine, shrineDx, -1.5);
 
-    // Medieval town: houses packed in organic rings around the market square,
-    // tight like a walled town (KCD feel), with a main street kept clear from
-    // the south gate to the plaza. Bounded by maxR so the build stays INSIDE
-    // the wall ring (houses can't end up sitting on/through the wall), and
-    // collisions keep them from overlapping into mush.
+    // Medieval town, ROAD-FIRST (KCD read): a slightly curved main street runs
+    // up from the south gate to the market/hall, and houses FRONT it in rows on
+    // both sides — closest row tight to the street, then back rows behind, so
+    // the town reads as street-frontage-and-plots, not a ring or a blob. The
+    // street and the central market stay clear; everything is bounded so houses
+    // stay inside the wall, and collisions keep them from overlapping to mush.
     const fixed = out.length;
     const count = Math.min(30, 12 + Math.max(0, bucket - 3) * 2) - fixed;
-    const plazaR = 5.5;
-    const maxR = 19; // outermost house centre; wall sits ~3.5 beyond its edge
+    const maxRx = 20;
+    const maxRy = 13.5;
+    const streetX = (dy: number): number => Math.sin(dy * 0.13) * 2.3; // gentle bend
     let placed = 0;
-    for (let ring = 0; ring < 30 && placed < count; ring++) {
-      const r = plazaR + ring * 3.6;
-      if (r > maxR) break;
-      const n = Math.max(4, Math.round((2 * Math.PI * r) / 6.4));
-      const a0 = hash2(seed, ring, 9) * Math.PI * 2;
-      for (let k = 0; k < n && placed < count; k++) {
-        const ang = a0 + (k / n) * Math.PI * 2 + (hash2(seed, ring * 13 + k, 1) - 0.5) * 0.45;
-        const rr = r + (hash2(seed, ring * 13 + k, 2) - 0.5) * 2.6;
-        const dx = Math.cos(ang) * rr;
-        const dy = Math.sin(ang) * rr * 0.72; // oval squash
-        if (Math.abs(dx) < 2.6 && dy > 0) continue; // main street: gate → plaza
-        const roll = hash2(seed, 50 + placed, 3);
-        const kind =
-          roll < 0.55
-            ? pick(have, `house_${Math.floor(hash2(seed, 50 + placed, 4) * 3)}`, 'house_0', 'hut_0')
-            : roll < 0.85
-              ? pick(have, `hut_${Math.floor(hash2(seed, 50 + placed, 5) * 3)}`, 'hut_0', 'house_0')
-              : pick(have, hash2(seed, 50 + placed, 6) < 0.5 ? 'granary' : 'shed', 'shed', 'granary', 'hut_1');
-        if (!kind) break; // no building art at all
-        if (buildable && !buildable(dx, dy)) continue;
-        if (collides(out, dx, dy, pw(kind))) continue;
-        put(out, kind, dx, dy, { lift: true, lamp: placed < 4 });
-        placed++;
+    // Inner rows first (street frontage), then back rows; gate end upward.
+    for (let row = 0; row < 3 && placed < count; row++) {
+      const off = 5.6 + row * 6.3; // perpendicular distance from the street
+      for (const side of [-1, 1] as const) {
+        for (let dy = maxRy - 1; dy > -maxRy && placed < count; dy -= 6.1) {
+          const yy = dy + (hash2(seed, row * 47 + Math.round(dy + 50), 1) - 0.5) * 2.2;
+          const dx = streetX(yy) + side * (off + (hash2(seed, row * 47 + Math.round(dy + 50), 2) - 0.5) * 1.8);
+          if (Math.abs(dx) > maxRx || Math.abs(yy) > maxRy) continue;
+          const roll = hash2(seed, 50 + placed, 3);
+          const kind =
+            roll < 0.55
+              ? pick(have, `house_${Math.floor(hash2(seed, 50 + placed, 4) * 3)}`, 'house_0', 'hut_0')
+              : roll < 0.85
+                ? pick(have, `hut_${Math.floor(hash2(seed, 50 + placed, 5) * 3)}`, 'hut_0', 'house_0')
+                : pick(have, hash2(seed, 50 + placed, 6) < 0.5 ? 'granary' : 'shed', 'shed', 'granary', 'hut_1');
+          if (!kind) break; // no building art at all
+          if (buildable && !buildable(dx, yy)) continue;
+          if (collides(out, dx, yy, pw(kind))) continue;
+          put(out, kind, dx, yy, { lift: true, lamp: placed < 4 });
+          placed++;
+        }
       }
     }
 

@@ -523,6 +523,54 @@ export function settlementRole(id: number, tier: number, terrainAt?: TerrainProb
 }
 
 /**
+ * Direction (radians) toward nearby commanding terrain — heights (mountains)
+ * first, else a coast/water approach — or null on open flat land. A castle
+ * keep is sited toward this so it reads as overlooking the ground it controls.
+ * Pure static-terrain read.
+ */
+function commandingDir(terrainAt?: TerrainProbe): number | null {
+  if (!terrainAt) return null;
+  let mx = 0;
+  let my = 0;
+  let mn = 0;
+  let wx = 0;
+  let wy = 0;
+  let wn = 0;
+  for (let a = 0; a < 16; a++) {
+    const ang = (a / 16) * Math.PI * 2;
+    const ux = Math.cos(ang);
+    const uy = Math.sin(ang) * 0.72;
+    for (const r of [16, 24, 32]) {
+      const t = terrainAt(ux * r, uy * r);
+      if (t === Terrain.Mountain) {
+        mx += ux;
+        my += uy;
+        mn++;
+      } else if (t === Terrain.Ocean || t === Terrain.Coast) {
+        wx += ux;
+        wy += uy;
+        wn++;
+      }
+    }
+  }
+  if (mn >= 2) return Math.atan2(my, mx); // commands the heights
+  if (wn >= 4) return Math.atan2(wy, wx); // commands a coast/approach
+  return null;
+}
+
+/**
+ * Whether a settlement is a lordly seat (castle): a fort, or a town on
+ * commanding terrain (by seed hash). Terrain-derived + read-only — no SimState,
+ * so saves/determinism/seed-gallery are untouched. Drives the keep + macro glyph.
+ */
+export function isLordlySeat(id: number, tier: number, terrainAt?: TerrainProbe): boolean {
+  if (tier < 2) return false;
+  const seed = 0x5e771e ^ Math.imul(id + 1, 2654435761);
+  if (deriveRole(seed, tier, terrainAt) === 'fort') return true;
+  return commandingDir(terrainAt) != null && hash2(seed, 92, 1) < 0.3;
+}
+
+/**
  * Lay burgage plots along a gently bent main street: each parcel is a
  * street-front dwelling with a chain of rear yards (gardens, pens, woodpiles…)
  * running back off the street, role-biased. Parcels tile the frontage at a
@@ -753,15 +801,24 @@ export function layoutCluster(
       }
     };
 
+    // Castle / lordly seat: a fort, or a town commanding nearby heights/coast.
+    // The keep is sited toward the commanded feature so it reads as overlooking
+    // the ground it controls. Terrain-derived — no SimState.
+    const cmdDir = commandingDir(terrainAt);
+    const wantsKeep = role === 'fort' || (cmdDir != null && hash2(seed, 92, 1) < 0.3);
+
     let reserve: ((dx: number, dy: number) => boolean) | undefined;
     if (role === 'abbey') {
       // The church + cloister precinct IS the core (no moot hall).
       reserve = placeAbbeyPrecinct(out, seed, have, buildable);
     } else {
-      // A fort's stronghold is a stone keep; other roles get a civic hall.
-      if (role === 'fort') {
+      // A castle's stronghold is a stone keep (sited toward the commanded
+      // terrain); other towns get a civic hall.
+      if (wantsKeep) {
         const keep = pick(have, 'keep', 'hall');
-        if (keep && ok(0, -5)) put(out, keep, 0, -5, { lift: true, lamp: true });
+        const kx = cmdDir != null ? Math.cos(cmdDir) * 4.5 : 0;
+        const ky = -4.5 + (cmdDir != null ? Math.sin(cmdDir) * 3 : 0);
+        if (keep && ok(kx, ky)) put(out, keep, kx, ky, { lift: true, lamp: true });
       } else {
         const hall = pick(have, 'hall');
         if (hall && ok(0, -4.5)) put(out, hall, 0, -4.5, { lift: true, lamp: true });
@@ -849,8 +906,8 @@ export function layoutCluster(
     x1 = Math.min(cxb + 26, x1 + pad);
     y0 = Math.max(cyb - 19, y0 - pad * 0.85);
     y1 = Math.min(cyb + 19, y1 + pad * 0.85);
-    // A fort always walls; other roles by chance.
-    if (role === 'fort' || hash2(seed, 901, 1) < 0.7) {
+    // A fort or commanding castle always walls; other roles by chance.
+    if (wantsKeep || hash2(seed, 901, 1) < 0.7) {
       const gates = wallHull(out, seed, { x0, y0, x1, y1 }, have, wallBuildable ?? buildable, roadAt);
       // Extramural sprawl spilling out of the gates (poorer dwellings + yards),
       // bounded so the footprint stays compact.

@@ -8,7 +8,7 @@
 import { Container, Graphics, Sprite, Texture, type Renderer } from 'pixi.js';
 import { BALANCE } from '../config/balance';
 import { Terrain, type SimState } from '../core/types';
-import { settlementRole, type SettlementRole } from './settlementCluster';
+import { isLordlySeat, settlementRole, type SettlementRole } from './settlementCluster';
 
 interface Glyph {
   /** Dark backing disc so the civ-tinted glyph pops against busy terrain. */
@@ -98,7 +98,8 @@ export class MacroLayer {
     return this.glyphTex[0]; // camp = dot
   }
 
-  /** Role from the same terrain probe + seed the cluster uses. */
+  /** Role glyph from the same terrain probe + seed the cluster uses; a lordly
+      seat (castle) overrides to the keep glyph so it reads as a stronghold. */
   private roleFor(s: SimState['settlements'][number], state: SimState): SettlementRole {
     const ts = BALANCE.map.tileSize;
     const { width, height, terrain } = state.world;
@@ -110,6 +111,7 @@ export class MacroLayer {
       if (tx < 0 || ty < 0 || tx >= width || ty >= height) return Terrain.Ocean;
       return terrain[ty * width + tx] as Terrain;
     };
+    if (isLordlySeat(s.id, s.tier, terrainAt)) return 'fort'; // → keep glyph
     return settlementRole(s.id, s.tier, terrainAt);
   }
 

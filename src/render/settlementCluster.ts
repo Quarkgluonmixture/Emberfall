@@ -665,10 +665,12 @@ function burgagePlots(
 }
 
 /**
- * Lay out an abbey's sacred precinct: the church with churchyard, graves and a
- * cloister garden, enclosed by a fence ring with a south gap for the approach.
- * Returns a reserve predicate so the burgage plots part around the precinct
- * (the village sits along the road, not crowding the church door).
+ * Lay out an abbey's sacred precinct as a CLOISTER QUADRANGLE: the church on the
+ * north range, an OPEN garth (cloister green) at the centre, plain service
+ * ranges framing it east/west, a cemetery and orchard in the corners, all
+ * enclosed by a wall with a south gate. The open centre + ordered frame read as
+ * a monastic precinct, not a church mobbed by houses. Returns a reserve
+ * predicate so the lay town sits OUTSIDE, along the approach.
  */
 function placeAbbeyPrecinct(
   out: PiecePlacement[],
@@ -677,28 +679,39 @@ function placeAbbeyPrecinct(
   buildable: Buildable | undefined,
 ): (dx: number, dy: number) => boolean {
   const ok = (dx: number, dy: number): boolean => !buildable || buildable(dx, dy);
-  const cx = (hash2(seed, 41, 2) < 0.5 ? -1 : 1) * 6;
-  const cy = -6;
+  const side = hash2(seed, 41, 2) < 0.5 ? -1 : 1;
+  const pcx = side * 6; // precinct off to one side; the lay town fills the rest
+  const pcy = -2;
+  const half = 6;
+  const x0 = pcx - half;
+  const x1 = pcx + half;
+  const y0 = pcy - half;
+  const y1 = pcy + half;
+
+  // Church dominates the north range.
   const church = pick(have, 'church', 'chapel');
-  if (church && ok(cx, cy)) put(out, church, cx, cy, { lift: true, lamp: true });
-  const yard = pick(have, 'churchyard');
-  if (yard && ok(cx, cy + 4)) put(out, yard, cx, cy + 4);
+  if (church && ok(pcx, y0 + 1.5)) put(out, church, pcx, y0 + 1.5, { lift: true, lamp: true });
+  // Open cloister garth at the centre (kept calm — just a green).
+  const garth = pick(have, 'yard_garden');
+  if (garth && ok(pcx, pcy + 0.5)) put(out, garth, pcx, pcy + 0.5);
+  // Plain service ranges frame the garth east + west (dorter/refectory stand-ins).
+  const eRange = pick(have, 'shed', 'granary', 'crates');
+  if (eRange && ok(x1 - 1.8, pcy)) put(out, eRange, x1 - 1.8, pcy, { flip: true });
+  const wRange = pick(have, 'granary', 'shed', 'crates');
+  if (wRange && ok(x0 + 1.8, pcy)) put(out, wRange, x0 + 1.8, pcy);
+  // Cemetery (north corner, by the church) + kitchen orchard (south corner).
   const graves = pick(have, 'graves');
-  if (graves && ok(cx - 3.4, cy + 4.2)) put(out, graves, cx - 3.4, cy + 4.2);
-  const garden = pick(have, 'yard_garden');
-  if (garden && ok(cx + 3.4, cy + 4)) put(out, garden, cx + 3.4, cy + 4);
-  // Fence ring around the precinct, with a gap on the south face for the gate.
-  const x0 = cx - 6;
-  const x1 = cx + 6;
-  const y0 = cy - 3;
-  const y1 = cy + 7;
+  if (graves && ok(pcx - side * 3.6, y0 + 2.6)) put(out, graves, pcx - side * 3.6, y0 + 2.6);
+  const orchard = pick(have, 'yard_hay', 'yard_garden');
+  if (orchard && ok(pcx + side * 3.6, y1 - 2.6)) put(out, orchard, pcx + side * 3.6, y1 - 2.6);
+
+  // Precinct wall: a fence ring with a gate gap on the south face (the approach).
   const fence = pick(have, 'yard_fence');
   if (fence) {
     const step = pw(fence) * 1.05;
     for (let x = x0; x <= x1 + 0.01; x += step) {
       if (ok(x, y0) && !collides(out, x, y0, pw(fence))) put(out, fence, x, y0, {});
-      // south side: leave a ~gate gap around the precinct centre
-      if (Math.abs(x - cx) > 3 && ok(x, y1) && !collides(out, x, y1, pw(fence))) {
+      if (Math.abs(x - pcx) > 2.6 && ok(x, y1) && !collides(out, x, y1, pw(fence))) {
         put(out, fence, x, y1, {});
       }
     }

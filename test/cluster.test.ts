@@ -72,10 +72,16 @@ describe('settlement cluster layouts', () => {
     }
   });
 
-  it('sorts painter order back to front', () => {
+  it('sorts painter order back to front, then by layer (corner towers on top)', () => {
     const layout = layoutCluster(3, 2, 300, ALL);
     for (let i = 1; i < layout.length; i++) {
-      expect(layout[i].dy).toBeGreaterThanOrEqual(layout[i - 1].dy);
+      const a = layout[i - 1];
+      const b = layout[i];
+      const la = a.layer ?? 0;
+      const lb = b.layer ?? 0;
+      // Sorted by layer, then dy within a layer.
+      expect(lb).toBeGreaterThanOrEqual(la);
+      if (lb === la) expect(b.dy).toBeGreaterThanOrEqual(a.dy);
     }
   });
 

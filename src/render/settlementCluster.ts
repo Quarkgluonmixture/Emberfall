@@ -22,6 +22,9 @@ export interface PiecePlacement {
   flip: boolean;
   /** Sprite rotation in radians (vertical wall runs use ±90°). */
   rot?: number;
+  /** Draw priority above the dy painter sort (e.g. corner towers = 1 so wall
+      ends tuck behind them). Default 0. */
+  layer?: number;
   /** Building with windows: gets a warm additive lift copy at night. */
   lift: boolean;
   /** Hosts a small window/lamp glow above the night overlay. */
@@ -147,7 +150,15 @@ function put(
   kind: string,
   dx: number,
   dy: number,
-  opts: { lift?: boolean; lamp?: boolean; flip?: boolean; w?: number; h?: number; rot?: number } = {},
+  opts: {
+    lift?: boolean;
+    lamp?: boolean;
+    flip?: boolean;
+    w?: number;
+    h?: number;
+    rot?: number;
+    layer?: number;
+  } = {},
 ): void {
   out.push({
     kind,
@@ -157,6 +168,7 @@ function put(
     h: opts.h,
     flip: opts.flip ?? false,
     rot: opts.rot,
+    layer: opts.layer,
     lift: opts.lift ?? false,
     lamp: opts.lamp ?? false,
   });
@@ -186,8 +198,12 @@ function wallRect(
   const ok = (dx: number, dy: number): boolean => !buildable || buildable(dx, dy);
 
   // Horizontal runs (top y=-ry, bottom y=+ry), overlapped for continuity.
+  // Runs reach almost to the corners (small tuck) and the corner towers draw
+  // on top (layer 1) so the four sides read as one joined ring, not separate
+  // walls sitting near towers.
   const cornerHalf = corner ? pw(corner) * 0.45 : 0;
-  const runW = rx - cornerHalf;
+  const tuck = cornerHalf * 0.3;
+  const runW = rx - tuck;
   const countX = Math.max(2, Math.round((2 * runW) / (w * 0.82)));
   const gateHalf = gate ? pw(gate) * 0.55 : 3.2;
   for (let i = 0; i <= countX; i++) {
@@ -206,7 +222,7 @@ function wallRect(
   // spanning the side and tucking under the corner towers. Without dedicated
   // art, fall back to a chain of omnidirectional towers / log clumps.
   const vert = pick(have, stone ? 'wall_vertical' : 'palisade_vertical');
-  const runH = ry - cornerHalf;
+  const runH = ry - tuck;
   if (vert) {
     // Stack overlapping CELLS of the dedicated N-S art down each side: the
     // front (lower) cell occludes the one behind it, reading as a coursed wall
@@ -230,7 +246,8 @@ function wallRect(
     }
   }
 
-  // Corner towers/posts mask the joints between runs.
+  // Corner towers/posts mask the joints between runs — drawn on top (layer 1)
+  // so the wall ends tuck behind them and the ring reads as joined.
   if (corner) {
     for (const [cx, cy] of [
       [-rx, -ry],
@@ -238,7 +255,7 @@ function wallRect(
       [-rx, ry],
       [rx, ry],
     ] as const) {
-      if (ok(cx, cy)) put(out, corner, cx, cy);
+      if (ok(cx, cy)) put(out, corner, cx, cy, { layer: 1 });
     }
   }
 }
@@ -335,8 +352,8 @@ export function layoutCluster(
     }
   }
 
-  // Painter's order: back to front.
-  out.sort((a, b) => a.dy - b.dy);
+  // Painter's order: back to front, then explicit layer (corner towers on top).
+  out.sort((a, b) => (a.layer ?? 0) - (b.layer ?? 0) || a.dy - b.dy);
   return out;
 }
 

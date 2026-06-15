@@ -137,6 +137,14 @@ export class SettlementLayer {
       if (tx < 0 || ty < 0 || tx >= width || ty >= height) return false;
       return (terrain[ty * width + tx] as Terrain) === Terrain.River;
     };
+    // Terrain probe: derives the settlement's role (forts near mountains,
+    // hamlets in the woods); out-of-bounds reads as open sea.
+    const terrainAt = (dx: number, dy: number): Terrain => {
+      const tx = Math.floor((cx + dx) / ts);
+      const ty = Math.floor((cy + dy) / ts);
+      if (tx < 0 || ty < 0 || tx >= width || ty >= height) return Terrain.Ocean;
+      return terrain[ty * width + tx] as Terrain;
+    };
     const layout = layoutCluster(
       id,
       tier,
@@ -146,6 +154,7 @@ export class SettlementLayer {
       wallBuildable,
       roadAt,
       riverAt,
+      terrainAt,
     );
 
     v.cluster?.destroy({ children: true });

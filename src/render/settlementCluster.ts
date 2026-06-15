@@ -8,6 +8,7 @@
  * are stable frame-to-frame and cheap to rebuild.
  */
 import { hash2 } from '../core/rng';
+import { Terrain } from '../core/types';
 
 export interface PiecePlacement {
   kind: string;
@@ -385,6 +386,124 @@ function wallHull(
   }
 }
 
+/** Terrain-derived identity that biases a settlement's civic mix + rear yards. */
+export type SettlementRole = 'market' | 'abbey' | 'fort' | 'forest';
+
+/** Rear-yard palette per role (cloister gardens vs austere stores vs woodpiles). */
+const ROLE_YARDS: Record<SettlementRole, string[]> = {
+  market: ['yard_pen', 'yard_wood', 'yard_garden', 'yard_hay', 'yard_fence', 'yard_shed'],
+  abbey: ['yard_garden', 'yard_garden', 'yard_hay', 'yard_fence', 'yard_wood'],
+  fort: ['yard_wood', 'yard_hay', 'yard_shed', 'yard_pen'],
+  forest: ['yard_wood', 'yard_wood', 'yard_pen', 'yard_hay'],
+};
+
+/** Sample world-px offset → Terrain (out-of-bounds reads as Ocean). */
+export type TerrainProbe = (dx: number, dy: number) => Terrain;
+
+/**
+ * A settlement's dominant identity, derived purely from static terrain + a
+ * seed hash (cosmetic — never the sim stream). Mountains breed forts, deep
+ * woods breed forest hamlets, and the rest split between abbey/market by hash.
+ * Riverside mills are orthogonal (placed by `placeMill` from `riverAt`).
+ */
+function deriveRole(
+  seed: number,
+  tier: number,
+  terrainAt?: TerrainProbe,
+): SettlementRole {
+  let mountain = 0;
+  let forest = 0;
+  if (terrainAt) {
+    for (let a = 0; a < 16; a++) {
+      const ang = (a / 16) * Math.PI * 2;
+      const ux = Math.cos(ang);
+      const uy = Math.sin(ang) * 0.72;
+      for (const r of [14, 22, 30]) {
+        const t = terrainAt(ux * r, uy * r);
+        if (t === Terrain.Mountain) mountain++;
+        else if (t === Terrain.Forest) forest++;
+      }
+    }
+  }
+  const h = hash2(seed, 88, 1);
+  if (mountain >= 4 || h < 0.12) return 'fort';
+  if (tier === 1 && forest >= 7) return 'forest';
+  if (h < 0.3) return 'abbey';
+  return 'market';
+}
+
+/**
+ * Lay burgage plots along a gently bent main street: each parcel is a
+ * street-front dwelling with a chain of rear yards (gardens, pens, woodpiles…)
+ * running back off the street, role-biased. Parcels tile the frontage at a
+ * fixed interval so the settlement reads as owned strips with consistent
+ * frontage and rear land — the connective tissue between "sprite cluster" and
+ * "medieval town". Returns the number of dwellings placed.
+ */
+function burgagePlots(
+  out: PiecePlacement[],
+  seed: number,
+  have: HavePiece,
+  buildable: Buildable | undefined,
+  role: SettlementRole,
+  cfg: {
+    maxRx: number;
+    maxRy: number;
+    frontStep: number;
+    count: number;
+    bend: number;
+    streetHalf: number;
+    lampN: number;
+    hutBias: boolean;
+  },
+): number {
+  const ok = (dx: number, dy: number): boolean => !buildable || buildable(dx, dy);
+  const sx = (dy: number): number => Math.sin(dy * cfg.bend) * 2.2;
+  const yards = ROLE_YARDS[role];
+  let placed = 0;
+  let lamps = 0;
+  for (const side of [-1, 1] as const) {
+    for (let fy = cfg.maxRy - 1.5; fy > -cfg.maxRy + 1 && placed < cfg.count; fy -= cfg.frontStep) {
+      const key = side * 131 + Math.round(fy + 60);
+      const y = fy + (hash2(seed, key, 1) - 0.5) * 1.4;
+      const roll = hash2(seed, key, 2);
+      // Villages skew to huts; towns front the street with houses.
+      const houseCut = cfg.hutBias ? 0.3 : 0.6;
+      const hutCut = cfg.hutBias ? 0.85 : 0.88;
+      const hKind =
+        roll < houseCut
+          ? pick(have, `house_${Math.floor(hash2(seed, key, 3) * 3)}`, 'house_0', 'hut_0')
+          : roll < hutCut
+            ? pick(have, `hut_${Math.floor(hash2(seed, key, 4) * 3)}`, 'hut_0', 'house_0')
+            : pick(have, hash2(seed, key, 5) < 0.5 ? 'granary' : 'shed', 'shed', 'granary', 'hut_1');
+      if (!hKind) break; // no dwelling art at all
+      const hHalf = pw(hKind) * 0.5;
+      const hx = sx(y) + side * (cfg.streetHalf + hHalf + hash2(seed, key, 6) * 0.8);
+      if (Math.abs(hx) > cfg.maxRx || Math.abs(y) > cfg.maxRy) continue;
+      if (!ok(hx, y) || collides(out, hx, y, pw(hKind))) continue;
+      put(out, hKind, hx, y, { lift: true, lamp: lamps < cfg.lampN });
+      if (lamps < cfg.lampN) lamps++;
+      placed++;
+      // Rear yard chain running back off the street (the plot's "burgage tail").
+      let depth = cfg.streetHalf + hHalf * 2 + 1.2;
+      const rears = 1 + (hash2(seed, key, 7) < 0.5 ? 1 : 0);
+      for (let k = 0; k < rears; k++) {
+        const yi = Math.floor(hash2(seed, key, 20 + k) * yards.length);
+        const yk = pick(have, yards[yi], ...yards);
+        if (!yk) break;
+        const yHalf = pw(yk) * 0.5;
+        const ydx = sx(y) + side * (depth + yHalf);
+        const ydy = y + (hash2(seed, key, 30 + k) - 0.5) * 2.2;
+        depth += yHalf * 2 + 1.0;
+        if (Math.abs(ydx) > cfg.maxRx || Math.abs(ydy) > cfg.maxRy) break;
+        if (!ok(ydx, ydy) || collides(out, ydx, ydy, pw(yk))) continue;
+        put(out, yk, ydx, ydy, {});
+      }
+    }
+  }
+  return placed;
+}
+
 /**
  * Build the cluster layout for a living settlement. `have` reports which
  * piece textures actually loaded, so layouts degrade gracefully while some
@@ -405,6 +524,9 @@ export function layoutCluster(
   /** Predicate: is the tile at this world-px offset a river? Sites a watermill
       on the bank for settlements beside running water. */
   riverAt?: Buildable,
+  /** Sample world-px offset → Terrain. Derives the settlement's role (forts in
+      the mountains, hamlets in the woods). */
+  terrainAt?: TerrainProbe,
 ): PiecePlacement[] {
   const seed = 0x5e771e ^ Math.imul(id + 1, 2654435761);
   const out: PiecePlacement[] = [];
@@ -423,118 +545,95 @@ export function layoutCluster(
     const crates = pick(have, 'crates');
     if (crates && hash2(seed, 4, 1) < 0.6) placeSpiral(out, seed, 4, crates, 3.6, {}, buildable);
   } else if (tier === 1) {
-    // Village: centre well/shrine, granary, 4-10 huts.
+    // Village: a centre well/shrine (or chapel for an abbey/forest hamlet),
+    // a granary, an optional riverside mill, then cottages on tofts — each a
+    // hut fronting a short lane with a rear yard, role-biased.
     const okV = (dx: number, dy: number): boolean => !buildable || buildable(dx, dy);
+    const role = deriveRole(seed, tier, terrainAt);
     const centre = pick(have, hash2(seed, 10, 1) < 0.55 ? 'well' : 'shrine', 'well', 'shrine', 'campfire');
     if (centre && okV(0, 0.8)) put(out, centre, 0, 0.8);
-    // Some villages cluster around a small chapel landmark.
     const chapel = pick(have, 'chapel');
-    if (chapel && hash2(seed, 14, 1) < 0.45 && okV(0, -4.5)) {
+    if (chapel && (role === 'abbey' || hash2(seed, 14, 1) < 0.4) && okV(0, -4.5)) {
       put(out, chapel, 0, -4.5, { lift: true, lamp: true });
     }
     const granary = pick(have, 'granary', 'shed', 'crates');
-    if (granary) placeSpiral(out, seed, 11, granary, 5.2, {}, buildable);
-    // A riverside village earns a watermill — reserve the bank before the huts.
+    if (granary) placeSpiral(out, seed, 11, granary, 5.0, {}, buildable);
     placeMill(out, seed, have, buildable, riverAt, 22);
-    const count = Math.min(10, 4 + bucket);
-    for (let i = 0; i < count; i++) {
-      const roll = hash2(seed, 20 + i, 2);
-      const hut = pick(have, `hut_${Math.floor(roll * 3)}`, 'hut_0', 'hut_1', 'hut_2');
-      if (hut) placeSpiral(out, seed, 20 + i, hut, 5, { lift: true, lamp: i < 2 }, buildable);
-    }
-    // Farm yards: gardens, pens and woodpiles give the village a worked-land feel.
-    for (let i = 0; i < 3; i++) {
-      const yk = pick(have, ['yard_garden', 'yard_pen', 'yard_wood'][i]);
-      if (yk) placeSpiral(out, seed, 30 + i, yk, 6 + i * 1.5, {}, buildable);
-    }
+    const count = Math.min(11, 4 + bucket);
+    burgagePlots(out, seed, have, buildable, role, {
+      maxRx: 13,
+      maxRy: 9,
+      frontStep: 5.0,
+      count,
+      bend: 0.16,
+      streetHalf: 2.2,
+      lampN: 2,
+      hutBias: true,
+    });
     const lamp = pick(have, 'lamp');
     if (lamp && bucket >= 3 && okV(3.2, 2.6)) put(out, lamp, 3.2, 2.6, { lamp: true });
   } else {
-    // Town: hall, market square, 12-30 mixed buildings, lamps, wall chance.
-    // Fixed plaza pieces still respect the terrain veto — a coastal plaza
-    // must not put its market stalls in the surf.
+    // Town: a role-biased civic core (hall + market/abbey/fort flavour), an
+    // optional riverside mill, then burgage plots fronting the main street.
+    // Fixed core pieces still respect the terrain veto — a coastal plaza must
+    // not put its market stalls in the surf.
     const ok = (dx: number, dy: number): boolean => !buildable || buildable(dx, dy);
+    const role = deriveRole(seed, tier, terrainAt);
     const hall = pick(have, 'hall');
     if (hall && ok(0, -4.5)) put(out, hall, 0, -4.5, { lift: true, lamp: true });
-    const stallA = pick(have, 'stall_0', 'crates');
-    const stallB = pick(have, 'stall_1', 'shed');
-    if (stallA && ok(-4.5, 2.4)) put(out, stallA, -4.5, 2.4, { flip: true });
-    if (stallB && ok(4.5, 2.6)) put(out, stallB, 4.5, 2.6);
+    // Market stalls: busy for a market town, sparse for abbey/fort.
+    const nStalls = role === 'market' ? 2 : role === 'abbey' ? 0 : 1;
+    if (nStalls >= 1) {
+      const s = pick(have, 'stall_0', 'crates');
+      if (s && ok(-4.5, 2.4)) put(out, s, -4.5, 2.4, { flip: true });
+    }
+    if (nStalls >= 2) {
+      const s = pick(have, 'stall_1', 'shed');
+      if (s && ok(4.5, 2.6)) put(out, s, 4.5, 2.6);
+    }
     const shrine = pick(have, 'shrine', 'well');
     const shrineDx = hash2(seed, 40, 2) < 0.5 ? -7 : 7;
-    if (shrine && hash2(seed, 40, 1) < 0.6 && ok(shrineDx, -1.5)) put(out, shrine, shrineDx, -1.5);
+    if (shrine && role !== 'abbey' && hash2(seed, 40, 1) < 0.6 && ok(shrineDx, -1.5)) {
+      put(out, shrine, shrineDx, -1.5);
+    }
 
-    // The church: the grandest landmark, set OFF the market to one side, with a
-    // churchyard wall and graves beside it (the tall spire poking past the wall
-    // is authentic). Placed before houses so the street rows give it room.
+    // The church: grandest landmark, OFF the market to one side, with churchyard
+    // + graves (the tall spire poking past the wall is authentic). An abbey town
+    // always gets one, with a deeper precinct (extra graves); others by chance.
     const church = pick(have, 'church', 'chapel');
+    const wantChurch = role === 'abbey' || hash2(seed, 41, 1) < 0.7;
     const chDx = (hash2(seed, 41, 2) < 0.5 ? -1 : 1) * 9.5;
-    if (church && ok(chDx, -8)) {
+    if (church && wantChurch && ok(chDx, -8)) {
       put(out, church, chDx, -8, { lift: true, lamp: true });
       const yard = pick(have, 'churchyard');
       if (yard && ok(chDx, -3)) put(out, yard, chDx, -3);
       const graves = pick(have, 'graves');
       const gDx = chDx + (chDx < 0 ? 3.6 : -3.6);
       if (graves && ok(gDx, -3.2)) put(out, graves, gDx, -3.2);
-    }
-
-    // A riverside town earns a watermill on the bank — reserved before the
-    // house rows so dwellings flow around it; the wall (below) encloses it.
-    placeMill(out, seed, have, buildable, riverAt, 30);
-
-    // Medieval town, ROAD-FIRST (KCD read): a slightly curved main street runs
-    // up from the south gate to the market/hall, and houses FRONT it in rows on
-    // both sides — closest row tight to the street, then back rows behind, so
-    // the town reads as street-frontage-and-plots, not a ring or a blob. The
-    // street and the central market stay clear; everything is bounded so houses
-    // stay inside the wall, and collisions keep them from overlapping to mush.
-    const fixed = out.length;
-    const count = Math.min(30, 12 + Math.max(0, bucket - 3) * 2) - fixed;
-    const maxRx = 20;
-    const maxRy = 13.5;
-    const streetX = (dy: number): number => Math.sin(dy * 0.13) * 2.3; // gentle bend
-    let placed = 0;
-    // Inner rows first (street frontage), then back rows; gate end upward.
-    for (let row = 0; row < 3 && placed < count; row++) {
-      const off = 5.6 + row * 6.3; // perpendicular distance from the street
-      for (const side of [-1, 1] as const) {
-        for (let dy = maxRy - 1; dy > -maxRy && placed < count; dy -= 6.1) {
-          const yy = dy + (hash2(seed, row * 47 + Math.round(dy + 50), 1) - 0.5) * 2.2;
-          const dx = streetX(yy) + side * (off + (hash2(seed, row * 47 + Math.round(dy + 50), 2) - 0.5) * 1.8);
-          if (Math.abs(dx) > maxRx || Math.abs(yy) > maxRy) continue;
-          const roll = hash2(seed, 50 + placed, 3);
-          const kind =
-            roll < 0.55
-              ? pick(have, `house_${Math.floor(hash2(seed, 50 + placed, 4) * 3)}`, 'house_0', 'hut_0')
-              : roll < 0.85
-                ? pick(have, `hut_${Math.floor(hash2(seed, 50 + placed, 5) * 3)}`, 'hut_0', 'house_0')
-                : pick(have, hash2(seed, 50 + placed, 6) < 0.5 ? 'granary' : 'shed', 'shed', 'granary', 'hut_1');
-          if (!kind) break; // no building art at all
-          if (buildable && !buildable(dx, yy)) continue;
-          if (collides(out, dx, yy, pw(kind))) continue;
-          put(out, kind, dx, yy, { lift: true, lamp: placed < 4 });
-          placed++;
-        }
+      if (role === 'abbey') {
+        const g2 = pick(have, 'graves');
+        const gDx2 = chDx + (chDx < 0 ? 7 : -7);
+        if (g2 && ok(gDx2, -3.0)) put(out, g2, gDx2, -3.0);
       }
     }
 
-    // Yard/plot dressing in the gaps behind the houses — gardens, pens, wood,
-    // hay, fences — so plots read as lived-in burgage yards, not bare ground.
-    const yardKinds = ['yard_garden', 'yard_pen', 'yard_wood', 'yard_hay', 'yard_fence', 'yard_shed'];
-    let yards = 0;
-    for (let i = 0; i < 50 && yards < 9; i++) {
-      const ya = hash2(seed, 200 + i, 1) * Math.PI * 2;
-      const yr = 8 + hash2(seed, 200 + i, 2) * 10;
-      const ydx = Math.cos(ya) * yr;
-      const ydy = Math.sin(ya) * yr * 0.72;
-      if (Math.abs(ydx) > maxRx || Math.abs(ydy) > maxRy) continue;
-      const yk = pick(have, yardKinds[Math.floor(hash2(seed, 200 + i, 3) * yardKinds.length)]);
-      if (!yk) continue;
-      if (buildable && !buildable(ydx, ydy)) continue;
-      if (collides(out, ydx, ydy, pw(yk))) continue;
-      put(out, yk, ydx, ydy, {});
-      yards++;
-    }
+    // A riverside town earns a watermill on the bank — reserved before the
+    // plots so dwellings flow around it; the wall (below) encloses it.
+    placeMill(out, seed, have, buildable, riverAt, 30);
+
+    // Burgage plots: dwellings front the main street, each with a rear yard
+    // chain (role-biased), so the town reads as owned strips, not a blob.
+    const count = Math.min(28, 12 + Math.max(0, bucket - 3) * 2);
+    burgagePlots(out, seed, have, buildable, role, {
+      maxRx: 20,
+      maxRy: 13.5,
+      frontStep: 5.8,
+      count,
+      bend: 0.12,
+      streetHalf: 2.7,
+      lampN: 4,
+      hutBias: false,
+    });
 
     const lamp = pick(have, 'lamp');
     if (lamp) {
@@ -567,7 +666,8 @@ export function layoutCluster(
     x1 = Math.min(cxb + 26, x1 + pad);
     y0 = Math.max(cyb - 19, y0 - pad * 0.85);
     y1 = Math.min(cyb + 19, y1 + pad * 0.85);
-    if (hash2(seed, 901, 1) < 0.7) {
+    // A fort always walls; other roles by chance.
+    if (role === 'fort' || hash2(seed, 901, 1) < 0.7) {
       wallHull(out, seed, { x0, y0, x1, y1 }, have, wallBuildable ?? buildable, roadAt);
     }
   }

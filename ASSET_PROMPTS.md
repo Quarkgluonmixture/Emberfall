@@ -263,6 +263,22 @@ spring → green summer → harvest-gold autumn → frost winter). Folders 17-20
 (bridges / church / yards / mill) are delivered art — see the folder map in the
 `scripts/process-assets.mjs` header for their slice targets.
 
+## Batch 22 — fort / castle pieces (keep, barracks, stable) → `assets_src/raw/22/`
+
+Unlocks fort/castle settlement identity (codex review-5: a keep dropped into the
+core makes a walled town read as a castle, not a square compound). Building
+pieces — generated ISOLATED, no ground patch. Shared piece preamble above.
+
+| File | Size | Pieces (left→right) | Prompt body (after the preamble) |
+| --- | --- | --- | --- |
+| `01_castle.png` | 1536×1024 | 3 | Three medieval fortress buildings in a horizontal row, same scale and lighting, each clearly different and isolated (not touching each other or the edges): (1) a tall square stone KEEP / donjon — the lord's stronghold, two-to-three storeys, crenellated battlements along the top, narrow arrow-slit windows, a small forebuilding with an external stair at the base; distinctly TALLER and heavier than any house, cool grey stone; (2) a long low BARRACKS — a timber-and-stone soldiers' hall with a shingled roof, a row of small shuttered windows and a plain studded door, warmer timber tones; (3) a timber STABLE — open-fronted with two or three horse stalls and a hay loft above, a wooden water trough beside it. Distinct materials/colors (grey keep, warm barracks, light timber stable) so they read apart at small sizes. |
+
+Pipeline (folder 22) slices L→R into `pieces/keep` / `pieces/barracks` /
+`pieces/stable` (targets ~110 / 88 / 72 px). Final on-map footprints: keep ≈ 14
+world px (dominant landmark, larger than the hall), barracks ≈ 10, stable ≈ 8.
+After delivery: `node scripts/process-assets.mjs`, then wiring lands keep at the
+fort core (replacing the hall), barracks + stable in the muster yard.
+
 ## Priority order if generating in sessions
 
 1. `02_huts` + `03_houses` + `01_tents` — the cluster engine's bread and butter

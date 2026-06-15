@@ -699,6 +699,16 @@ if (fs.existsSync(path.join(rawRoot, '20'))) {
   ]);
 }
 
+// Folder 22: fort/castle pieces (keep, barracks, stable) — building pieces.
+if (fs.existsSync(path.join(rawRoot, '22'))) {
+  console.log('Castle (folder 22):');
+  await pieceSheet('22', '01_castle.png', [
+    ['keep', 110],
+    ['barracks', 88],
+    ['stable', 72],
+  ]);
+}
+
 // Folder 21: field patches (plowed / crop / meadow / orchard). These are
 // DECOR (ground patches), not standing pieces — sliced into decor/field_*
 // and scattered as an agricultural halo around settlements (decorLayer).

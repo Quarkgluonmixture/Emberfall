@@ -159,6 +159,60 @@ function placeSpiral(
   return false;
 }
 
+/**
+ * Site a watermill on the nearest river bank, with a jetty and millpond
+ * reaching toward the water. Pure terrain read — only fires for a settlement
+ * actually beside a river (the river often runs right up to the centre, so the
+ * bank can be near the core). Ray-march out from centre along many headings;
+ * for each, the last dry, un-clobbered tile BEFORE the water is a bank
+ * candidate, and the closest such bank wins. Returns whether a mill was placed.
+ */
+function placeMill(
+  out: PiecePlacement[],
+  seed: number,
+  have: HavePiece,
+  buildable: Buildable | undefined,
+  riverAt: Buildable | undefined,
+  maxR: number,
+): boolean {
+  const mill = pick(have, 'mill');
+  if (!mill || !riverAt) return false;
+  const ok = (dx: number, dy: number): boolean => !buildable || buildable(dx, dy);
+  const a0 = hash2(seed, 77, 1) * Math.PI * 2;
+  let best: { dx: number; dy: number; ux: number; uy: number; waterR: number } | null = null;
+  for (let a = 0; a < 28; a++) {
+    const ang = a0 + a * GOLDEN;
+    const ux = Math.cos(ang);
+    const uy = Math.sin(ang) * 0.72;
+    // Closest-to-water dry tile that isn't already clobbered by a building —
+    // when the river hugs the core, the very edge tile may overlap the centre
+    // piece, so fall back to a slightly inner free tile rather than skip the ray.
+    let lastFree: { dx: number; dy: number } | null = null;
+    for (let r = 4; r <= maxR; r += 2) {
+      const dx = ux * r;
+      const dy = uy * r;
+      if (riverAt(dx, dy)) {
+        if (lastFree && (!best || r < best.waterR)) {
+          best = { dx: lastFree.dx, dy: lastFree.dy, ux, uy, waterR: r };
+        }
+        break;
+      }
+      if (!ok(dx, dy)) {
+        lastFree = null; // ocean: can't reach the water along this heading
+        continue;
+      }
+      if (!collides(out, dx, dy, pw(mill))) lastFree = { dx, dy };
+    }
+  }
+  if (!best) return false;
+  put(out, mill, best.dx, best.dy, { lift: true, lamp: true });
+  const jetty = pick(have, 'jetty');
+  if (jetty) put(out, jetty, best.dx + best.ux * 4.5, best.dy + best.uy * 4.5);
+  const pond = pick(have, 'millpond');
+  if (pond) put(out, pond, best.dx + best.ux * 7, best.dy + best.uy * 7, { layer: -1 });
+  return true;
+}
+
 function put(
   out: PiecePlacement[],
   kind: string,
@@ -348,6 +402,9 @@ export function layoutCluster(
   /** Predicate: is the tile at this world-px offset a road? Aligns town gates
       to roads that actually enter the wall. */
   roadAt?: Buildable,
+  /** Predicate: is the tile at this world-px offset a river? Sites a watermill
+      on the bank for settlements beside running water. */
+  riverAt?: Buildable,
 ): PiecePlacement[] {
   const seed = 0x5e771e ^ Math.imul(id + 1, 2654435761);
   const out: PiecePlacement[] = [];
@@ -377,6 +434,8 @@ export function layoutCluster(
     }
     const granary = pick(have, 'granary', 'shed', 'crates');
     if (granary) placeSpiral(out, seed, 11, granary, 5.2, {}, buildable);
+    // A riverside village earns a watermill — reserve the bank before the huts.
+    placeMill(out, seed, have, buildable, riverAt, 22);
     const count = Math.min(10, 4 + bucket);
     for (let i = 0; i < count; i++) {
       const roll = hash2(seed, 20 + i, 2);
@@ -418,6 +477,10 @@ export function layoutCluster(
       const gDx = chDx + (chDx < 0 ? 3.6 : -3.6);
       if (graves && ok(gDx, -3.2)) put(out, graves, gDx, -3.2);
     }
+
+    // A riverside town earns a watermill on the bank — reserved before the
+    // house rows so dwellings flow around it; the wall (below) encloses it.
+    placeMill(out, seed, have, buildable, riverAt, 30);
 
     // Medieval town, ROAD-FIRST (KCD read): a slightly curved main street runs
     // up from the south gate to the market/hall, and houses FRONT it in rows on
@@ -479,29 +542,32 @@ export function layoutCluster(
       if (ok(3.4, -1.8)) put(out, lamp, 3.4, -1.8, { lamp: true });
     }
 
+    // Fit a ring to the ACTUAL built form as an asymmetric box (the church
+    // pushes the north face out further than the south), not a centred
+    // rectangle — so each town's hull reads as grown around its contents.
+    let x0 = -8;
+    let x1 = 8;
+    let y0 = -6;
+    let y1 = 6;
+    for (const p of out) {
+      // Water structures sit on the river; they must not bulge the ring out
+      // over the water — only the dry built form sizes the wall.
+      if (p.kind === 'jetty' || p.kind === 'millpond') continue;
+      x0 = Math.min(x0, p.dx - p.w * 0.5);
+      x1 = Math.max(x1, p.dx + p.w * 0.5);
+      y0 = Math.min(y0, p.dy - p.w * 0.35);
+      y1 = Math.max(y1, p.dy + p.w * 0.35);
+    }
+    const pad = 3.5;
+    const cxb = (x0 + x1) / 2;
+    const cyb = (y0 + y1) / 2;
+    // Clamp each face's distance from the built-form centre so a stray far
+    // building can't inflate the ring to district size.
+    x0 = Math.max(cxb - 26, x0 - pad);
+    x1 = Math.min(cxb + 26, x1 + pad);
+    y0 = Math.max(cyb - 19, y0 - pad * 0.85);
+    y1 = Math.min(cyb + 19, y1 + pad * 0.85);
     if (hash2(seed, 901, 1) < 0.7) {
-      // Fit the ring to the ACTUAL built form as an asymmetric box (the church
-      // pushes the north face out further than the south), not a centred
-      // rectangle — so each town's hull reads as grown around its contents.
-      let x0 = -8;
-      let x1 = 8;
-      let y0 = -6;
-      let y1 = 6;
-      for (const p of out) {
-        x0 = Math.min(x0, p.dx - p.w * 0.5);
-        x1 = Math.max(x1, p.dx + p.w * 0.5);
-        y0 = Math.min(y0, p.dy - p.w * 0.35);
-        y1 = Math.max(y1, p.dy + p.w * 0.35);
-      }
-      const pad = 3.5;
-      const cxb = (x0 + x1) / 2;
-      const cyb = (y0 + y1) / 2;
-      // Clamp each face's distance from the built-form centre so a stray far
-      // building can't inflate the ring to district size.
-      x0 = Math.max(cxb - 26, x0 - pad);
-      x1 = Math.min(cxb + 26, x1 + pad);
-      y0 = Math.max(cyb - 19, y0 - pad * 0.85);
-      y1 = Math.min(cyb + 19, y1 + pad * 0.85);
       wallHull(out, seed, { x0, y0, x1, y1 }, have, wallBuildable ?? buildable, roadAt);
     }
   }

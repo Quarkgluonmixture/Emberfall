@@ -107,10 +107,12 @@ export class DecorLayer {
     const LANDMARK = new Set(['canopy', 'mountain_formation']);
 
     // Agricultural halo: worked fields ring each established settlement on
-    // buildable grassland. This is the INVERSE bias to normal decor — fields
-    // WANT to hug a village/town (a settlement sits in its cultivated land)
-    // and thin with distance. Rendered first (beneath later scatter) and
-    // recorded in `fieldTiles` so trees/rocks never sprout on a tilled field.
+    // buildable grassland (inverse bias to normal decor — fields hug a town,
+    // thinning with distance). Tiles clump into FURLONG BLOCKS that share one
+    // crop and one strip direction, rendered as elongated strips, so the land
+    // reads as angled medieval open-field furlongs with awkward seams between
+    // blocks — not a per-tile board-game quilt. Recorded in `fieldTiles` so
+    // trees/rocks never sprout on tilled ground.
     const fieldTiles = new Set<number>();
     const fields = this.tex.decor?.field;
     if (fields?.length) {
@@ -127,16 +129,25 @@ export class DecorLayer {
             if (blocked.has(i) || state.roads[i] > 0) continue;
             if ((terrain[i] as Terrain) !== Terrain.Grassland) continue;
             const dist = Math.max(Math.abs(dx), Math.abs(dy));
-            const chance = 0.85 - (dist / (R + 1)) * 0.55;
+            const chance = 0.9 - (dist / (R + 1)) * 0.5;
             if (hash2(seed ^ 0xf1e1, nx, ny) >= chance) continue;
             fieldTiles.add(i);
-            const variant = Math.floor(hash2(seed ^ 0xf1e2, nx, ny) * fields.length);
+            // Furlong block (4×3 tiles): one crop + one strip heading, varied
+            // per block so adjacent furlongs run at clashing angles.
+            const bx = Math.floor(nx / 4);
+            const by = Math.floor(ny / 3);
+            const heading = (hash2(seed ^ 0xf1f0, bx, by) - 0.5) * 1.1; // ±~31°
+            const variant = Math.floor(hash2(seed ^ 0xf1f2, bx, by) * fields.length);
             const sp = new Sprite(fields[variant]);
             sp.anchor.set(0.5, 0.5); // flat ground patch, not a standing object
-            const w = 10 * (0.92 + hash2(seed ^ 0xf1e3, nx, ny) * 0.16); // ~1.2 tiles
-            sp.scale.set(w / sp.texture.width);
-            sp.rotation = (hash2(seed ^ 0xf1e4, nx, ny) - 0.5) * 0.3; // strip-field skew
-            sp.position.set((nx + 0.5) * ts, (ny + 0.5) * ts);
+            sp.rotation = heading;
+            const lenW = 13 * (0.82 + hash2(seed ^ 0xf1e3, nx, ny) * 0.3); // along furlong
+            const widW = 7.5 * (0.8 + hash2(seed ^ 0xf1e5, nx, ny) * 0.4); // across strips
+            sp.scale.set(lenW / sp.texture.width, widW / sp.texture.height);
+            sp.position.set(
+              (nx + 0.5 + (hash2(seed ^ 0xf1e4, nx, ny) - 0.5) * 0.5) * ts,
+              (ny + 0.5 + (hash2(seed ^ 0xf1e6, nx, ny) - 0.5) * 0.5) * ts,
+            );
             sp.tint = SEASON_TINT.field?.[season] ?? 0xffffff;
             this.container.addChild(sp);
           }

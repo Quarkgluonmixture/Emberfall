@@ -188,20 +188,31 @@ function put(
   });
 }
 
+/** Wall ring extents: world-px coords of the four faces (left/top/right/bottom). */
+interface WallBox {
+  x0: number;
+  y0: number;
+  x1: number;
+  y1: number;
+}
+
 /**
- * Defensive rectangle around a town: continuous horizontal runs top/bottom,
- * 90°-rotated runs on the sides, towers/posts hiding the corner joints, gate
- * (or gap) centered south. Segments overlap slightly so the wall reads as one
- * structure, and any segment over water is skipped — coastal towns open to
- * the sea instead of fencing it.
+ * Irregular defensive hull around a town. Unlike a centred rectangle, the ring
+ * is fit to the ACTUAL built form (an asymmetric box — the church spire pushes
+ * the north face out further than the south), and gates open where roads truly
+ * cross the perimeter: a grand gatehouse on the south face (the only
+ * orientation the front-on art reads), and posterns (gaps bracketed by towers)
+ * where roads cross the other three faces. Continuous horizontal/vertical art
+ * as before; any segment over open sea is skipped.
  */
-function wallRect(
+function wallHull(
   out: PiecePlacement[],
   seed: number,
-  rx: number,
-  ry: number,
+  box: WallBox,
   have: HavePiece,
   buildable?: Buildable,
+  /** Predicate: is the tile at this world-px offset a road? Drives gates. */
+  roadAt?: Buildable,
 ): void {
   const stone = hash2(seed, 900, 1) < 0.6;
   const straight = pick(have, stone ? 'wall_straight' : 'palisade_straight', 'palisade_straight', 'wall_straight');
@@ -211,70 +222,111 @@ function wallRect(
   const w = pw(straight);
   const ok = (dx: number, dy: number): boolean => !buildable || buildable(dx, dy);
 
-  // Horizontal runs (top y=-ry, bottom y=+ry), overlapped for continuity.
-  // Runs reach almost to the corners (small tuck) and the corner towers draw
-  // on top (layer 1) so the four sides read as one joined ring, not separate
-  // walls sitting near towers.
+  const { x0, y0, x1, y1 } = box;
   const cornerHalf = corner ? pw(corner) * 0.45 : 0;
   const tuck = cornerHalf * 0.3;
-  const runW = rx - tuck;
-  const countX = Math.max(2, Math.round((2 * runW) / (w * 0.82)));
-  const gateHalf = gate ? pw(gate) * 0.55 : 3.2;
-  for (let i = 0; i <= countX; i++) {
-    const dx = -runW + (2 * runW * i) / countX;
-    if (ok(dx, -ry)) put(out, straight, dx, -ry);
-    // South run leaves the doorway open for the gate (or just open).
-    if (Math.abs(dx) > gateHalf && ok(dx, ry)) put(out, straight, dx, ry);
-  }
-  if (gate && ok(0, ry)) put(out, gate, 0, ry);
+  const gateHalf = gate ? pw(gate) * 0.55 : 3.6;
 
-  // Vertical runs. Rotating the horizontal art breaks the 3/4 perspective
-  // (reads as a fallen zigzag), and stacking copies of the dedicated N-S art
-  // either stair-stepped (if skewed) or overshot the town (the art is one long
-  // strip). So render the dedicated art as ONE continuous piece per side,
-  // sized independently — width matched to the horizontal run's heft, height
-  // spanning the side and tucking under the corner towers. Without dedicated
-  // art, fall back to a chain of omnidirectional towers / log clumps.
+  // Gate detection: sample along a face, probing just OUTSIDE it for a road
+  // tile; merge adjacent hits into one crossing, kept clear of the corners.
+  const findGates = (axis: 'h' | 'v', lo: number, hi: number, fixed: number, sign: number): number[] => {
+    if (!roadAt || hi - lo < gateHalf * 2) return [];
+    const steps = Math.max(6, Math.round((hi - lo) / 2));
+    const hits: number[] = [];
+    for (let i = 0; i <= steps; i++) {
+      const p = lo + ((hi - lo) * i) / steps;
+      const road =
+        axis === 'h'
+          ? roadAt(p, fixed + sign * 4) || roadAt(p, fixed + sign * 9)
+          : roadAt(fixed + sign * 4, p) || roadAt(fixed + sign * 9, p);
+      if (road) hits.push(p);
+    }
+    const gates: number[] = [];
+    for (let i = 0; i < hits.length; ) {
+      let j = i;
+      while (j + 1 < hits.length && hits[j + 1] - hits[j] < gateHalf * 1.5) j++;
+      const mid = (hits[i] + hits[j]) / 2;
+      if (mid > lo + cornerHalf && mid < hi - cornerHalf) gates.push(mid);
+      i = j + 1;
+    }
+    return gates;
+  };
+
+  const innerX0 = x0 + tuck;
+  const innerX1 = x1 - tuck;
+  const innerY0 = y0 + cornerHalf + 1;
+  const innerY1 = y1 - cornerHalf - 1;
+
+  // South (bottom) face carries the main gatehouse — at the road crossing if
+  // one exists, else centred. The other three faces get road posterns only.
+  const southGates = findGates('h', innerX0, innerX1, y1, 1);
+  const mainGate = southGates.length ? southGates : [(x0 + x1) / 2];
+  const posternTop = findGates('h', innerX0, innerX1, y0, -1);
+  const posternLeft = findGates('v', innerY0, innerY1, x0, -1);
+  const posternRight = findGates('v', innerY0, innerY1, x1, 1);
+
+  const nearGate = (gates: number[], p: number, half: number): boolean =>
+    gates.some((g) => Math.abs(g - p) < half);
+
+  // Horizontal runs (north y0, south y1), overlapped for continuity; runs reach
+  // almost to the corners (small tuck) and corner towers draw on top so the
+  // four sides read as one joined ring. Gaps left for gates/posterns.
+  const countX = Math.max(2, Math.round((innerX1 - innerX0) / (w * 0.82)));
+  for (let i = 0; i <= countX; i++) {
+    const dx = innerX0 + ((innerX1 - innerX0) * i) / countX;
+    if (!nearGate(posternTop, dx, gateHalf) && ok(dx, y0)) put(out, straight, dx, y0);
+    if (!nearGate(mainGate, dx, gateHalf) && ok(dx, y1)) put(out, straight, dx, y1);
+  }
+  for (const gx of mainGate) if (gate && ok(gx, y1)) put(out, gate, gx, y1);
+
+  // Vertical runs (west x0, east x1). The dedicated N-S art renders as
+  // overlapping bottom-anchored CELLS down each side (front cell occludes the
+  // one behind → coursed 3/4 depth, same thickness as the horizontal run);
+  // without it, a chain of omnidirectional towers / log clumps. Gaps for
+  // E/W posterns.
   const vert = pick(have, stone ? 'wall_vertical' : 'palisade_vertical');
   if (vert) {
-    // Stack overlapping CELLS of the dedicated N-S art down each side: the
-    // front (lower) cell occludes the one behind it, reading as a coursed wall
-    // with 3/4 depth — matching the horizontal run — not one stretched strip.
-    // sideW = w*0.5 renders the side tile at the SAME px scale as the
-    // horizontal run, so vertical and horizontal walls read the same thickness.
-    // The tall, bottom-anchored cells reach UP, so inset the run by ~a corner
-    // so the top/bottom cells tuck UNDER the towers instead of poking past them.
     const sideW = w * 0.5;
     const stepY = sideW * 1.05;
-    const vRunH = ry - cornerHalf - 1;
-    const countY = Math.max(1, Math.round((2 * vRunH) / stepY));
+    const countY = Math.max(1, Math.round((innerY1 - innerY0) / stepY));
     for (let i = 0; i <= countY; i++) {
-      const dy = -vRunH + (2 * vRunH * i) / countY;
-      if (ok(-rx, dy)) put(out, vert, -rx, dy, { w: sideW });
-      if (ok(rx, dy)) put(out, vert, rx, dy, { w: sideW, flip: true });
+      const dy = innerY0 + ((innerY1 - innerY0) * i) / countY;
+      if (!nearGate(posternLeft, dy, gateHalf) && ok(x0, dy)) put(out, vert, x0, dy, { w: sideW });
+      if (!nearGate(posternRight, dy, gateHalf) && ok(x1, dy)) put(out, vert, x1, dy, { w: sideW, flip: true });
     }
   } else {
     const sideKind = stone ? (corner ?? straight) : straight;
-    const runH = ry - tuck;
     const stepY = stone ? pw(sideKind) * 1.45 : w * 0.55;
-    const countY = Math.max(1, Math.round((2 * runH) / stepY));
+    const countY = Math.max(1, Math.round((innerY1 - innerY0) / stepY));
     for (let i = 0; i <= countY; i++) {
-      const dy = -runH + (2 * runH * i) / countY;
-      if (ok(-rx, dy)) put(out, sideKind, -rx, dy);
-      if (ok(rx, dy)) put(out, sideKind, rx, dy, { flip: true });
+      const dy = innerY0 + ((innerY1 - innerY0) * i) / countY;
+      if (!nearGate(posternLeft, dy, gateHalf) && ok(x0, dy)) put(out, sideKind, x0, dy);
+      if (!nearGate(posternRight, dy, gateHalf) && ok(x1, dy)) put(out, sideKind, x1, dy, { flip: true });
     }
   }
 
-  // Corner towers/posts mask the joints between runs — drawn on top (layer 1)
-  // so the wall ends tuck behind them and the ring reads as joined.
+  // Corner towers/posts mask the run joints (drawn on top, layer 1). Posterns
+  // are bracketed by a pair of towers so each side gate reads as defended.
+  // Flanking towers are clamped inside the corners and de-duplicated against
+  // already-placed towers so short faces don't pile towers on top of each other.
   if (corner) {
-    for (const [cx, cy] of [
-      [-rx, -ry],
-      [rx, -ry],
-      [-rx, ry],
-      [rx, ry],
-    ] as const) {
-      if (ok(cx, cy)) put(out, corner, cx, cy, { layer: 1 });
+    const cd = cornerHalf * 1.3;
+    const clamp = (v: number, lo: number, hi: number): number => Math.max(lo, Math.min(hi, v));
+    const towers: [number, number][] = [
+      [x0, y0],
+      [x1, y0],
+      [x0, y1],
+      [x1, y1],
+    ];
+    for (const gx of posternTop) towers.push([clamp(gx - gateHalf, x0, x1), y0], [clamp(gx + gateHalf, x0, x1), y0]);
+    for (const gy of posternLeft) towers.push([x0, clamp(gy - gateHalf, y0, y1)], [x0, clamp(gy + gateHalf, y0, y1)]);
+    for (const gy of posternRight) towers.push([x1, clamp(gy - gateHalf, y0, y1)], [x1, clamp(gy + gateHalf, y0, y1)]);
+    const placedTowers: [number, number][] = [];
+    for (const [cx, cy] of towers) {
+      if (placedTowers.some(([px, py]) => Math.abs(px - cx) < cd && Math.abs(py - cy) < cd)) continue;
+      if (!ok(cx, cy)) continue;
+      placedTowers.push([cx, cy]);
+      put(out, corner, cx, cy, { layer: 1 });
     }
   }
 }
@@ -293,6 +345,9 @@ export function layoutCluster(
   /** Looser veto for the wall RING only: walls may cross a river (the ring
       stays closed) but still open to the open sea. Defaults to `buildable`. */
   wallBuildable?: Buildable,
+  /** Predicate: is the tile at this world-px offset a road? Aligns town gates
+      to roads that actually enter the wall. */
+  roadAt?: Buildable,
 ): PiecePlacement[] {
   const seed = 0x5e771e ^ Math.imul(id + 1, 2654435761);
   const out: PiecePlacement[] = [];
@@ -425,14 +480,29 @@ export function layoutCluster(
     }
 
     if (hash2(seed, 901, 1) < 0.7) {
-      let rx = 8;
-      let ry = 6;
+      // Fit the ring to the ACTUAL built form as an asymmetric box (the church
+      // pushes the north face out further than the south), not a centred
+      // rectangle — so each town's hull reads as grown around its contents.
+      let x0 = -8;
+      let x1 = 8;
+      let y0 = -6;
+      let y1 = 6;
       for (const p of out) {
-        rx = Math.max(rx, Math.abs(p.dx) + p.w * 0.5);
-        ry = Math.max(ry, Math.abs(p.dy) + p.w * 0.35);
+        x0 = Math.min(x0, p.dx - p.w * 0.5);
+        x1 = Math.max(x1, p.dx + p.w * 0.5);
+        y0 = Math.min(y0, p.dy - p.w * 0.35);
+        y1 = Math.max(y1, p.dy + p.w * 0.35);
       }
-      // Clamp: a stray far building must not inflate the ring to district size.
-      wallRect(out, seed, Math.min(rx + 3.5, 26), Math.min(ry + 3, 19), have, wallBuildable ?? buildable);
+      const pad = 3.5;
+      const cxb = (x0 + x1) / 2;
+      const cyb = (y0 + y1) / 2;
+      // Clamp each face's distance from the built-form centre so a stray far
+      // building can't inflate the ring to district size.
+      x0 = Math.max(cxb - 26, x0 - pad);
+      x1 = Math.min(cxb + 26, x1 + pad);
+      y0 = Math.max(cyb - 19, y0 - pad * 0.85);
+      y1 = Math.min(cyb + 19, y1 + pad * 0.85);
+      wallHull(out, seed, { x0, y0, x1, y1 }, have, wallBuildable ?? buildable, roadAt);
     }
   }
 

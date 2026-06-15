@@ -123,7 +123,14 @@ export class SettlementLayer {
       if (tx < 0 || ty < 0 || tx >= width || ty >= height) return false;
       return (terrain[ty * width + tx] as Terrain) !== Terrain.Ocean;
     };
-    const layout = layoutCluster(id, tier, population, (k) => k in pieces, buildable, wallBuildable);
+    // Road probe: aligns town gates to the roads that actually enter the wall.
+    const roadAt = (dx: number, dy: number): boolean => {
+      const tx = Math.floor((cx + dx) / ts);
+      const ty = Math.floor((cy + dy) / ts);
+      if (tx < 0 || ty < 0 || tx >= width || ty >= height) return false;
+      return state.roads[ty * width + tx] > 0;
+    };
+    const layout = layoutCluster(id, tier, population, (k) => k in pieces, buildable, wallBuildable, roadAt);
 
     v.cluster?.destroy({ children: true });
     for (const lg of v.lampGlows) lg.destroy();

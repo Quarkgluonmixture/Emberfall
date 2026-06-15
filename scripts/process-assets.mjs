@@ -567,6 +567,25 @@ if (fs.existsSync(path.join(rawRoot, '14'))) {
   }
 }
 
+// Folder 15: citizen variety — 4 state sheets, each 6 role ROWS × N frame COLS.
+// Keyed (white bg) but NOT vtrimmed, so the even grid is preserved for the
+// renderer to slice into [role][frame]. No batch 15 → folder-3 citizen kept.
+if (fs.existsSync(path.join(rawRoot, '15'))) {
+  console.log('Citizen variety (folder 15):');
+  // Force a uniform CELL size (128²) across sheets so every role/state renders
+  // at the same body height: 6 rows × 128 = 768 tall; width = cols × 128.
+  const sheets = [
+    ['01_walk', 'citizen6_walk', 512, 768], // 4 cols
+    ['02_work', 'citizen6_work', 512, 768], // 4 cols
+    ['03_fight', 'citizen6_fight', 512, 768], // 4 cols
+    ['04_rest', 'citizen6_rest', 256, 768], // 2 cols
+  ];
+  for (const [inN, outN, w, h] of sheets) {
+    const src = path.join(rawRoot, '15', `${inN}.png`);
+    if (fs.existsSync(src)) await keyAndResize(src, out(`${outN}.png`), w, h, null, false);
+  }
+}
+
 // SFX: slot-named samples (assets_src/sfx/<sound>.ogg, see SAMPLE_NAMES in
 // src/audio/sfx.ts) copied verbatim; any missing slot keeps its WebAudio
 // synth fallback. Current samples: Kenney CC0 packs (kenney.nl).

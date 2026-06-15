@@ -21,6 +21,9 @@ export interface GameTextures {
   /** Fallback single-frame citizen (used when citizenAnims is null). */
   citizen: Texture;
   citizenAnims: CitizenAnims | null;
+  /** Per-role animation sets (batch 15, 6 roles). Preferred over citizenAnims;
+      the citizen layer picks a role per agent. Null = no variety art. */
+  citizenVariants: CitizenAnims[] | null;
   glow: Texture;
   raindrop: Texture;
   snowflake: Texture;
@@ -208,6 +211,7 @@ export function makeTextures(renderer: Renderer): GameTextures {
     banner: makeBanner(renderer),
     citizen: makeCitizen(renderer),
     citizenAnims: null,
+    citizenVariants: null,
     glow: makeGlow(),
     raindrop: makeRaindrop(renderer),
     snowflake: makeSnowflake(renderer),
@@ -241,6 +245,18 @@ function sliceStrip(base: Texture, frames: number): Texture[] {
   return Array.from(
     { length: frames },
     (_, i) => new Texture({ source: base.source, frame: new Rectangle(i * w, 0, w, base.height) }),
+  );
+}
+
+/** Cut a grid into rows × cols frames → frames[row][col]. */
+function sliceGrid(base: Texture, rows: number, cols: number): Texture[][] {
+  const cw = base.width / cols;
+  const ch = base.height / rows;
+  return Array.from({ length: rows }, (_, r) =>
+    Array.from(
+      { length: cols },
+      (_, c) => new Texture({ source: base.source, frame: new Rectangle(c * cw, r * ch, cw, ch) }),
+    ),
   );
 }
 
@@ -327,6 +343,10 @@ export async function loadRealTextures(tex: GameTextures): Promise<number> {
     rivSummer,
     rivAutumn,
     rivWinter,
+    walk6,
+    work6,
+    fight6,
+    rest6,
   ] = await Promise.all([
     tryLoad('settlement_camp.png'),
     tryLoad('settlement_village.png'),
@@ -350,6 +370,10 @@ export async function loadRealTextures(tex: GameTextures): Promise<number> {
     tryLoad('terrain_river_summer.png'),
     tryLoad('terrain_river_autumn.png'),
     tryLoad('terrain_river_winter.png'),
+    tryLoad('citizen6_walk.png'),
+    tryLoad('citizen6_work.png'),
+    tryLoad('citizen6_fight.png'),
+    tryLoad('citizen6_rest.png'),
   ]);
 
   let loaded = 0;
@@ -374,6 +398,20 @@ export async function loadRealTextures(tex: GameTextures): Promise<number> {
       fight: sliceStrip(fight!, 4),
       rest: sliceStrip(rest!, 2),
     };
+  }
+  // Batch 15: 6 role rows. Grid-sliced into per-role animation sets; uniform
+  // 128² cells keep every role/state at the same body height.
+  if (count(walk6) && count(work6) && count(fight6) && count(rest6)) {
+    const wG = sliceGrid(walk6!, 6, 4);
+    const kG = sliceGrid(work6!, 6, 4);
+    const fG = sliceGrid(fight6!, 6, 4);
+    const rG = sliceGrid(rest6!, 6, 2);
+    tex.citizenVariants = Array.from({ length: 6 }, (_, r) => ({
+      walk: wG[r],
+      work: kG[r],
+      fight: fG[r],
+      rest: rG[r],
+    }));
   }
   if (count(spring) && count(summer) && count(autumn) && count(winter)) {
     tex.terrainTiles = [

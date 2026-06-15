@@ -45,7 +45,9 @@ export class CitizenLayer {
 
   /** Pick the animation frame and facing for an agent (real art path). */
   private frameFor(a: Agent): { frame: Texture; flip: number } {
-    const anims = this.tex.citizenAnims!;
+    // A stable role per agent (batch-15 variety); fall back to the single set.
+    const variants = this.tex.citizenVariants;
+    const anims = variants ? variants[a.id % variants.length] : this.tex.citizenAnims!;
     let frames: Texture[];
     let rate = 1.2;
     if (a.state === 'walking' || a.state === 'trading' || a.state === 'fleeing') {
@@ -78,7 +80,7 @@ export class CitizenLayer {
     this.container.alpha = fade;
     this.container.visible = fade > 0.02;
     if (!this.container.visible) return;
-    const anims = this.tex.citizenAnims;
+    const anims = this.tex.citizenVariants ?? this.tex.citizenAnims;
     // Action icons fade in past the icon zoom band and track agent states.
     const iconFade = Math.min(
       1,

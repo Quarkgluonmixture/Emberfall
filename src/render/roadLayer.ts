@@ -106,10 +106,13 @@ export class RoadLayer {
     // Pass order = draw order: rut shadow under, dirt body, worn center on
     // top. Within a pass, one stroke per usage level so trunk roads read
     // heavier. All bake-time work — redrawn only on roadsVersion bumps.
+    // Roads should read as infrastructure, not a faint hint: bumped body alpha
+    // and width so they hold their own against terrain, rivers and borders,
+    // with trunk routes (higher level) clearly heavier.
     const passes: { color: number; widen: number; alpha: (level: number) => number }[] = [
-      { color: ROAD_EDGE, widen: 1.0, alpha: (l) => 0.1 + l * 0.05 },
-      { color: ROAD_COLOR, widen: 0, alpha: (l) => 0.26 + l * 0.09 },
-      { color: ROAD_WORN, widen: -0.65, alpha: (l) => 0.07 + l * 0.07 },
+      { color: ROAD_EDGE, widen: 1.0, alpha: (l) => 0.16 + l * 0.06 },
+      { color: ROAD_COLOR, widen: 0, alpha: (l) => 0.42 + l * 0.11 },
+      { color: ROAD_WORN, widen: -0.65, alpha: (l) => 0.1 + l * 0.08 },
     ];
     for (const pass of passes) {
       for (let level = 1; level <= 3; level++) {
@@ -124,7 +127,7 @@ export class RoadLayer {
         if (any) {
           g.stroke({
             color: pass.color,
-            width: Math.max(0.3, 0.8 + level * 0.4 + pass.widen * (0.6 + level * 0.2)),
+            width: Math.max(0.3, 1.0 + level * 0.5 + pass.widen * (0.6 + level * 0.2)),
             alpha: pass.alpha(level),
             cap: 'round',
             join: 'round',

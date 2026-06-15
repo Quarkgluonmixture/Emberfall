@@ -219,9 +219,12 @@ export class SettlementLayer {
           style: {
             fontFamily: 'Georgia, serif',
             fontSize: 11.5,
-            letterSpacing: 1,
+            // Tighter spacing reads better on long names (Briarcairn,
+            // Crowhollow); a heavier stroke is a lightweight backing so labels
+            // separate from busy terrain and citizens without a plate.
+            letterSpacing: 0.4,
             fill: 0xf0e6d2,
-            stroke: { color: 0x12100c, width: 3 },
+            stroke: { color: 0x12100c, width: 3.6 },
           },
         });
         label.resolution = 2;

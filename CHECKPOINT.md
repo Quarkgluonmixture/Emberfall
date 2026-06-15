@@ -1,16 +1,17 @@
 # Emberfall — Checkpoint
 
-**Date:** 2026-06-13 · **State:** Phases 1-3 complete + treaties & tribute,
+**Date:** 2026-06-15 · **State:** Phases 1-3 complete + treaties & tribute,
 zh localization, Gemini art-audit workflow, settlement-scale rework
 (procedural building clusters, zoom bands, action icons, activity overlays,
 terrain decor/grading/4× bake, walls with dedicated vertical art, repo
 hygiene), **terrain & roads art pass** (procedural shoreline, layered road
 strokes + wall-edge trim, batch-13 art landed: 6 tile variants per biome),
 **event SFX auditioned** (bell+drum real CC0, rest synth), **chronicle saga
-legibility pass** (scale-based importance tiers; FX decoupled from importance;
-crisis dynamics bit-identical) · **64/64 tests · lint clean ·
-stress bit-identical ~0.7-0.9ms/day @100y · 164 settlements @ ~150fps** · pushed
-(see git log) · per-session details in `docs/sessions/`
+legibility pass** (scale-based importance tiers; FX decoupled from importance),
+**codex-driven visual pass** (contour territory borders, Saga/Full history
+tabs, close-zoom icon de-confetti, louder roads, label polish) · **64/64 tests
+· lint clean · stress bit-identical ~0.7-0.9ms/day @100y · 164 settlements @
+~150fps** · pushed (see git log) · per-session details in `docs/sessions/`
 
 A browser idle civilization aquarium: Vite + TypeScript + PixiJS 8 + Vitest.
 `npm install && npm run dev` from a clean checkout. Conventions and sacred

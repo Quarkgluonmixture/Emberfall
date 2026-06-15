@@ -28,6 +28,8 @@ export class CitizenLayer {
   /** Overhead action glyphs, only readable (and only shown) at close zoom. */
   private iconLayer = new Container();
   private icons: Sprite[] = [];
+  /** Soft dark halo behind each shown icon so glyphs read over busy terrain. */
+  private iconBgs: Sprite[] = [];
   /** Faint dust puffs over working citizens (field/forest/site activity). */
   private puffs: Sprite[] = [];
   /** Fading footprints behind trading caravans. */
@@ -99,6 +101,12 @@ export class CitizenLayer {
       sh.height = 1.5;
       this.shadowLayer.addChild(sh);
       this.shadows.push(sh);
+      const ibg = new Sprite(this.tex.glow);
+      ibg.anchor.set(0.5);
+      ibg.tint = 0x140f08;
+      ibg.visible = false;
+      this.iconLayer.addChild(ibg);
+      this.iconBgs.push(ibg);
       const ic = new Sprite();
       ic.anchor.set(0.5, 1);
       ic.visible = false;
@@ -132,11 +140,13 @@ export class CitizenLayer {
       const sp = this.pool[i];
       const sh = this.shadows[i];
       const ic = this.icons[i];
+      const ibg = this.iconBgs[i];
       const pf = this.puffs[i];
       if (i >= agents.length) {
         sp.visible = false;
         sh.visible = false;
         ic.visible = false;
+        ibg.visible = false;
         pf.visible = false;
         continue;
       }
@@ -146,16 +156,27 @@ export class CitizenLayer {
       sh.position.set(a.x, a.y + 0.35);
       sp.tint = state.civs[a.civId]?.color ?? 0xffffff;
 
-      const iconTex = showIcons ? this.tex.actionIcons![a.state] : undefined;
+      // Routine field/forest labor (the bulk of citizens) shows as body
+      // animation + dust only — overhead icons are reserved for the readable,
+      // less-frequent states (build, trade, fight, flee, rest) so the close
+      // view stops being a field of yellow wheat-icon confetti.
+      const routineWork = a.state === 'farming' || a.state === 'gathering';
+      const iconTex = showIcons && !routineWork ? this.tex.actionIcons![a.state] : undefined;
       if (iconTex) {
+        const w = cfg.actionIconSize;
+        const iy = a.y - cfg.citizenHeight - 1.2;
         ic.visible = true;
         ic.texture = iconTex;
         ic.tint = ACTION_TINT[a.state] ?? 0xffffff;
-        const w = cfg.actionIconSize;
         ic.scale.set(w / iconTex.width);
-        ic.position.set(a.x, a.y - cfg.citizenHeight - 1.2);
+        ic.position.set(a.x, iy);
+        ibg.visible = true;
+        ibg.width = ibg.height = w * 2.0;
+        ibg.alpha = 0.45 * iconFade;
+        ibg.position.set(a.x, iy - w * 0.5);
       } else {
         ic.visible = false;
+        ibg.visible = false;
       }
 
       // Work dust: a soft puff that breathes with the work animation.

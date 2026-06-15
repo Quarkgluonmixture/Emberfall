@@ -326,37 +326,40 @@ export function layoutCluster(
     const shrineDx = hash2(seed, 40, 2) < 0.5 ? -7 : 7;
     if (shrine && hash2(seed, 40, 1) < 0.6 && ok(shrineDx, -1.5)) put(out, shrine, shrineDx, -1.5);
 
-    // Buildings on a jittered GRID filled centre-outward, with lanes between
-    // rows, so a town reads as planned streets-and-blocks rather than a packed
-    // golden-spiral blob. Each slot jitters within its cell; the central plaza,
-    // occupied cells (collision), and vetoed tiles stay clear.
+    // Medieval town: houses packed in organic rings around the market square,
+    // tight like a walled town (KCD feel), with a main street kept clear from
+    // the south gate to the plaza. Bounded by maxR so the build stays INSIDE
+    // the wall ring (houses can't end up sitting on/through the wall), and
+    // collisions keep them from overlapping into mush.
     const fixed = out.length;
     const count = Math.min(30, 12 + Math.max(0, bucket - 3) * 2) - fixed;
-    const step = 8;
-    const slots: { dx: number; dy: number; d: number }[] = [];
-    for (let gy = -4; gy <= 4; gy++) {
-      for (let gx = -4; gx <= 4; gx++) {
-        slots.push({ dx: gx * step, dy: gy * step * 0.66, d: gx * gx + gy * gy * 1.25 });
-      }
-    }
-    slots.sort((a, b) => a.d - b.d);
+    const plazaR = 5.5;
+    const maxR = 19; // outermost house centre; wall sits ~3.5 beyond its edge
     let placed = 0;
-    for (let si = 0; si < slots.length && placed < count; si++) {
-      const dx = slots[si].dx + (hash2(seed, 50 + si, 7) - 0.5) * 2.4;
-      const dy = slots[si].dy + (hash2(seed, 50 + si, 8) - 0.5) * 1.8;
-      if (Math.abs(dx) < 3.5 && dy > -7 && dy < 4) continue; // keep the central plaza clear
-      const roll = hash2(seed, 50 + placed, 3);
-      const kind =
-        roll < 0.55
-          ? pick(have, `house_${Math.floor(hash2(seed, 50 + placed, 4) * 3)}`, 'house_0', 'hut_0')
-          : roll < 0.85
-            ? pick(have, `hut_${Math.floor(hash2(seed, 50 + placed, 5) * 3)}`, 'hut_0', 'house_0')
-            : pick(have, hash2(seed, 50 + placed, 6) < 0.5 ? 'granary' : 'shed', 'shed', 'granary', 'hut_1');
-      if (!kind) break; // no building art at all
-      if (buildable && !buildable(dx, dy)) continue;
-      if (collides(out, dx, dy, pw(kind))) continue;
-      put(out, kind, dx, dy, { lift: true, lamp: placed < 4 });
-      placed++;
+    for (let ring = 0; ring < 30 && placed < count; ring++) {
+      const r = plazaR + ring * 3.6;
+      if (r > maxR) break;
+      const n = Math.max(4, Math.round((2 * Math.PI * r) / 6.4));
+      const a0 = hash2(seed, ring, 9) * Math.PI * 2;
+      for (let k = 0; k < n && placed < count; k++) {
+        const ang = a0 + (k / n) * Math.PI * 2 + (hash2(seed, ring * 13 + k, 1) - 0.5) * 0.45;
+        const rr = r + (hash2(seed, ring * 13 + k, 2) - 0.5) * 2.6;
+        const dx = Math.cos(ang) * rr;
+        const dy = Math.sin(ang) * rr * 0.72; // oval squash
+        if (Math.abs(dx) < 2.6 && dy > 0) continue; // main street: gate → plaza
+        const roll = hash2(seed, 50 + placed, 3);
+        const kind =
+          roll < 0.55
+            ? pick(have, `house_${Math.floor(hash2(seed, 50 + placed, 4) * 3)}`, 'house_0', 'hut_0')
+            : roll < 0.85
+              ? pick(have, `hut_${Math.floor(hash2(seed, 50 + placed, 5) * 3)}`, 'hut_0', 'house_0')
+              : pick(have, hash2(seed, 50 + placed, 6) < 0.5 ? 'granary' : 'shed', 'shed', 'granary', 'hut_1');
+        if (!kind) break; // no building art at all
+        if (buildable && !buildable(dx, dy)) continue;
+        if (collides(out, dx, dy, pw(kind))) continue;
+        put(out, kind, dx, dy, { lift: true, lamp: placed < 4 });
+        placed++;
+      }
     }
 
     const lamp = pick(have, 'lamp');

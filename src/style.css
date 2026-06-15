@@ -712,6 +712,19 @@ body.cinema #debug {
   display: none !important;
 }
 
+/* Macro/atlas zoom: fade the side panels so the whole-map view breathes.
+   They restore on hover, and snap back as soon as you zoom into the world. */
+body.macro-view #civpanel,
+body.macro-view #chronicle {
+  opacity: 0.18;
+  transition: opacity 0.35s ease;
+}
+
+body.macro-view #civpanel:hover,
+body.macro-view #chronicle:hover {
+  opacity: 1;
+}
+
 body.cinema {
   cursor: none;
 }

@@ -274,6 +274,11 @@ function loop(ticker: Ticker): void {
     chroniclePanel.update(state);
     historyPanel.update(state);
     worldStory.update(state, director.active ? (director.current?.label ?? null) : null);
+    // Map-first: fade the side panels at macro/atlas zoom so the world breathes.
+    document.body.classList.toggle(
+      'macro-view',
+      !!renderer && renderer.camera.scale < BALANCE.render.macroZoomEnd,
+    );
     if (debugOverlay.visible) {
       let population = 0;
       for (const s of state.settlements) population += s.population;

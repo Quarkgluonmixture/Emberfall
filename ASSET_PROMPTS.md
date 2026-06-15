@@ -246,6 +246,23 @@ folder-8 slanted ones). **Wall thickness note:** the side (N-S) tiles render at
 size as the horizontal run — vertical and horizontal walls read identical
 thickness.
 
+## Batch 21 — field patches (agricultural halo) → `assets_src/raw/21/`
+
+Worked-land patches scattered as an agricultural halo around settlements
+(`decorLayer` field pass, inverse bias to normal decor). Shared decor preamble
+above; these are FLAT top-down ground patches (anchor centre, no standing
+silhouette), drawn so they tile/overlap into a continuous patchwork.
+
+| File | Size | Pieces (left→right) | Prompt body |
+| --- | --- | --- | --- |
+| `01_fields.png` | 1536×1024 | 4 | Four separate top-down medieval field patches, each a roughly rectangular plot, same scale/lighting, NOT touching each other or the image edges: (1) PLOWED field — bare brown furrows in parallel ridges; (2) CROP field — ripe golden grain in rows; (3) MEADOW/pasture — green grass with a low fieldstone/hedge boundary along one edge; (4) ORCHARD — a small green plot with a few rows of round little fruit trees. Muted painterly palette, soft top-down shading, transparent/keyable background. |
+
+Pipeline (folder 21) slices L→R into `decor/field_0..3` (64px); they load as the
+`field` decor kind (`DECOR_KINDS`) and per-season tint applies (tilled-brown
+spring → green summer → harvest-gold autumn → frost winter). Folders 17-20
+(bridges / church / yards / mill) are delivered art — see the folder map in the
+`scripts/process-assets.mjs` header for their slice targets.
+
 ## Priority order if generating in sessions
 
 1. `02_huts` + `03_houses` + `01_tents` — the cluster engine's bread and butter

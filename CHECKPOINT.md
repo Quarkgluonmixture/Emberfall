@@ -9,9 +9,13 @@ strokes + wall-edge trim, batch-13 art landed: 6 tile variants per biome),
 **event SFX auditioned** (bell+drum real CC0, rest synth), **chronicle saga
 legibility pass** (scale-based importance tiers; FX decoupled from importance),
 **codex-driven visual pass** (contour territory borders, Saga/Full history
-tabs, close-zoom icon de-confetti, louder roads, label polish) · **64/64 tests
-· lint clean · stress bit-identical ~0.7-0.9ms/day @100y · 164 settlements @
-~150fps** · pushed (see git log) · per-session details in `docs/sessions/`
+tabs, close-zoom icon de-confetti, louder roads, label polish),
+**medieval-grammar + countryside-economy pass** (KCD-style road-first town
+layout with church/yards; agricultural field halo around settlements;
+irregular built-form-fitted wall hull with road-aligned gates + posterns;
+watermills on river banks) · **64/64 tests · lint clean · stress bit-identical
+~0.7-0.9ms/day @100y · 164 settlements @ ~150fps** · pushed (see git log) ·
+per-session details in `docs/sessions/`
 
 A browser idle civilization aquarium: Vite + TypeScript + PixiJS 8 + Vitest.
 `npm install && npm run dev` from a clean checkout. Conventions and sacred
@@ -26,9 +30,12 @@ invariants live in `CLAUDE.md` — read it before changing sim or pipeline code.
   skirmish/capture, schism, wildfire, flood, golden age, collapse→ruins),
   civ rebirth from ruins, derived road network with caravans, chronicle
   (en/zh re-renderable templates), biographies, history panel, inspector.
-- **Rendering**: settlements are procedural building clusters from 26 piece
-  sprites (tents→walled towns with hall/market/lamps; ruins as broken
-  pieces; substitution chains while art is missing; season/weather tinting);
+- **Rendering**: settlements are procedural building clusters from 40+ piece
+  sprites (tents→walled towns with hall/market/church/yards/lamps; road-first
+  KCD-style interior; irregular wall hull fit to the built form with
+  road-aligned gates + posterns; watermills on river banks; agricultural
+  field halo on surrounding grassland; ruins as broken pieces; substitution
+  chains while art is missing; season/weather tinting);
   zoom bands (macro glyph layer with war fronts + trade flows ↔ clusters ↔
   citizens with per-state action icons); terrain baked at 4× per season
   (LRU 2) with biome grading + edge fog; decor scatter incl. landmark

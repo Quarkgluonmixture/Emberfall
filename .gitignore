@@ -5,3 +5,6 @@ assets_src/raw/
 assets_src/music/
 .playwright-mcp/
 image.png
+# Scratch verification screenshots (the committed battery lives in art-audit/current/)
+docs/art-audit/*.png
+docs/playtest/shots/

@@ -420,10 +420,11 @@ function placeSuburbs(
   let gi = 0;
   for (const g of gates) {
     gi++;
-    if (hash2(seed, 300 + gi, 0) < 0.35) continue; // not every gate sprawls
+    if (hash2(seed, 300 + gi, 0) < 0.25) continue; // not every gate sprawls
     const tx = -g.ny; // tangent along the wall face
     const ty = g.nx;
-    const n = 1 + (hash2(seed, 300 + gi, 1) < 0.5 ? 1 : 0);
+    // A ragged line of 2-4 dwellings accreting outward along the approach road.
+    const n = 2 + Math.floor(hash2(seed, 300 + gi, 1) * 3);
     let dist = 4;
     for (let k = 0; k < n; k++) {
       const kind = pick(
@@ -533,11 +534,19 @@ function burgagePlots(
     streetHalf: number;
     lampN: number;
     hutBias: boolean;
+    /** Plot depth back from the street; the rear boundary fence aligns here so
+        the plots read as long owned strips, not ragged clutter. */
+    plotDepth: number;
+    /** Reserved zone (market square / abbey precinct / muster yard) — kept
+        clear of dwellings so the role's civic space reads. */
+    reserve?: (dx: number, dy: number) => boolean;
   },
 ): number {
-  const ok = (dx: number, dy: number): boolean => !buildable || buildable(dx, dy);
+  const ok = (dx: number, dy: number): boolean =>
+    (!buildable || buildable(dx, dy)) && !(cfg.reserve && cfg.reserve(dx, dy));
   const sx = (dy: number): number => Math.sin(dy * cfg.bend) * 2.2;
   const yards = ROLE_YARDS[role];
+  const backLine = cfg.streetHalf + cfg.plotDepth;
   let placed = 0;
   let lamps = 0;
   for (const side of [-1, 1] as const) {
@@ -556,33 +565,32 @@ function burgagePlots(
             : pick(have, hash2(seed, key, 5) < 0.5 ? 'granary' : 'shed', 'shed', 'granary', 'hut_1');
       if (!hKind) break; // no dwelling art at all
       const hHalf = pw(hKind) * 0.5;
-      const hx = sx(y) + side * (cfg.streetHalf + hHalf + hash2(seed, key, 6) * 0.8);
+      const hx = sx(y) + side * (cfg.streetHalf + hHalf + hash2(seed, key, 6) * 0.6);
       if (Math.abs(hx) > cfg.maxRx || Math.abs(y) > cfg.maxRy) continue;
       if (!ok(hx, y) || collides(out, hx, y, pw(hKind))) continue;
       put(out, hKind, hx, y, { lift: true, lamp: lamps < cfg.lampN });
       if (lamps < cfg.lampN) lamps++;
       placed++;
-      // Rear yard chain running back off the street (the plot's "burgage tail").
-      let depth = cfg.streetHalf + hHalf * 2 + 1.2;
-      const rears = 1 + (hash2(seed, key, 7) < 0.5 ? 1 : 0);
-      for (let k = 0; k < rears; k++) {
+      // Rear yards FILL the strip from the house back toward a fixed back line,
+      // so each plot is a long narrow tail of owned land.
+      let depth = cfg.streetHalf + hHalf * 2 + 1.0;
+      for (let k = 0; k < 3 && depth < backLine - 1.5; k++) {
         const yi = Math.floor(hash2(seed, key, 20 + k) * yards.length);
         const yk = pick(have, yards[yi], ...yards);
         if (!yk) break;
         const yHalf = pw(yk) * 0.5;
         const ydx = sx(y) + side * (depth + yHalf);
-        const ydy = y + (hash2(seed, key, 30 + k) - 0.5) * 2.2;
-        depth += yHalf * 2 + 1.0;
+        const ydy = y + (hash2(seed, key, 30 + k) - 0.5) * 1.8;
+        depth += yHalf * 2 + 0.8;
         if (Math.abs(ydx) > cfg.maxRx || Math.abs(ydy) > cfg.maxRy) break;
         if (!ok(ydx, ydy) || collides(out, ydx, ydy, pw(yk))) continue;
         put(out, yk, ydx, ydy, {});
       }
-      // Plot back-boundary: a short fence/hedge capping the burgage strip so
-      // ownership reads as owned land, not loose clutter.
+      // Rear boundary fence at the FIXED back line — aligned across plots so the
+      // strips read as owned parcels with a common rear edge.
       const fence = pick(have, 'yard_fence');
       if (fence) {
-        const fHalf = pw(fence) * 0.5;
-        const fdx = sx(y) + side * (depth + fHalf);
+        const fdx = sx(y) + side * backLine;
         if (
           Math.abs(fdx) <= cfg.maxRx &&
           Math.abs(y) <= cfg.maxRy &&
@@ -595,6 +603,52 @@ function burgagePlots(
     }
   }
   return placed;
+}
+
+/**
+ * Lay out an abbey's sacred precinct: the church with churchyard, graves and a
+ * cloister garden, enclosed by a fence ring with a south gap for the approach.
+ * Returns a reserve predicate so the burgage plots part around the precinct
+ * (the village sits along the road, not crowding the church door).
+ */
+function placeAbbeyPrecinct(
+  out: PiecePlacement[],
+  seed: number,
+  have: HavePiece,
+  buildable: Buildable | undefined,
+): (dx: number, dy: number) => boolean {
+  const ok = (dx: number, dy: number): boolean => !buildable || buildable(dx, dy);
+  const cx = (hash2(seed, 41, 2) < 0.5 ? -1 : 1) * 6;
+  const cy = -6;
+  const church = pick(have, 'church', 'chapel');
+  if (church && ok(cx, cy)) put(out, church, cx, cy, { lift: true, lamp: true });
+  const yard = pick(have, 'churchyard');
+  if (yard && ok(cx, cy + 4)) put(out, yard, cx, cy + 4);
+  const graves = pick(have, 'graves');
+  if (graves && ok(cx - 3.4, cy + 4.2)) put(out, graves, cx - 3.4, cy + 4.2);
+  const garden = pick(have, 'yard_garden');
+  if (garden && ok(cx + 3.4, cy + 4)) put(out, garden, cx + 3.4, cy + 4);
+  // Fence ring around the precinct, with a gap on the south face for the gate.
+  const x0 = cx - 6;
+  const x1 = cx + 6;
+  const y0 = cy - 3;
+  const y1 = cy + 7;
+  const fence = pick(have, 'yard_fence');
+  if (fence) {
+    const step = pw(fence) * 1.05;
+    for (let x = x0; x <= x1 + 0.01; x += step) {
+      if (ok(x, y0) && !collides(out, x, y0, pw(fence))) put(out, fence, x, y0, {});
+      // south side: leave a ~gate gap around the precinct centre
+      if (Math.abs(x - cx) > 3 && ok(x, y1) && !collides(out, x, y1, pw(fence))) {
+        put(out, fence, x, y1, {});
+      }
+    }
+    for (let y = y0 + step; y < y1 - 0.01; y += step) {
+      if (ok(x0, y) && !collides(out, x0, y, pw(fence))) put(out, fence, x0, y, {});
+      if (ok(x1, y) && !collides(out, x1, y, pw(fence))) put(out, fence, x1, y, {});
+    }
+  }
+  return (dx, dy) => dx > x0 - 2 && dx < x1 + 2 && dy > y0 - 2 && dy < y1 + 2;
 }
 
 /**
@@ -656,57 +710,71 @@ export function layoutCluster(
     burgagePlots(out, seed, have, buildable, role, {
       maxRx: 13,
       maxRy: 9,
-      frontStep: 5.0,
+      frontStep: 4.8,
       count,
       bend: 0.16,
       streetHalf: 2.2,
       lampN: 2,
       hutBias: true,
+      plotDepth: 7,
     });
     const lamp = pick(have, 'lamp');
     if (lamp && bucket >= 3 && okV(3.2, 2.6)) put(out, lamp, 3.2, 2.6, { lamp: true });
   } else {
-    // Town: a role-biased civic core (hall + market/abbey/fort flavour), an
-    // optional riverside mill, then burgage plots fronting the main street.
-    // Fixed core pieces still respect the terrain veto — a coastal plaza must
-    // not put its market stalls in the surf.
+    // Town: the spatial GRAMMAR comes from the role, not just the props —
+    // a market square, a walled abbey precinct, or a fort's muster yard — then
+    // burgage plots front the main street and part around that civic space.
     const ok = (dx: number, dy: number): boolean => !buildable || buildable(dx, dy);
     const role = deriveRole(seed, tier, terrainAt);
-    const hall = pick(have, 'hall');
-    if (hall && ok(0, -4.5)) put(out, hall, 0, -4.5, { lift: true, lamp: true });
-    // Market stalls: busy for a market town, sparse for abbey/fort.
-    const nStalls = role === 'market' ? 2 : role === 'abbey' ? 0 : 1;
-    if (nStalls >= 1) {
-      const s = pick(have, 'stall_0', 'crates');
-      if (s && ok(-4.5, 2.4)) put(out, s, -4.5, 2.4, { flip: true });
-    }
-    if (nStalls >= 2) {
-      const s = pick(have, 'stall_1', 'shed');
-      if (s && ok(4.5, 2.6)) put(out, s, 4.5, 2.6);
-    }
-    const shrine = pick(have, 'shrine', 'well');
-    const shrineDx = hash2(seed, 40, 2) < 0.5 ? -7 : 7;
-    if (shrine && role !== 'abbey' && hash2(seed, 40, 1) < 0.6 && ok(shrineDx, -1.5)) {
-      put(out, shrine, shrineDx, -1.5);
-    }
 
-    // The church: grandest landmark, OFF the market to one side, with churchyard
-    // + graves (the tall spire poking past the wall is authentic). An abbey town
-    // always gets one, with a deeper precinct (extra graves); others by chance.
-    const church = pick(have, 'church', 'chapel');
-    const wantChurch = role === 'abbey' || hash2(seed, 41, 1) < 0.7;
-    const chDx = (hash2(seed, 41, 2) < 0.5 ? -1 : 1) * 9.5;
-    if (church && wantChurch && ok(chDx, -8)) {
-      put(out, church, chDx, -8, { lift: true, lamp: true });
-      const yard = pick(have, 'churchyard');
-      if (yard && ok(chDx, -3)) put(out, yard, chDx, -3);
-      const graves = pick(have, 'graves');
-      const gDx = chDx + (chDx < 0 ? 3.6 : -3.6);
-      if (graves && ok(gDx, -3.2)) put(out, graves, gDx, -3.2);
-      if (role === 'abbey') {
-        const g2 = pick(have, 'graves');
-        const gDx2 = chDx + (chDx < 0 ? 7 : -7);
-        if (g2 && ok(gDx2, -3.0)) put(out, g2, gDx2, -3.0);
+    // The off-market parish church (market/fort/forest); abbeys build a precinct.
+    const placeSideChurch = (force: boolean): void => {
+      const church = pick(have, 'church', 'chapel');
+      const want = force || hash2(seed, 41, 1) < 0.55;
+      const chDx = (hash2(seed, 41, 2) < 0.5 ? -1 : 1) * 9.5;
+      if (church && want && ok(chDx, -8)) {
+        put(out, church, chDx, -8, { lift: true, lamp: true });
+        const yard = pick(have, 'churchyard');
+        if (yard && ok(chDx, -3)) put(out, yard, chDx, -3);
+        const graves = pick(have, 'graves');
+        const gDx = chDx + (chDx < 0 ? 3.6 : -3.6);
+        if (graves && ok(gDx, -3.2)) put(out, graves, gDx, -3.2);
+      }
+    };
+
+    let reserve: ((dx: number, dy: number) => boolean) | undefined;
+    if (role === 'abbey') {
+      // The church + cloister precinct IS the core (no moot hall).
+      reserve = placeAbbeyPrecinct(out, seed, have, buildable);
+    } else {
+      const hall = pick(have, 'hall');
+      if (hall && ok(0, -4.5)) put(out, hall, 0, -4.5, { lift: true, lamp: true });
+      if (role === 'market') {
+        // The street widens mid-town into an open market square ringed by
+        // stalls; burgage frontage parts around the reserved square.
+        const mqy = 3.5;
+        reserve = (dx, dy) => Math.abs(dx) < 5.5 && dy > mqy - 4.5 && dy < mqy + 4.5;
+        const s0 = pick(have, 'stall_0', 'crates');
+        if (s0 && ok(-3, mqy - 1)) put(out, s0, -3, mqy - 1, { flip: true });
+        const s1 = pick(have, 'stall_1', 'shed');
+        if (s1 && ok(3, mqy)) put(out, s1, 3, mqy);
+        const c = pick(have, 'crates');
+        if (c && ok(0.5, mqy + 2.4)) put(out, c, 0.5, mqy + 2.4);
+        const shrine = pick(have, 'shrine', 'well');
+        if (shrine && hash2(seed, 40, 1) < 0.6 && ok(-7, -1.5)) put(out, shrine, -7, -1.5);
+        placeSideChurch(false);
+      } else if (role === 'fort') {
+        // A muster yard: open defended ground just inside the south gate, a
+        // couple of pens/stores at its edge, fewer civilian plots overall.
+        const myY = 7;
+        reserve = (dx, dy) => Math.abs(dx) < 5 && dy > myY - 4 && dy < myY + 4;
+        const pen = pick(have, 'yard_pen', 'crates');
+        if (pen && ok(-4, myY)) put(out, pen, -4, myY);
+        const st = pick(have, 'crates', 'shed');
+        if (st && ok(4, myY - 0.5)) put(out, st, 4, myY - 0.5);
+        placeSideChurch(false);
+      } else {
+        placeSideChurch(false);
       }
     }
 
@@ -714,18 +782,23 @@ export function layoutCluster(
     // plots so dwellings flow around it; the wall (below) encloses it.
     placeMill(out, seed, have, buildable, riverAt, 30);
 
-    // Burgage plots: dwellings front the main street, each with a rear yard
-    // chain (role-biased), so the town reads as owned strips, not a blob.
-    const count = Math.min(28, 12 + Math.max(0, bucket - 3) * 2);
+    // Burgage plots front the main street as long owned strips, parting around
+    // the role's reserved civic space. Forts hold fewer civilian plots.
+    const count =
+      role === 'fort'
+        ? Math.min(18, 9 + Math.max(0, bucket - 3) * 2)
+        : Math.min(28, 12 + Math.max(0, bucket - 3) * 2);
     burgagePlots(out, seed, have, buildable, role, {
       maxRx: 20,
       maxRy: 13.5,
-      frontStep: 5.8,
+      frontStep: 4.8,
       count,
       bend: 0.12,
       streetHalf: 2.7,
       lampN: 4,
       hutBias: false,
+      plotDepth: 10.5,
+      reserve,
     });
 
     const lamp = pick(have, 'lamp');

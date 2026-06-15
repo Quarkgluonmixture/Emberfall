@@ -208,10 +208,17 @@ function wallRect(
   const vert = pick(have, stone ? 'wall_vertical' : 'palisade_vertical');
   const runH = ry - cornerHalf;
   if (vert) {
+    // Stack overlapping CELLS of the dedicated N-S art down each side: the
+    // front (lower) cell occludes the one behind it, reading as a coursed wall
+    // with 3/4 depth — matching the horizontal run — not one stretched strip.
     const sideW = w * 0.82;
-    const sideH = 2 * runH + w * 0.7;
-    if (ok(-rx, 0)) put(out, vert, -rx, 0, { w: sideW, h: sideH });
-    if (ok(rx, 0)) put(out, vert, rx, 0, { w: sideW, h: sideH, flip: true });
+    const stepY = sideW * 1.05;
+    const countY = Math.max(1, Math.round((2 * runH) / stepY));
+    for (let i = 0; i <= countY; i++) {
+      const dy = -runH + (2 * runH * i) / countY;
+      if (ok(-rx, dy)) put(out, vert, -rx, dy, { w: sideW });
+      if (ok(rx, dy)) put(out, vert, rx, dy, { w: sideW, flip: true });
+    }
   } else {
     const sideKind = stone ? (corner ?? straight) : straight;
     const stepY = stone ? pw(sideKind) * 1.45 : w * 0.55;

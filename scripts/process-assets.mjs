@@ -451,6 +451,18 @@ if (fs.existsSync(path.join(rawRoot, '11'))) {
       [path.join(piecesDir, 'wall_vertical.png'), 28],
       [path.join(piecesDir, 'palisade_vertical.png'), 28],
     ]);
+    // The art is one long continuous N-S strip; crop a single tileable CELL
+    // (skipping the crenellated very top) so the wall layout STACKS overlapping
+    // cells down each side — coursed wall with 3/4 depth — instead of
+    // stretching one piece. Cell ≈ 2.2× as tall as wide.
+    for (const f of ['wall_vertical.png', 'palisade_vertical.png']) {
+      const fp = path.join(piecesDir, f);
+      const m = await sharp(fp).metadata();
+      const top = Math.round(m.height * 0.3);
+      const h = Math.min(m.height - top, Math.round(m.width * 2.2));
+      const buf = await sharp(fp).extract({ left: 0, top, width: m.width, height: h }).toBuffer();
+      await sharp(buf).toFile(fp);
+    }
   }
 }
 

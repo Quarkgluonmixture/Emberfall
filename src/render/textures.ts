@@ -126,6 +126,8 @@ export const DECOR_KINDS: [string, number][] = [
   // Batch-12 landmarks: oversized formations breaking biome tiling.
   ['mountain_formation', 3],
   ['canopy', 2],
+  // Batch-21 field patches: scattered as an agricultural halo, not blocked.
+  ['field', 4],
 ];
 
 /** Multiply a 0xRRGGBB color by a brightness factor. */

@@ -52,6 +52,9 @@ const SEASON_TINT: Record<string, [number, number, number, number]> = {
   bush: [0xd8f5c8, 0xffffff, 0xdfa868, 0xb9c2cc],
   reed: [0xe5f5d5, 0xffffff, 0xe8c98e, 0xcdd6da],
   rock: [0xffffff, 0xffffff, 0xf2e8da, 0xe2e9f2],
+  // Worked land: tilled-brown spring → green summer → harvest-gold autumn →
+  // frosted-bare winter.
+  field: [0xe6dcb4, 0xffffff, 0xe6b25e, 0xc6d0dc],
 };
 
 export class DecorLayer {
@@ -103,12 +106,50 @@ export class DecorLayer {
     }
     const LANDMARK = new Set(['canopy', 'mountain_formation']);
 
+    // Agricultural halo: worked fields ring each established settlement on
+    // buildable grassland. This is the INVERSE bias to normal decor — fields
+    // WANT to hug a village/town (a settlement sits in its cultivated land)
+    // and thin with distance. Rendered first (beneath later scatter) and
+    // recorded in `fieldTiles` so trees/rocks never sprout on a tilled field.
+    const fieldTiles = new Set<number>();
+    const fields = this.tex.decor?.field;
+    if (fields?.length) {
+      for (const s of state.settlements) {
+        if (s.tier < 1) continue; // camps are too new to have open fields
+        const R = 2 + s.tier * 2; // village ≈ 4 tiles, town ≈ 6
+        for (let dy = -R; dy <= R; dy++) {
+          for (let dx = -R; dx <= R; dx++) {
+            const nx = s.x + dx;
+            const ny = s.y + dy;
+            if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue;
+            const i = ny * width + nx;
+            if (fieldTiles.has(i)) continue;
+            if (blocked.has(i) || state.roads[i] > 0) continue;
+            if ((terrain[i] as Terrain) !== Terrain.Grassland) continue;
+            const dist = Math.max(Math.abs(dx), Math.abs(dy));
+            const chance = 0.85 - (dist / (R + 1)) * 0.55;
+            if (hash2(seed ^ 0xf1e1, nx, ny) >= chance) continue;
+            fieldTiles.add(i);
+            const variant = Math.floor(hash2(seed ^ 0xf1e2, nx, ny) * fields.length);
+            const sp = new Sprite(fields[variant]);
+            sp.anchor.set(0.5, 0.5); // flat ground patch, not a standing object
+            const w = 10 * (0.92 + hash2(seed ^ 0xf1e3, nx, ny) * 0.16); // ~1.2 tiles
+            sp.scale.set(w / sp.texture.width);
+            sp.rotation = (hash2(seed ^ 0xf1e4, nx, ny) - 0.5) * 0.3; // strip-field skew
+            sp.position.set((nx + 0.5) * ts, (ny + 0.5) * ts);
+            sp.tint = SEASON_TINT.field?.[season] ?? 0xffffff;
+            this.container.addChild(sp);
+          }
+        }
+      }
+    }
+
     for (let y = 0; y < height; y++) {
       for (let x = 0; x < width; x++) {
         const i = y * width + x;
         const t = terrain[i] as Terrain;
         const options = SCATTER[t];
-        if (!options || blocked.has(i) || state.roads[i] > 0) continue;
+        if (!options || blocked.has(i) || fieldTiles.has(i) || state.roads[i] > 0) continue;
         const roll = hash2(seed ^ 0xdec0, x, y);
         let acc = 0;
         for (const [kind, chance, w] of options) {

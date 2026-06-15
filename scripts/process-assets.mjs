@@ -699,6 +699,24 @@ if (fs.existsSync(path.join(rawRoot, '20'))) {
   ]);
 }
 
+// Folder 21: field patches (plowed / crop / meadow / orchard). These are
+// DECOR (ground patches), not standing pieces — sliced into decor/field_*
+// and scattered as an agricultural halo around settlements (decorLayer).
+if (fs.existsSync(path.join(rawRoot, '21'))) {
+  console.log('Fields (folder 21):');
+  const src = path.join(rawRoot, '21', '01_fields.png');
+  if (fs.existsSync(src)) {
+    const decorDir = path.join(outDir, 'decor');
+    fs.mkdirSync(decorDir, { recursive: true });
+    await slicePieces(src, [
+      [path.join(decorDir, 'field_0.png'), 64],
+      [path.join(decorDir, 'field_1.png'), 64],
+      [path.join(decorDir, 'field_2.png'), 64],
+      [path.join(decorDir, 'field_3.png'), 64],
+    ]);
+  }
+}
+
 // SFX: slot-named samples (assets_src/sfx/<sound>.ogg, see SAMPLE_NAMES in
 // src/audio/sfx.ts) copied verbatim; any missing slot keeps its WebAudio
 // synth fallback. Current samples: Kenney CC0 packs (kenney.nl).

@@ -644,6 +644,21 @@ if (fs.existsSync(path.join(rawRoot, '16'))) {
   }
 }
 
+// Folder 17: road/river crossing pieces (plank bridge + stone ford, each in
+// a horizontal and a vertical orientation). Replaces the procedural bridge.
+if (fs.existsSync(path.join(rawRoot, '17'))) {
+  console.log('Bridges (folder 17):');
+  const src = path.join(rawRoot, '17', '01_bridges.png');
+  if (fs.existsSync(src)) {
+    await slicePieces(src, [
+      [out('bridge_h.png'), 56],
+      [out('bridge_v.png'), 36],
+      [out('ford_h.png'), 56],
+      [out('ford_v.png'), 36],
+    ]);
+  }
+}
+
 // SFX: slot-named samples (assets_src/sfx/<sound>.ogg, see SAMPLE_NAMES in
 // src/audio/sfx.ts) copied verbatim; any missing slot keeps its WebAudio
 // synth fallback. Current samples: Kenney CC0 packs (kenney.nl).

@@ -10,6 +10,7 @@ import { Graphics } from 'pixi.js';
 import { BALANCE } from '../config/balance';
 import { hash2 } from '../core/rng';
 import { Terrain, type SimState } from '../core/types';
+import type { GameTextures } from './textures';
 
 const ROAD_EDGE = 0x52402a;
 const ROAD_COLOR = 0x8d6e4a;
@@ -56,7 +57,7 @@ export class RoadLayer {
   g = new Graphics();
   private bakedVersion = -1;
 
-  update(state: SimState): void {
+  update(state: SimState, tex?: GameTextures): void {
     if (state.roadsVersion === this.bakedVersion) return;
     this.bakedVersion = state.roadsVersion;
     const g = this.g;
@@ -143,8 +144,26 @@ export class RoadLayer {
     // art can replace this later. Baked with the roads (roadsVersion).
     const terrain = state.world.terrain;
     const H = state.world.height;
+    const bridge = tex?.bridge ?? null;
     const bridged = new Set<number>();
-    const drawBridge = (cx: number, cy: number, ux: number, uy: number): void => {
+    const drawBridge = (cx: number, cy: number, ux: number, uy: number, useFord: boolean): void => {
+      const horizontal = Math.abs(ux) >= Math.abs(uy);
+      if (bridge) {
+        // Real art: pre-oriented H/V piece (plank for roads, ford for towns),
+        // drawn axis-aligned over the river — long axis ≈ 1.8 tiles.
+        const piece = horizontal
+          ? useFord
+            ? bridge.fordH
+            : bridge.h
+          : useFord
+            ? bridge.fordV
+            : bridge.v;
+        const long = ts * 1.8;
+        const w = horizontal ? long : long * (piece.width / piece.height);
+        const h = horizontal ? long * (piece.height / piece.width) : long;
+        g.texture(piece, 0xffffff, cx - w / 2, cy - h / 2, w, h);
+        return;
+      }
       const halfL = ts * 0.78; // deck length (spans the 1-tile river + ramps)
       const halfW = ts * 0.3;
       const vx = -uy;
@@ -179,7 +198,7 @@ export class RoadLayer {
         const b = t[Math.min(t.length - 1, k + 1)];
         const len = Math.hypot(px(b) - px(a), py(b) - py(a)) || 1;
         bridged.add(t[k]);
-        drawBridge(px(t[k]), py(t[k]), (px(b) - px(a)) / len, (py(b) - py(a)) / len);
+        drawBridge(px(t[k]), py(t[k]), (px(b) - px(a)) / len, (py(b) - py(a)) / len, false);
       }
     }
 
@@ -213,7 +232,7 @@ export class RoadLayer {
           if (terrain[tile] !== Terrain.River || bridged.has(tile)) continue;
           bridged.add(tile);
           const [ux, uy] = flowPerp(tile);
-          drawBridge((x + 0.5) * ts, (y + 0.5) * ts, ux, uy);
+          drawBridge((x + 0.5) * ts, (y + 0.5) * ts, ux, uy, true);
         }
       }
     }

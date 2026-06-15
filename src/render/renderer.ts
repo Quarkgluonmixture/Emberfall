@@ -111,7 +111,7 @@ export class Renderer {
     this.atmosphere.resize(w, h);
 
     this.terrain.update(input.season, input.state.terrainVersion, input.dt);
-    this.roads.update(input.state);
+    this.roads.update(input.state, this.textures);
     this.decor.update(input.dt, input.state, input.season);
     this.territory.update(input.dt, input.state);
     this.settlements.update(

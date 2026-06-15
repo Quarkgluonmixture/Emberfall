@@ -24,6 +24,9 @@ export interface GameTextures {
   /** Per-role animation sets (batch 15, 6 roles). Preferred over citizenAnims;
       the citizen layer picks a role per agent. Null = no variety art. */
   citizenVariants: CitizenAnims[] | null;
+  /** Road/river crossing art (batch 17): horizontal/vertical plank bridge and
+      stone ford. Null = the road layer falls back to a procedural deck. */
+  bridge: { h: Texture; v: Texture; fordH: Texture; fordV: Texture } | null;
   glow: Texture;
   raindrop: Texture;
   snowflake: Texture;
@@ -212,6 +215,7 @@ export function makeTextures(renderer: Renderer): GameTextures {
     citizen: makeCitizen(renderer),
     citizenAnims: null,
     citizenVariants: null,
+    bridge: null,
     glow: makeGlow(),
     raindrop: makeRaindrop(renderer),
     snowflake: makeSnowflake(renderer),
@@ -347,6 +351,10 @@ export async function loadRealTextures(tex: GameTextures): Promise<number> {
     work6,
     fight6,
     rest6,
+    bridgeH,
+    bridgeV,
+    fordHt,
+    fordVt,
   ] = await Promise.all([
     tryLoad('settlement_camp.png'),
     tryLoad('settlement_village.png'),
@@ -374,6 +382,10 @@ export async function loadRealTextures(tex: GameTextures): Promise<number> {
     tryLoad('citizen6_work.png'),
     tryLoad('citizen6_fight.png'),
     tryLoad('citizen6_rest.png'),
+    tryLoad('bridge_h.png'),
+    tryLoad('bridge_v.png'),
+    tryLoad('ford_h.png'),
+    tryLoad('ford_v.png'),
   ]);
 
   let loaded = 0;
@@ -412,6 +424,9 @@ export async function loadRealTextures(tex: GameTextures): Promise<number> {
       fight: fG[r],
       rest: rG[r],
     }));
+  }
+  if (count(bridgeH) && count(bridgeV) && count(fordHt) && count(fordVt)) {
+    tex.bridge = { h: bridgeH!, v: bridgeV!, fordH: fordHt!, fordV: fordVt! };
   }
   if (count(spring) && count(summer) && count(autumn) && count(winter)) {
     tex.terrainTiles = [

@@ -124,6 +124,47 @@ async function plainResize(src, dst, w, h) {
   console.log(`  ${path.basename(dst)}  ${w}x${h}`);
 }
 
+/**
+ * Re-ground a keyed citizen grid sheet: trim every cell to its figure, scale
+ * the figure to a uniform height and bottom-align it in the cell, so a
+ * bottom-anchored sprite has its FEET at the cell bottom (no floating above the
+ * contact shadow) and every role renders the same body height. Rewrites in place.
+ */
+async function groundCitizenSheet(fp, rows, cols) {
+  const meta = await sharp(fp).metadata();
+  const cw = Math.round(meta.width / cols);
+  const ch = Math.round(meta.height / rows);
+  const targetH = Math.round(ch * 0.9); // figure height within the cell
+  const composites = [];
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      let trimmed;
+      try {
+        trimmed = await sharp(fp)
+          .extract({ left: c * cw, top: r * ch, width: cw, height: ch })
+          .trim({ threshold: 10 })
+          .toBuffer({ resolveWithObject: true });
+      } catch {
+        continue; // empty cell
+      }
+      const newW = Math.min(cw, Math.round((trimmed.info.width * targetH) / trimmed.info.height));
+      const fig = await sharp(trimmed.data).resize(newW, targetH).png().toBuffer();
+      composites.push({
+        input: fig,
+        left: c * cw + Math.round((cw - newW) / 2),
+        top: r * ch + (ch - targetH), // feet at the cell bottom
+      });
+    }
+  }
+  await sharp({
+    create: { width: meta.width, height: meta.height, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } },
+  })
+    .composite(composites)
+    .png()
+    .toFile(fp);
+  console.log(`  grounded ${path.basename(fp)} (${rows}×${cols}, feet at cell bottom)`);
+}
+
 const out = (name) => path.join(outDir, name);
 
 /** Flood-fill transparency from the borders for bright art on solid black. */
@@ -582,7 +623,9 @@ if (fs.existsSync(path.join(rawRoot, '15'))) {
   ];
   for (const [inN, outN, w, h] of sheets) {
     const src = path.join(rawRoot, '15', `${inN}.png`);
-    if (fs.existsSync(src)) await keyAndResize(src, out(`${outN}.png`), w, h, null, false);
+    if (!fs.existsSync(src)) continue;
+    await keyAndResize(src, out(`${outN}.png`), w, h, null, false);
+    await groundCitizenSheet(out(`${outN}.png`), 6, w / 128);
   }
 }
 

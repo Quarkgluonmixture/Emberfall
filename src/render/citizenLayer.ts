@@ -98,9 +98,9 @@ export class CitizenLayer {
       const sh = new Sprite(this.tex.glow);
       sh.anchor.set(0.5);
       sh.tint = 0x000000;
-      sh.alpha = 0.55;
-      sh.width = 3.2;
-      sh.height = 1.5;
+      sh.alpha = 0.4;
+      sh.width = 2.6;
+      sh.height = 0.9;
       this.shadowLayer.addChild(sh);
       this.shadows.push(sh);
       const ibg = new Sprite(this.tex.glow);
@@ -155,7 +155,7 @@ export class CitizenLayer {
       const a = agents[i];
       sp.visible = true;
       sh.visible = true;
-      sh.position.set(a.x, a.y + 0.35);
+      sh.position.set(a.x, a.y + 0.12);
       sp.tint = state.civs[a.civId]?.color ?? 0xffffff;
 
       // Routine field/forest labor (the bulk of citizens) shows as body

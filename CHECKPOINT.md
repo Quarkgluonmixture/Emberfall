@@ -17,8 +17,9 @@ watermills on river banks; terrain-derived settlement roles
 market/abbey/fort/forest with role-specific spatial grammar (market square,
 cloister precinct, fort keep + muster yard with barracks/stable); burgage
 plots as long aligned strips;
-outside-gate ragged suburbs; dispersed citizen crowds; close-zoom ground glow
-fade) · **64/64 tests · lint clean · stress bit-identical
+outside-gate ragged suburbs; thinned/dispersed citizen crowds; macro role
+glyphs (keep/spire/diamond/tree per role); close-zoom ground glow fade) ·
+**64/64 tests · lint clean · stress bit-identical
 ~0.7-0.9ms/day @100y · 164 settlements @ ~150fps** · pushed (see git log) ·
 per-session details in `docs/sessions/`
 

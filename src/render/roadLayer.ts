@@ -9,7 +9,7 @@
 import { Graphics } from 'pixi.js';
 import { BALANCE } from '../config/balance';
 import { hash2 } from '../core/rng';
-import type { SimState } from '../core/types';
+import { Terrain, type SimState } from '../core/types';
 
 const ROAD_EDGE = 0x52402a;
 const ROAD_COLOR = 0x8d6e4a;
@@ -132,6 +132,88 @@ export class RoadLayer {
             cap: 'round',
             join: 'round',
           });
+        }
+      }
+    }
+
+    // ── Crossings ────────────────────────────────────────────────────
+    // Where a road — or a town's wall ring — meets a river, lay a plank bridge
+    // over the water, so terrain and infrastructure visibly INTERACT instead of
+    // dirt/walls floating over a blue stripe. Procedural for now; real bridge
+    // art can replace this later. Baked with the roads (roadsVersion).
+    const terrain = state.world.terrain;
+    const H = state.world.height;
+    const bridged = new Set<number>();
+    const drawBridge = (cx: number, cy: number, ux: number, uy: number): void => {
+      const halfL = ts * 0.78; // deck length (spans the 1-tile river + ramps)
+      const halfW = ts * 0.3;
+      const vx = -uy;
+      const vy = ux;
+      const cor = (a: number, b: number): [number, number] => [
+        cx + ux * a + vx * b,
+        cy + uy * a + vy * b,
+      ];
+      const deck = [...cor(halfL, halfW), ...cor(halfL, -halfW), ...cor(-halfL, -halfW), ...cor(-halfL, halfW)];
+      g.poly(deck).fill({ color: 0x6b4f30, alpha: 0.98 });
+      g.poly(deck).stroke({ color: 0x3a2a18, width: 0.5, alpha: 0.85 });
+      for (let a = -halfL + ts * 0.2; a < halfL; a += ts * 0.22) {
+        const [pa, pb] = cor(a, halfW);
+        const [pc, pd] = cor(a, -halfW);
+        g.moveTo(pa, pb).lineTo(pc, pd);
+      }
+      g.stroke({ color: 0x4a371f, width: 0.4, alpha: 0.55 });
+      const [ra, rb] = cor(halfL, halfW);
+      const [rc, rd] = cor(-halfL, halfW);
+      const [sa, sb] = cor(halfL, -halfW);
+      const [sc, sd] = cor(-halfL, -halfW);
+      g.moveTo(ra, rb).lineTo(rc, rd).moveTo(sa, sb).lineTo(sc, sd);
+      g.stroke({ color: 0x8a6a44, width: 0.55, alpha: 0.9 });
+    };
+
+    // Road × river: deck runs along the road direction at the crossing.
+    for (const path of state.roadPaths) {
+      const t = path.tiles;
+      for (let k = 0; k < t.length; k++) {
+        if (terrain[t[k]] !== Terrain.River || bridged.has(t[k])) continue;
+        const a = t[Math.max(0, k - 1)];
+        const b = t[Math.min(t.length - 1, k + 1)];
+        const len = Math.hypot(px(b) - px(a), py(b) - py(a)) || 1;
+        bridged.add(t[k]);
+        drawBridge(px(t[k]), py(t[k]), (px(b) - px(a)) / len, (py(b) - py(a)) / len);
+      }
+    }
+
+    // Town × river: the wall ring spans a river — bridge it (deck across the
+    // flow) so the town reads as crossing the water, not swallowing it.
+    const flowPerp = (tile: number): [number, number] => {
+      const x = tile % W;
+      const y = (tile / W) | 0;
+      let fx = 0;
+      let fy = 0;
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
+        const nx = x + dx;
+        const ny = y + dy;
+        if (nx >= 0 && ny >= 0 && nx < W && ny < H && terrain[ny * W + nx] === Terrain.River) {
+          fx += dx;
+          fy += dy;
+        }
+      }
+      const len = Math.hypot(fx, fy);
+      return len > 0 ? [-fy / len, fx / len] : [1, 0]; // perpendicular to flow
+    };
+    for (const s of state.settlements) {
+      if (s.tier < 1) continue;
+      const rad = Math.ceil(BALANCE.render.settlementWidths[s.tier] / ts / 2) + 1;
+      for (let dy = -rad; dy <= rad; dy++) {
+        for (let dx = -rad; dx <= rad; dx++) {
+          const x = s.x + dx;
+          const y = s.y + dy;
+          if (x < 0 || y < 0 || x >= W || y >= H) continue;
+          const tile = y * W + x;
+          if (terrain[tile] !== Terrain.River || bridged.has(tile)) continue;
+          bridged.add(tile);
+          const [ux, uy] = flowPerp(tile);
+          drawBridge((x + 0.5) * ts, (y + 0.5) * ts, ux, uy);
         }
       }
     }

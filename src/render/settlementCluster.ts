@@ -66,6 +66,20 @@ const PIECE_W: Record<string, number> = {
   ruin_0: 6,
   ruin_1: 6.5,
   ruin_2: 6,
+  // Batch 18-20.
+  church: 13,
+  chapel: 8,
+  churchyard: 7,
+  graves: 5,
+  yard_fence: 4.5,
+  yard_garden: 5.5,
+  yard_pen: 6,
+  yard_wood: 4.5,
+  yard_shed: 5.5,
+  yard_hay: 6,
+  mill: 10,
+  jetty: 7,
+  millpond: 7,
 };
 
 export type HavePiece = (kind: string) => boolean;
@@ -301,6 +315,11 @@ export function layoutCluster(
     const okV = (dx: number, dy: number): boolean => !buildable || buildable(dx, dy);
     const centre = pick(have, hash2(seed, 10, 1) < 0.55 ? 'well' : 'shrine', 'well', 'shrine', 'campfire');
     if (centre && okV(0, 0.8)) put(out, centre, 0, 0.8);
+    // Some villages cluster around a small chapel landmark.
+    const chapel = pick(have, 'chapel');
+    if (chapel && hash2(seed, 14, 1) < 0.45 && okV(0, -4.5)) {
+      put(out, chapel, 0, -4.5, { lift: true, lamp: true });
+    }
     const granary = pick(have, 'granary', 'shed', 'crates');
     if (granary) placeSpiral(out, seed, 11, granary, 5.2, {}, buildable);
     const count = Math.min(10, 4 + bucket);
@@ -308,6 +327,11 @@ export function layoutCluster(
       const roll = hash2(seed, 20 + i, 2);
       const hut = pick(have, `hut_${Math.floor(roll * 3)}`, 'hut_0', 'hut_1', 'hut_2');
       if (hut) placeSpiral(out, seed, 20 + i, hut, 5, { lift: true, lamp: i < 2 }, buildable);
+    }
+    // Farm yards: gardens, pens and woodpiles give the village a worked-land feel.
+    for (let i = 0; i < 3; i++) {
+      const yk = pick(have, ['yard_garden', 'yard_pen', 'yard_wood'][i]);
+      if (yk) placeSpiral(out, seed, 30 + i, yk, 6 + i * 1.5, {}, buildable);
     }
     const lamp = pick(have, 'lamp');
     if (lamp && bucket >= 3 && okV(3.2, 2.6)) put(out, lamp, 3.2, 2.6, { lamp: true });
@@ -325,6 +349,20 @@ export function layoutCluster(
     const shrine = pick(have, 'shrine', 'well');
     const shrineDx = hash2(seed, 40, 2) < 0.5 ? -7 : 7;
     if (shrine && hash2(seed, 40, 1) < 0.6 && ok(shrineDx, -1.5)) put(out, shrine, shrineDx, -1.5);
+
+    // The church: the grandest landmark, set OFF the market to one side, with a
+    // churchyard wall and graves beside it (the tall spire poking past the wall
+    // is authentic). Placed before houses so the street rows give it room.
+    const church = pick(have, 'church', 'chapel');
+    const chDx = (hash2(seed, 41, 2) < 0.5 ? -1 : 1) * 9.5;
+    if (church && ok(chDx, -8)) {
+      put(out, church, chDx, -8, { lift: true, lamp: true });
+      const yard = pick(have, 'churchyard');
+      if (yard && ok(chDx, -3)) put(out, yard, chDx, -3);
+      const graves = pick(have, 'graves');
+      const gDx = chDx + (chDx < 0 ? 3.6 : -3.6);
+      if (graves && ok(gDx, -3.2)) put(out, graves, gDx, -3.2);
+    }
 
     // Medieval town, ROAD-FIRST (KCD read): a slightly curved main street runs
     // up from the south gate to the market/hall, and houses FRONT it in rows on
@@ -360,6 +398,24 @@ export function layoutCluster(
           placed++;
         }
       }
+    }
+
+    // Yard/plot dressing in the gaps behind the houses — gardens, pens, wood,
+    // hay, fences — so plots read as lived-in burgage yards, not bare ground.
+    const yardKinds = ['yard_garden', 'yard_pen', 'yard_wood', 'yard_hay', 'yard_fence', 'yard_shed'];
+    let yards = 0;
+    for (let i = 0; i < 50 && yards < 9; i++) {
+      const ya = hash2(seed, 200 + i, 1) * Math.PI * 2;
+      const yr = 8 + hash2(seed, 200 + i, 2) * 10;
+      const ydx = Math.cos(ya) * yr;
+      const ydy = Math.sin(ya) * yr * 0.72;
+      if (Math.abs(ydx) > maxRx || Math.abs(ydy) > maxRy) continue;
+      const yk = pick(have, yardKinds[Math.floor(hash2(seed, 200 + i, 3) * yardKinds.length)]);
+      if (!yk) continue;
+      if (buildable && !buildable(ydx, ydy)) continue;
+      if (collides(out, ydx, ydy, pw(yk))) continue;
+      put(out, yk, ydx, ydy, {});
+      yards++;
     }
 
     const lamp = pick(have, 'lamp');

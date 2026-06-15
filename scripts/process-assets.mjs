@@ -659,6 +659,46 @@ if (fs.existsSync(path.join(rawRoot, '17'))) {
   }
 }
 
+// Folders 18-21: medieval settlement detail (church, yards, mill, fields).
+const pieceSheet = (folder, file, names) => {
+  const src = path.join(rawRoot, folder, file);
+  if (!fs.existsSync(src)) return;
+  const piecesDir = path.join(outDir, 'pieces');
+  fs.mkdirSync(piecesDir, { recursive: true });
+  return slicePieces(
+    src,
+    names.map(([n, w]) => [path.join(piecesDir, `${n}.png`), w]),
+  );
+};
+if (fs.existsSync(path.join(rawRoot, '18'))) {
+  console.log('Church (folder 18):');
+  await pieceSheet('18', '01_church.png', [
+    ['church', 96],
+    ['chapel', 56],
+    ['churchyard', 48],
+    ['graves', 40],
+  ]);
+}
+if (fs.existsSync(path.join(rawRoot, '19'))) {
+  console.log('Yards (folder 19):');
+  await pieceSheet('19', '01_yards.png', [
+    ['yard_fence', 30],
+    ['yard_garden', 40],
+    ['yard_pen', 44],
+    ['yard_wood', 32],
+    ['yard_shed', 40],
+    ['yard_hay', 44],
+  ]);
+}
+if (fs.existsSync(path.join(rawRoot, '20'))) {
+  console.log('Mill (folder 20):');
+  await pieceSheet('20', '01_mill.png', [
+    ['mill', 72],
+    ['jetty', 52],
+    ['millpond', 52],
+  ]);
+}
+
 // SFX: slot-named samples (assets_src/sfx/<sound>.ogg, see SAMPLE_NAMES in
 // src/audio/sfx.ts) copied verbatim; any missing slot keeps its WebAudio
 // synth fallback. Current samples: Kenney CC0 packs (kenney.nl).

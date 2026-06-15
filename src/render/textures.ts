@@ -100,6 +100,20 @@ export const PIECE_KINDS = [
   'ruin_0',
   'ruin_1',
   'ruin_2',
+  // Batch 18-20: medieval landmarks + yard/plot dressing + river mill.
+  'church',
+  'chapel',
+  'churchyard',
+  'graves',
+  'yard_fence',
+  'yard_garden',
+  'yard_pen',
+  'yard_wood',
+  'yard_shed',
+  'yard_hay',
+  'mill',
+  'jetty',
+  'millpond',
 ] as const;
 
 /** Decor base names and their variant counts (public/assets/decor/). */

@@ -11,6 +11,8 @@ import { Terrain, type SimState } from '../core/types';
 import { settlementRole, type SettlementRole } from './settlementCluster';
 
 interface Glyph {
+  /** Dark backing disc so the civ-tinted glyph pops against busy terrain. */
+  back: Sprite;
   sprite: Sprite;
   ring: Graphics;
   tier: number;
@@ -31,6 +33,8 @@ export class MacroLayer {
   private gKeep!: Texture;
   private gSpire!: Texture;
   private gTree!: Texture;
+  /** Dark backing disc shared by all glyphs (contrast against terrain). */
+  private gBack!: Texture;
   private glyphs = new Map<number, Glyph>();
   private fronts = new Graphics();
   private flows = new Graphics();
@@ -74,6 +78,7 @@ export class MacroLayer {
       g.rect(4.9, 7.8, 1.2, 2.6).fill(0xffffff).stroke(ink);
       g.poly([5.5, 1.4, 8.6, 8.2, 2.4, 8.2]).fill(0xffffff).stroke(ink);
     });
+    this.gBack = make((g) => g.circle(6, 6, 5.4).fill(0x0d0a06));
     this.container.addChild(this.flows, this.fronts);
   }
 
@@ -130,11 +135,14 @@ export class MacroLayer {
       let g = this.glyphs.get(s.id);
       if (!g) {
         const role = this.roleFor(s, state);
+        const back = new Sprite(this.gBack);
+        back.anchor.set(0.5);
+        back.alpha = 0.42;
         const sprite = new Sprite(this.glyphFor(s.tier, role));
         sprite.anchor.set(0.5);
         const ring = new Graphics();
-        this.container.addChild(sprite, ring);
-        g = { sprite, ring, tier: s.tier, role };
+        this.container.addChild(back, sprite, ring);
+        g = { back, sprite, ring, tier: s.tier, role };
         this.glyphs.set(s.id, g);
       }
       if (g.tier !== s.tier) {
@@ -149,6 +157,8 @@ export class MacroLayer {
       const aspect = g.sprite.texture.height / g.sprite.texture.width;
       g.sprite.width = px * inv;
       g.sprite.height = px * inv * aspect;
+      g.back.position.copyFrom(g.sprite.position);
+      g.back.width = g.back.height = px * inv * 1.55;
 
       // Crisis ring: plague reads sickly green, famine dry amber.
       g.ring.clear();
@@ -161,6 +171,7 @@ export class MacroLayer {
     }
     for (const [id, g] of this.glyphs) {
       if (!seen.has(id)) {
+        g.back.destroy();
         g.sprite.destroy();
         g.ring.destroy();
         this.glyphs.delete(id);

@@ -26,6 +26,46 @@ function civLink(state: SimState, civId: number): string {
   return `<a href="#" data-civ="${civ.id}" style="color:${color}">${civ.name}</a>`;
 }
 
+/** The live forces acting on a civ — the "why" behind its rise or decline. */
+function civCauses(state: SimState, id: number): string[] {
+  const civ = state.civs[id];
+  if (!civ) return [];
+  const own = state.settlements.filter((s) => s.civId === id);
+  const causes: string[] = [];
+  if (civ.goldenAgeDays > 0) causes.push(t('cause.golden'));
+  if (civ.crisisDays > 0) causes.push(t('cause.crisis'));
+  const enemies = state.civs.filter(
+    (o) => o.id !== id && o.alive && state.relations[id][o.id]?.state === 'war',
+  );
+  if (enemies.length) {
+    const names = enemies.map((o) => o.name).join(', ');
+    const eMil = Math.max(...enemies.map((o) => o.military));
+    const ratio = eMil > 0 ? civ.military / eMil : 2;
+    const key = ratio <= 0.85 ? 'cause.warLosing' : ratio >= 1.18 ? 'cause.warWinning' : 'cause.war';
+    causes.push(t(key, names));
+  }
+  const famine = own.filter((s) => s.famineDays > 0).length;
+  if (famine) causes.push(t('cause.famine', famine));
+  const plague = own.filter((s) => s.plagueDays > 0).length;
+  if (plague) causes.push(t('cause.plague', plague));
+  const raided = own.filter((s) => state.day - s.lastRaidDay <= 20).length;
+  if (raided) causes.push(t('cause.raided', raided));
+  // Standing among peers: the largest realm, or a fragile small one.
+  const sizes = state.civs
+    .filter((c) => c.alive)
+    .map((c) => ({
+      id: c.id,
+      pop: state.settlements.filter((s) => s.civId === c.id).reduce((a, s) => a + s.population, 0),
+    }))
+    .sort((a, b) => b.pop - a.pop);
+  const top = sizes[0]?.pop ?? 1;
+  const mine = sizes.find((x) => x.id === id)?.pop ?? 0;
+  if (sizes.length > 1 && sizes[0].id === id) causes.push(t('cause.largest'));
+  else if (mine < top * 0.25) causes.push(t('cause.small'));
+  if (!causes.length) causes.push(t('cause.stable'));
+  return causes.slice(0, 4);
+}
+
 export class Inspector {
   selection: Selection = null;
   private root: HTMLElement;
@@ -165,8 +205,12 @@ export class Inspector {
         : civ.crisisDays > 0
           ? `${t('inspector.crisis')} (${civ.crisisDays}d)`
           : t('inspector.stable');
+    // Cause chain: the forces acting on this civ right now, so a watcher sees
+    // WHY it is rising or failing — derived live, no extra sim state.
+    const why = civ.alive ? `<div class="cause"><b>${t('inspector.why')}:</b> ${civCauses(state, id).join(' · ')}</div>` : '';
     return `<h3>${civ.name}</h3>
       <div class="sub">${status} · <a href="#" data-bio="${civ.id}">${t('inspector.readStory')}</a></div>
+      ${why}
       <div>${traits}</div>
       <table>
       ${row(t('inspector.population'), pop)}

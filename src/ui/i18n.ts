@@ -92,6 +92,19 @@ const UI: Record<string, { en: string; zh: string }> = {
   // "What's happening now" — the world's 2-3 live story threads.
   'civs.now': { en: 'NOW', zh: '当下' },
   'civs.now.empty': { en: 'a quiet age', zh: '太平之世' },
+  // Inspector cause-chain: WHY a civ is rising or failing, from live state.
+  'inspector.why': { en: 'Why', zh: '为何' },
+  'cause.golden': { en: 'enjoying a golden age', zh: '正值黄金时代' },
+  'cause.crisis': { en: 'gripped by a succession crisis', zh: '陷于继承危机' },
+  'cause.warLosing': { en: 'losing the war against {n}', zh: '对 {n} 的战事失利' },
+  'cause.warWinning': { en: 'winning the war against {n}', zh: '对 {n} 的战事得胜' },
+  'cause.war': { en: 'at war with {n}', zh: '与 {n} 交战' },
+  'cause.famine': { en: '{n} settlements starving', zh: '{n} 处聚落挨饿' },
+  'cause.plague': { en: '{n} settlements plague-struck', zh: '{n} 处聚落瘟疫肆虐' },
+  'cause.raided': { en: '{n} settlements raided lately', zh: '近来 {n} 处聚落遭劫' },
+  'cause.largest': { en: 'the largest realm in the world', zh: '世界第一大邦' },
+  'cause.small': { en: 'a small, fragile realm', zh: '弱小之邦' },
+  'cause.stable': { en: 'holding steady', zh: '局势平稳' },
   'history.title': { en: 'THE HISTORICAL RECORD', zh: '历史记录' },
   'history.year': { en: 'Year {n}', zh: '第 {n} 年' },
   'history.empty': {

@@ -332,39 +332,44 @@ function bakeStandalone(t: Texture): Texture {
   return Texture.from(cv);
 }
 
-/** Erase every opaque blob in the cell except the main central figure, removing
-    neighbour fragments that bled in from adjacent grid cells. */
+/** Erase blobs that bled in from neighbouring grid cells, keeping the main
+    figure AND its own disconnected parts (a head/hat split off by keying sits
+    ABOVE the body; only true neighbours sit entirely to the side or below). */
 function isolateMainFigure(ctx: CanvasRenderingContext2D, w: number, h: number): void {
   const img = ctx.getImageData(0, 0, w, h);
   const d = img.data;
   const n = w * h;
   const label = new Int32Array(n).fill(-1);
-  const comps: { area: number; sx: number }[] = [];
+  interface Comp { area: number; sx: number; minx: number; maxx: number; miny: number; maxy: number }
+  const comps: Comp[] = [];
   const stack: number[] = [];
   for (let s = 0; s < n; s++) {
     if (label[s] >= 0 || d[s * 4 + 3] <= 24) continue;
     const id = comps.length;
-    let area = 0;
-    let sx = 0;
+    const c: Comp = { area: 0, sx: 0, minx: w, maxx: 0, miny: h, maxy: 0 };
     label[s] = id;
     stack.length = 0;
     stack.push(s);
     while (stack.length) {
       const idx = stack.pop()!;
       const x = idx % w;
-      area++;
-      sx += x;
+      const y = (idx / w) | 0;
+      c.area++;
+      c.sx += x;
+      if (x < c.minx) c.minx = x;
+      if (x > c.maxx) c.maxx = x;
+      if (y < c.miny) c.miny = y;
+      if (y > c.maxy) c.maxy = y;
       if (x > 0 && label[idx - 1] < 0 && d[(idx - 1) * 4 + 3] > 24) { label[idx - 1] = id; stack.push(idx - 1); }
       if (x < w - 1 && label[idx + 1] < 0 && d[(idx + 1) * 4 + 3] > 24) { label[idx + 1] = id; stack.push(idx + 1); }
       if (idx - w >= 0 && label[idx - w] < 0 && d[(idx - w) * 4 + 3] > 24) { label[idx - w] = id; stack.push(idx - w); }
       if (idx + w < n && label[idx + w] < 0 && d[(idx + w) * 4 + 3] > 24) { label[idx + w] = id; stack.push(idx + w); }
     }
-    comps.push({ area, sx });
+    comps.push(c);
   }
   if (comps.length <= 1) return;
   // Main figure: largest area, penalized for being off the cell's horizontal
-  // centre (a bled neighbour sits at the right edge; the grounded main figure
-  // is centred).
+  // centre (a bled neighbour sits at the edge; the grounded figure is centred).
   const cx = w / 2;
   let bestId = 0;
   let bestScore = -Infinity;
@@ -373,7 +378,24 @@ function isolateMainFigure(ctx: CanvasRenderingContext2D, w: number, h: number):
     const score = c.area - Math.abs(c.sx / c.area - cx) * 6;
     if (score > bestScore) { bestScore = score; bestId = i; }
   }
-  for (let i = 0; i < n; i++) if (label[i] >= 0 && label[i] !== bestId) d[i * 4 + 3] = 0;
+  const main = comps[bestId];
+  const tol = 3;
+  const drop = new Uint8Array(comps.length);
+  for (let i = 0; i < comps.length; i++) {
+    if (i === bestId) continue;
+    const c = comps[i];
+    // True neighbour bleed lies entirely to one side of, or entirely below, the
+    // main figure. A split-off head/hat overlaps the body's column and sits
+    // above it → kept.
+    const entirelyRight = c.minx > main.maxx - tol;
+    const entirelyLeft = c.maxx < main.minx + tol;
+    const entirelyBelow = c.miny > main.maxy - tol;
+    if (entirelyRight || entirelyLeft || entirelyBelow) drop[i] = 1;
+  }
+  for (let i = 0; i < n; i++) {
+    const l = label[i];
+    if (l >= 0 && drop[l]) d[i * 4 + 3] = 0;
+  }
   ctx.putImageData(img, 0, 0);
 }
 

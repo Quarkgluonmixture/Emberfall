@@ -302,13 +302,42 @@ function frameCoverage(t: Texture): number {
   return opaque / (sw * sh);
 }
 
+/** Bake a (shared-source sub-frame) texture into its OWN standalone texture
+    via an offscreen canvas. The citizen layer reuses a sprite pool and swaps
+    each sprite's `.texture` between sub-frames of one shared sheet every frame;
+    on some hardware GPU batchers a reused sprite then samples the wrong
+    sub-rect (disembodied heads / half-bodies / fragments — see the citizen
+    flicker/clip reports). Software rendering batches differently and is
+    unaffected, which is why it only shows on real GPUs. Independent sources
+    have no shared sub-rect to mis-sample. */
+function bakeStandalone(t: Texture): Texture {
+  const res = t.source?.resource as CanvasImageSource | undefined;
+  if (!res) return t;
+  const f = t.frame;
+  const w = Math.max(1, Math.round(f.width));
+  const h = Math.max(1, Math.round(f.height));
+  const cv = document.createElement('canvas');
+  cv.width = w;
+  cv.height = h;
+  const ctx = cv.getContext('2d');
+  if (!ctx) return t;
+  try {
+    ctx.drawImage(res, f.x, f.y, f.width, f.height, 0, 0, w, h);
+  } catch {
+    return t; // tainted/unsupported source → keep the shared-source frame
+  }
+  return Texture.from(cv);
+}
+
 /** Drop blank padding frames (and fully-empty role rows) from a sliced
-    animation set so a citizen never renders a transparent, blinking cell.
+    animation set so a citizen never renders a transparent, blinking cell, and
+    bake each surviving frame to a standalone texture (see bakeStandalone).
     Returns null if the whole role is empty art. Any state that loses all its
     frames is backfilled from the richest surviving cycle so frameFor() never
     indexes an empty array. */
 function pruneBlankAnims(set: CitizenAnims): CitizenAnims | null {
-  const keep = (frames: Texture[]): Texture[] => frames.filter((t) => frameCoverage(t) >= 0.02);
+  const keep = (frames: Texture[]): Texture[] =>
+    frames.filter((t) => frameCoverage(t) >= 0.02).map(bakeStandalone);
   const walk = keep(set.walk);
   const work = keep(set.work);
   const fight = keep(set.fight);

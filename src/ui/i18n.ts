@@ -79,6 +79,19 @@ const UI: Record<string, { en: string; zh: string }> = {
   // Panels
   'civs.title': { en: 'CIVILIZATIONS', zh: '文明' },
   'civs.fell': { en: 'fell Y{n}', zh: '覆灭于第{n}年' },
+  // Per-civ status synopsis — the "why" at a glance, derived from live state.
+  'civs.status.golden': { en: 'golden age', zh: '黄金时代' },
+  'civs.status.crisis': { en: 'succession crisis', zh: '继承危机' },
+  'civs.status.losing': { en: 'losing the war', zh: '战事失利' },
+  'civs.status.winning': { en: 'winning the war', zh: '战事得胜' },
+  'civs.status.war': { en: 'at war', zh: '交战中' },
+  'civs.status.plague': { en: 'plague-struck', zh: '瘟疫肆虐' },
+  'civs.status.famine': { en: 'famine', zh: '饥荒' },
+  'civs.status.raided': { en: 'under raids', zh: '遭劫掠' },
+  'civs.status.peace': { en: 'at peace', zh: '太平' },
+  // "What's happening now" — the world's 2-3 live story threads.
+  'civs.now': { en: 'NOW', zh: '当下' },
+  'civs.now.empty': { en: 'a quiet age', zh: '太平之世' },
   'history.title': { en: 'THE HISTORICAL RECORD', zh: '历史记录' },
   'history.year': { en: 'Year {n}', zh: '第 {n} 年' },
   'history.empty': {

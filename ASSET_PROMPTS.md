@@ -230,6 +230,13 @@ height. **No batch 15 → the single folder-3 citizen keeps working** (fallback)
 (Pipeline also re-grounds each cell — trim, uniform height, bottom-align — so
 feet sit at the cell bottom and citizens don't float above their shadow.)
 
+> **Shipped sheets are incomplete** (2026-06-16): GPT-Image only filled 3 of 4
+> walk/work/fight columns, 1 of 2 rest columns, and left the 6th (elder) row
+> empty. The loader now prunes blank frames/roles (`pruneBlankAnims` in
+> `textures.ts`), so this degrades to 5 roles × 3-frame cycles instead of
+> blinking. Regenerating with full 4-frame cycles + a real elder row would
+> restore the dropped frame and variant.
+
 ## Batch 16 — level wall caps (corner tower + gatehouse) → `assets_src/raw/16/`
 
 The old `wall_tower`/`wall_gate` were slanted 3/4 pieces that clashed with the

@@ -272,6 +272,58 @@ function sliceStrip(base: Texture, frames: number): Texture[] {
   );
 }
 
+/** Fraction of a texture cell's pixels that are opaque. Used to detect the
+    transparent padding cells that incomplete GPT-Image sheets leave behind
+    (a missing frame column / role row): if an agent ever lands on a blank
+    frame it blinks to nothing once per animation cycle — the "flickering
+    citizen" bug. Sampling at a small fixed size keeps this cheap at load. */
+let coverageCanvas: HTMLCanvasElement | null = null;
+function frameCoverage(t: Texture): number {
+  const res = t.source?.resource as CanvasImageSource | undefined;
+  if (!res) return 1; // can't sample → assume the frame is real
+  const f = t.frame;
+  const sw = Math.max(1, Math.min(Math.round(f.width), 48));
+  const sh = Math.max(1, Math.min(Math.round(f.height), 48));
+  coverageCanvas ??= document.createElement('canvas');
+  const cv = coverageCanvas;
+  cv.width = sw;
+  cv.height = sh;
+  const ctx = cv.getContext('2d', { willReadFrequently: true });
+  if (!ctx) return 1;
+  ctx.clearRect(0, 0, sw, sh);
+  try {
+    ctx.drawImage(res, f.x, f.y, f.width, f.height, 0, 0, sw, sh);
+  } catch {
+    return 1; // tainted/unsupported source → don't prune
+  }
+  const data = ctx.getImageData(0, 0, sw, sh).data;
+  let opaque = 0;
+  for (let i = 3; i < data.length; i += 4) if (data[i] > 16) opaque++;
+  return opaque / (sw * sh);
+}
+
+/** Drop blank padding frames (and fully-empty role rows) from a sliced
+    animation set so a citizen never renders a transparent, blinking cell.
+    Returns null if the whole role is empty art. Any state that loses all its
+    frames is backfilled from the richest surviving cycle so frameFor() never
+    indexes an empty array. */
+function pruneBlankAnims(set: CitizenAnims): CitizenAnims | null {
+  const keep = (frames: Texture[]): Texture[] => frames.filter((t) => frameCoverage(t) >= 0.02);
+  const walk = keep(set.walk);
+  const work = keep(set.work);
+  const fight = keep(set.fight);
+  const rest = keep(set.rest);
+  const fallback =
+    walk.length ? walk : work.length ? work : fight.length ? fight : rest.length ? rest : null;
+  if (!fallback) return null;
+  return {
+    walk: walk.length ? walk : fallback,
+    work: work.length ? work : fallback,
+    fight: fight.length ? fight : fallback,
+    rest: rest.length ? rest : fallback,
+  };
+}
+
 /** Cut a grid into rows × cols frames → frames[row][col]. */
 function sliceGrid(base: Texture, rows: number, cols: number): Texture[][] {
   const cw = base.width / cols;
@@ -424,12 +476,12 @@ export async function loadRealTextures(tex: GameTextures): Promise<number> {
   if (count(snowflake)) tex.snowflake = snowflake!;
   if (count(smoke)) tex.smoke = sliceStrip(smoke!, 4);
   if (count(walk) && count(work) && count(fight) && count(rest)) {
-    tex.citizenAnims = {
+    tex.citizenAnims = pruneBlankAnims({
       walk: sliceStrip(walk!, 4),
       work: sliceStrip(work!, 4),
       fight: sliceStrip(fight!, 4),
       rest: sliceStrip(rest!, 2),
-    };
+    });
   }
   // Batch 15: 6 role rows. Grid-sliced into per-role animation sets; uniform
   // 128² cells keep every role/state at the same body height.
@@ -438,12 +490,18 @@ export async function loadRealTextures(tex: GameTextures): Promise<number> {
     const kG = sliceGrid(work6!, 6, 4);
     const fG = sliceGrid(fight6!, 6, 4);
     const rG = sliceGrid(rest6!, 6, 2);
-    tex.citizenVariants = Array.from({ length: 6 }, (_, r) => ({
+    // Prune transparent padding frames + empty role rows: the batch-15 sheets
+    // ship 3 of 4 walk/work/fight columns, 1 of 2 rest columns, and an empty
+    // 6th (elder) row, so the raw slice would blink and hide ~1/6 of citizens.
+    const variants = Array.from({ length: 6 }, (_, r) => ({
       walk: wG[r],
       work: kG[r],
       fight: fG[r],
       rest: rG[r],
-    }));
+    }))
+      .map(pruneBlankAnims)
+      .filter((s): s is CitizenAnims => s !== null);
+    tex.citizenVariants = variants.length ? variants : null;
   }
   if (count(bridgeH) && count(bridgeV) && count(fordHt) && count(fordVt)) {
     tex.bridge = { h: bridgeH!, v: bridgeV!, fordH: fordHt!, fordV: fordVt! };

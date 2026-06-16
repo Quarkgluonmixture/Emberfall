@@ -41,6 +41,14 @@ export class CitizenLayer {
     this.container.addChild(this.trailLayer);
     this.container.addChild(this.shadowLayer);
     this.container.addChild(this.iconLayer);
+    // Depth-sort citizens by their feet (y): a sprite lower on screen draws in
+    // front, so overlapping citizens stack back-to-front instead of one body
+    // half-poking through another. The sub-layers are pinned: trails+shadows
+    // behind every citizen, action glyphs in front.
+    this.container.sortableChildren = true;
+    this.trailLayer.zIndex = -3;
+    this.shadowLayer.zIndex = -2;
+    this.iconLayer.zIndex = 1_000_000;
   }
 
   /** Pick the animation frame and facing for an agent (real art path). */
@@ -154,6 +162,7 @@ export class CitizenLayer {
       }
       const a = agents[i];
       sp.visible = true;
+      sp.zIndex = a.y; // feet-depth: lower on screen draws in front
       sh.visible = true;
       sh.position.set(a.x, a.y + 0.12);
       sp.tint = state.civs[a.civId]?.color ?? 0xffffff;

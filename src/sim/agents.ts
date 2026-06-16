@@ -117,12 +117,13 @@ export class AgentSystem {
   private spawn(s: Settlement): Agent {
     const px = (s.x + 0.5) * ts;
     const py = (s.y + 0.5) * ts;
-    // Dispersed home anchor across the cluster footprint (uniform over a disc,
-    // squashed like the clusters) so idle/resting citizens read as spread over
-    // the town, not stacked on its centre. Cosmetic RNG only.
-    const spread = s.tier >= 2 ? 22 : s.tier === 1 ? 13 : 6;
+    // Dispersed home anchor as an ANNULUS around the built core (uniform over
+    // the ring, squashed like the clusters): idle/resting citizens spread over
+    // the settlement edge instead of standing on the central buildings. The
+    // inner radius clears the cluster footprint per tier. Cosmetic RNG only.
+    const [coreR, outerR] = s.tier >= 2 ? [14, 26] : s.tier === 1 ? [10, 18] : [6, 11];
     const ang = this.rng.range(0, Math.PI * 2);
-    const rad = Math.sqrt(this.rng.range(0, 1)) * spread;
+    const rad = Math.sqrt(this.rng.range(coreR * coreR, outerR * outerR));
     const homeX = px + Math.cos(ang) * rad;
     const homeY = py + Math.sin(ang) * rad * 0.82;
     return {

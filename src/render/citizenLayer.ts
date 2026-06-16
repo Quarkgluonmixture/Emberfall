@@ -62,7 +62,12 @@ export class CitizenLayer {
       frames = anims.walk;
       rate = a.state === 'fleeing' ? 2.2 : 1.4;
     } else if (WORKING_STATES.has(a.state)) {
-      frames = anims.work;
+      // Upright stance for workers: the hunched batch-15 work poses read as
+      // headless brown lumps at the player's zoom (the recurring "severed head"
+      // the owner saw). Stand them upright and let the dust puff mark the
+      // activity instead, so every citizen reads clearly as a person.
+      frames = anims.rest;
+      rate = 0.4;
     } else if (a.state === 'fighting') {
       frames = anims.fight;
       rate = 2;

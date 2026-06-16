@@ -302,14 +302,16 @@ function frameCoverage(t: Texture): number {
   return opaque / (sw * sh);
 }
 
-/** Bake a (shared-source sub-frame) texture into its OWN standalone texture
-    via an offscreen canvas. The citizen layer reuses a sprite pool and swaps
-    each sprite's `.texture` between sub-frames of one shared sheet every frame;
-    on some hardware GPU batchers a reused sprite then samples the wrong
-    sub-rect (disembodied heads / half-bodies / fragments — see the citizen
-    flicker/clip reports). Software rendering batches differently and is
-    unaffected, which is why it only shows on real GPUs. Independent sources
-    have no shared sub-rect to mis-sample. */
+/** Bake a sliced sub-frame into its OWN standalone texture, keeping ONLY the
+    cell's main figure. Two problems are solved at once:
+    1. Shared-source sub-frames make a reused, texture-swapping sprite sample
+       the wrong sub-rect on some hardware GPU batchers (clipped/ghost figures);
+       an independent source has no shared sub-rect to mis-sample.
+    2. The batch-15 citizen cells OVERLAP their neighbours — a sliver of the
+       figure to the right and the head of the figure below bleed into each cell
+       (the "half person on the right / head below the body" the owner saw). We
+       flood-fill the cell's connected blobs and erase everything except the
+       central main figure, so each baked frame is one clean citizen. */
 function bakeStandalone(t: Texture): Texture {
   const res = t.source?.resource as CanvasImageSource | undefined;
   if (!res) return t;
@@ -319,14 +321,60 @@ function bakeStandalone(t: Texture): Texture {
   const cv = document.createElement('canvas');
   cv.width = w;
   cv.height = h;
-  const ctx = cv.getContext('2d');
+  const ctx = cv.getContext('2d', { willReadFrequently: true });
   if (!ctx) return t;
   try {
     ctx.drawImage(res, f.x, f.y, f.width, f.height, 0, 0, w, h);
   } catch {
     return t; // tainted/unsupported source → keep the shared-source frame
   }
+  isolateMainFigure(ctx, w, h);
   return Texture.from(cv);
+}
+
+/** Erase every opaque blob in the cell except the main central figure, removing
+    neighbour fragments that bled in from adjacent grid cells. */
+function isolateMainFigure(ctx: CanvasRenderingContext2D, w: number, h: number): void {
+  const img = ctx.getImageData(0, 0, w, h);
+  const d = img.data;
+  const n = w * h;
+  const label = new Int32Array(n).fill(-1);
+  const comps: { area: number; sx: number }[] = [];
+  const stack: number[] = [];
+  for (let s = 0; s < n; s++) {
+    if (label[s] >= 0 || d[s * 4 + 3] <= 24) continue;
+    const id = comps.length;
+    let area = 0;
+    let sx = 0;
+    label[s] = id;
+    stack.length = 0;
+    stack.push(s);
+    while (stack.length) {
+      const idx = stack.pop()!;
+      const x = idx % w;
+      area++;
+      sx += x;
+      if (x > 0 && label[idx - 1] < 0 && d[(idx - 1) * 4 + 3] > 24) { label[idx - 1] = id; stack.push(idx - 1); }
+      if (x < w - 1 && label[idx + 1] < 0 && d[(idx + 1) * 4 + 3] > 24) { label[idx + 1] = id; stack.push(idx + 1); }
+      if (idx - w >= 0 && label[idx - w] < 0 && d[(idx - w) * 4 + 3] > 24) { label[idx - w] = id; stack.push(idx - w); }
+      if (idx + w < n && label[idx + w] < 0 && d[(idx + w) * 4 + 3] > 24) { label[idx + w] = id; stack.push(idx + w); }
+    }
+    comps.push({ area, sx });
+  }
+  if (comps.length <= 1) return;
+  // Main figure: largest area, penalized for being off the cell's horizontal
+  // centre (a bled neighbour sits at the right edge; the grounded main figure
+  // is centred).
+  const cx = w / 2;
+  let bestId = 0;
+  let bestScore = -Infinity;
+  for (let i = 0; i < comps.length; i++) {
+    const c = comps[i];
+    const score = c.area - Math.abs(c.sx / c.area - cx) * 6;
+    if (score > bestScore) { bestScore = score; bestId = i; }
+  }
+  for (let i = 0; i < n; i++) if (label[i] >= 0 && label[i] !== bestId) d[i * 4 + 3] = 0;
+  ctx.putImageData(img, 0, 0);
 }
 
 /** Drop blank padding frames (and fully-empty role rows) from a sliced

@@ -57,6 +57,11 @@ const ts = BALANCE.map.tileSize;
 /** Golden angle (rad): id * this spaces any set of agents evenly around a
     circle, so co-located citizens fan out instead of stacking. */
 const GOLDEN_ANGLE = 2.399963229728653;
+/** [inner, outer] world-px radius of the home ring per tier — clears the built
+    core so citizens ring the settlement edge, not its centre. */
+function homeRing(tier: number): [number, number] {
+  return tier >= 2 ? [14, 26] : tier === 1 ? [10, 18] : [6, 11];
+}
 
 export class AgentSystem {
   agents: Agent[] = [];
@@ -127,7 +132,7 @@ export class AgentSystem {
     // cluster footprint per tier; the angle is a per-agent GOLDEN-ANGLE slot so
     // citizens fan out evenly around the ring instead of randomly clumping.
     // Cosmetic RNG only.
-    const [coreR, outerR] = s.tier >= 2 ? [14, 26] : s.tier === 1 ? [10, 18] : [6, 11];
+    const [coreR, outerR] = homeRing(s.tier);
     const ang = id * GOLDEN_ANGLE;
     const rad = Math.sqrt(this.rng.range(coreR * coreR, outerR * outerR));
     const homeX = px + Math.cos(ang) * rad;
@@ -276,13 +281,33 @@ export class AgentSystem {
       }
     }
 
-    // Otherwise: work the land.
+    // Often, just amble upright around the home ring and idle — keeps readable
+    // standing/walking people near the settlement instead of every citizen
+    // hunched over a far work tile (legibility). Upright pose > work hunch.
+    if (this.rng.chance(0.4)) {
+      const slot = a.id * GOLDEN_ANGLE;
+      const [coreR, outerR] = homeRing(s.tier);
+      const r = this.rng.range(coreR, outerR);
+      this.walkTo(
+        a,
+        hx + Math.cos(slot) * r + this.rng.range(-2, 2),
+        hy + Math.sin(slot) * r * 0.82 + this.rng.range(-2, 2),
+        'idle',
+        state,
+      );
+      return;
+    }
+
+    // Otherwise: work the land. Each agent searches its OWN angular sector
+    // (golden-angle base) so workers spread across different tiles rather than
+    // converging on one patch and piling up.
     const radius = BALANCE.resources.gatherRadius;
+    const pdir = a.id * GOLDEN_ANGLE;
     for (let attempt = 0; attempt < 6; attempt++) {
-      const dx = this.rng.int(-radius, radius);
-      const dy = this.rng.int(-radius, radius);
-      const x = s.x + dx;
-      const y = s.y + dy;
+      const rr = this.rng.range(2, radius);
+      const aa = pdir + this.rng.range(-0.9, 0.9);
+      const x = s.x + Math.round(Math.cos(aa) * rr);
+      const y = s.y + Math.round(Math.sin(aa) * rr);
       if (!inBounds(state.world, x, y)) continue;
       const terr = terrainAt(state.world, x, y);
       let job: AgentState | null = null;
@@ -297,8 +322,8 @@ export class AgentSystem {
         const slot = a.id * GOLDEN_ANGLE;
         this.walkTo(
           a,
-          (x + 0.5) * ts + Math.cos(slot) * 4 + this.rng.range(-1.5, 1.5),
-          (y + 0.5) * ts + Math.sin(slot) * 4 + this.rng.range(-1.5, 1.5),
+          (x + 0.5) * ts + Math.cos(slot) * 6 + this.rng.range(-1.5, 1.5),
+          (y + 0.5) * ts + Math.sin(slot) * 6 + this.rng.range(-1.5, 1.5),
           job,
           state,
         );

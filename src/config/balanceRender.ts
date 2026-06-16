@@ -19,7 +19,7 @@ export const RENDER_BALANCE = {
   /** Target on-map height (world px) of citizen sprites — kept well under
       settlement scale so people don't dwarf the buildings, but big enough
       to read against the detailed cluster rooftops. */
-  citizenHeight: 5.2,
+  citizenHeight: 5.8,
   smokeAlpha: 0.35,
   /** Frame-rate cap options cycled by the HUD button; 0 = uncapped. */
   fpsCapOptions: [60, 30, 0],

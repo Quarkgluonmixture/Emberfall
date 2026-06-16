@@ -106,9 +106,9 @@ export class CitizenLayer {
       const sh = new Sprite(this.tex.glow);
       sh.anchor.set(0.5);
       sh.tint = 0x000000;
-      sh.alpha = 0.4;
-      sh.width = 2.6;
-      sh.height = 0.9;
+      sh.alpha = 0.32;
+      sh.width = 2.2;
+      sh.height = 0.7;
       this.shadowLayer.addChild(sh);
       this.shadows.push(sh);
       const ibg = new Sprite(this.tex.glow);
@@ -126,8 +126,8 @@ export class CitizenLayer {
       pf.anchor.set(0.5);
       pf.tint = 0xcbb37a;
       pf.visible = false;
-      pf.width = 2.2;
-      pf.height = 1.4;
+      pf.width = 1.8;
+      pf.height = 1.1;
       this.iconLayer.addChild(pf);
       this.puffs.push(pf);
     }
@@ -182,19 +182,21 @@ export class CitizenLayer {
         ic.scale.set(w / iconTex.width);
         ic.position.set(a.x, iy);
         ibg.visible = true;
-        ibg.width = ibg.height = w * 2.0;
-        ibg.alpha = 0.45 * iconFade;
+        ibg.width = ibg.height = w * 1.5;
+        ibg.alpha = 0.28 * iconFade;
         ibg.position.set(a.x, iy - w * 0.5);
       } else {
         ic.visible = false;
         ibg.visible = false;
       }
 
-      // Work dust: a soft puff that breathes with the work animation.
-      if (showIcons && WORKING_STATES.has(a.state)) {
+      // Work dust: a soft, faint puff on a subset of workers (thinning the
+      // close-zoom clutter that read as floating bits) that breathes with the
+      // work animation.
+      if (showIcons && WORKING_STATES.has(a.state) && a.id % 2 === 0) {
         pf.visible = true;
         pf.position.set(a.x + 1.2, a.y - 0.8);
-        pf.alpha = 0.4 * Math.abs(Math.sin(a.phase * 1.3));
+        pf.alpha = 0.22 * Math.abs(Math.sin(a.phase * 1.3));
       } else {
         pf.visible = false;
       }

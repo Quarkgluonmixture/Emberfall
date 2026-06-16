@@ -72,7 +72,10 @@ invariants live in `CLAUDE.md` — read it before changing sim or pipeline code.
   this is presentation-only (RNG-neutral) — never suppress crisis *frequency*
   to clean the log or the world goes static.
 - **UI**: bilingual en/zh everywhere, Esc settings menu (styled, hotkey
-  grid), icon set (game-icons.net CC BY, see `icons/ATTRIBUTION.md`).
+  grid), icon set (game-icons.net CC BY, see `icons/ATTRIBUTION.md`). Civ panel
+  is a **narration layer**: a "NOW" header surfacing the world's live story
+  threads (wars/golden ages/crises) + a per-civ status synopsis (winning/losing
+  war, golden age, plague, famine, raided…) tone-coloured with hover cause-detail.
 - **Probe API** (`?probe=1`): `window.__emberfall` — advanceDays, centerOn,
   setAmbient, stepAgents, layers(), weatherAt — all headless scripts use it.
 

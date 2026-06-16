@@ -54,6 +54,9 @@ export interface ViewBounds {
 }
 
 const ts = BALANCE.map.tileSize;
+/** Golden angle (rad): id * this spaces any set of agents evenly around a
+    circle, so co-located citizens fan out instead of stacking. */
+const GOLDEN_ANGLE = 2.399963229728653;
 
 export class AgentSystem {
   agents: Agent[] = [];
@@ -117,17 +120,20 @@ export class AgentSystem {
   private spawn(s: Settlement): Agent {
     const px = (s.x + 0.5) * ts;
     const py = (s.y + 0.5) * ts;
-    // Dispersed home anchor as an ANNULUS around the built core (uniform over
-    // the ring, squashed like the clusters): idle/resting citizens spread over
-    // the settlement edge instead of standing on the central buildings. The
-    // inner radius clears the cluster footprint per tier. Cosmetic RNG only.
+    const id = this.nextId++;
+    // Dispersed home anchor as an ANNULUS around the built core (squashed like
+    // the clusters): idle/resting citizens spread over the settlement edge
+    // instead of standing on the central buildings. The inner radius clears the
+    // cluster footprint per tier; the angle is a per-agent GOLDEN-ANGLE slot so
+    // citizens fan out evenly around the ring instead of randomly clumping.
+    // Cosmetic RNG only.
     const [coreR, outerR] = s.tier >= 2 ? [14, 26] : s.tier === 1 ? [10, 18] : [6, 11];
-    const ang = this.rng.range(0, Math.PI * 2);
+    const ang = id * GOLDEN_ANGLE;
     const rad = Math.sqrt(this.rng.range(coreR * coreR, outerR * outerR));
     const homeX = px + Math.cos(ang) * rad;
     const homeY = py + Math.sin(ang) * rad * 0.82;
     return {
-      id: this.nextId++,
+      id,
       civId: s.civId,
       settlementId: s.id,
       x: homeX + this.rng.range(-2, 2),
@@ -286,10 +292,13 @@ export class AgentSystem {
         job = 'gathering';
       }
       if (job) {
+        // Stand at a per-agent golden-angle slot on the worked tile so several
+        // citizens on the same patch fan out instead of piling on one pixel.
+        const slot = a.id * GOLDEN_ANGLE;
         this.walkTo(
           a,
-          (x + 0.5) * ts + this.rng.range(-3, 3),
-          (y + 0.5) * ts + this.rng.range(-3, 3),
+          (x + 0.5) * ts + Math.cos(slot) * 4 + this.rng.range(-1.5, 1.5),
+          (y + 0.5) * ts + Math.sin(slot) * 4 + this.rng.range(-1.5, 1.5),
           job,
           state,
         );

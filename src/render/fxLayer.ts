@@ -10,6 +10,7 @@ import { Container, Graphics, Sprite, type Renderer, type Texture } from 'pixi.j
 import { BALANCE } from '../config/balance';
 import { hash2 } from '../core/rng';
 import type { SimState } from '../core/types';
+import { TextureOwnership } from './textureOwnership';
 import type { GameTextures } from './textures';
 
 interface Fx {
@@ -61,6 +62,7 @@ export class FxLayer {
   suppress = false;
   private live: Fx[] = [];
   private ring: Texture;
+  private ownership = new TextureOwnership();
   private chronicleSeen = 0;
   private lastState: SimState | null = null;
   /** 0 = day, 1 = deepest night; scales additive FX peak alpha. */
@@ -72,7 +74,7 @@ export class FxLayer {
   ) {
     // A soft white ring, tinted per event kind.
     const g = new Graphics().circle(36, 36, 30).stroke({ color: 0xffffff, width: 5, alpha: 1 });
-    this.ring = renderer.generateTexture(g);
+    this.ring = this.ownership.source(renderer.generateTexture(g));
     g.destroy();
   }
 
@@ -231,5 +233,6 @@ export class FxLayer {
   destroy(): void {
     for (const fx of this.live) fx.sprite.destroy();
     this.live = [];
+    this.ownership.destroy();
   }
 }

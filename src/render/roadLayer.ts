@@ -1,10 +1,7 @@
 /**
  * Road rendering: worn dirt paths stroked from the derived road network.
- * Baked into one Graphics, redrawn only when state.roadsVersion changes.
- * Three passes per usage level — dark rut shadow, dirt body, pale worn
- * center — so trunk roads read as packed earth instead of uniform vector
- * strokes. Lane ends are trimmed at the settlement cluster edge so roads
- * stop at the walls instead of slicing under the wall art to the center.
+ * Baked into one Graphics and redrawn only when road geometry or the visual
+ * footprint of its settlement endpoints changes.
  */
 import { Graphics } from 'pixi.js';
 import { BALANCE } from '../config/balance';
@@ -20,6 +17,11 @@ interface Polyline {
   pts: { x: number; y: number }[];
   /** levels[k] is the usage level of the segment pts[k] → pts[k+1]. */
   levels: number[];
+}
+
+/** A tiny cache signature for the settlement footprint data road baking uses. */
+export function settlementTierSignature(state: SimState): string {
+  return state.settlements.map((s) => `${s.id}:${s.tier}`).join('|');
 }
 
 /**
@@ -56,10 +58,20 @@ function trimToCircle(line: Polyline, cx: number, cy: number, r: number): boolea
 export class RoadLayer {
   g = new Graphics();
   private bakedVersion = -1;
+  private bakedPaths: SimState['roadPaths'] | null = null;
+  private bakedTiers = '';
 
   update(state: SimState, tex?: GameTextures): void {
-    if (state.roadsVersion === this.bakedVersion) return;
+    const tiers = settlementTierSignature(state);
+    if (
+      state.roadsVersion === this.bakedVersion &&
+      state.roadPaths === this.bakedPaths &&
+      tiers === this.bakedTiers
+    )
+      return;
     this.bakedVersion = state.roadsVersion;
+    this.bakedPaths = state.roadPaths;
+    this.bakedTiers = tiers;
     const g = this.g;
     g.clear();
 
@@ -106,10 +118,7 @@ export class RoadLayer {
 
     // Pass order = draw order: rut shadow under, dirt body, worn center on
     // top. Within a pass, one stroke per usage level so trunk roads read
-    // heavier. All bake-time work — redrawn only on roadsVersion bumps.
-    // Roads should read as infrastructure, not a faint hint: bumped body alpha
-    // and width so they hold their own against terrain, rivers and borders,
-    // with trunk routes (higher level) clearly heavier.
+    // heavier.
     const passes: { color: number; widen: number; alpha: (level: number) => number }[] = [
       { color: ROAD_EDGE, widen: 1.0, alpha: (l) => 0.16 + l * 0.06 },
       { color: ROAD_COLOR, widen: 0, alpha: (l) => 0.42 + l * 0.11 },
@@ -139,9 +148,7 @@ export class RoadLayer {
 
     // ── Crossings ────────────────────────────────────────────────────
     // Where a road — or a town's wall ring — meets a river, lay a plank bridge
-    // over the water, so terrain and infrastructure visibly INTERACT instead of
-    // dirt/walls floating over a blue stripe. Procedural for now; real bridge
-    // art can replace this later. Baked with the roads (roadsVersion).
+    // over the water, so terrain and infrastructure visibly interact.
     const terrain = state.world.terrain;
     const H = state.world.height;
     const bridge = tex?.bridge ?? null;
@@ -149,8 +156,6 @@ export class RoadLayer {
     const drawBridge = (cx: number, cy: number, ux: number, uy: number, useFord: boolean): void => {
       const horizontal = Math.abs(ux) >= Math.abs(uy);
       if (bridge) {
-        // Real art: pre-oriented H/V piece (plank for roads, ford for towns),
-        // drawn axis-aligned over the river — long axis ≈ 1.8 tiles.
         const piece = horizontal
           ? useFord
             ? bridge.fordH
@@ -164,7 +169,7 @@ export class RoadLayer {
         g.texture(piece, 0xffffff, cx - w / 2, cy - h / 2, w, h);
         return;
       }
-      const halfL = ts * 0.78; // deck length (spans the 1-tile river + ramps)
+      const halfL = ts * 0.78;
       const halfW = ts * 0.3;
       const vx = -uy;
       const vy = ux;
@@ -218,7 +223,7 @@ export class RoadLayer {
         }
       }
       const len = Math.hypot(fx, fy);
-      return len > 0 ? [-fy / len, fx / len] : [1, 0]; // perpendicular to flow
+      return len > 0 ? [-fy / len, fx / len] : [1, 0];
     };
     for (const s of state.settlements) {
       if (s.tier < 1) continue;

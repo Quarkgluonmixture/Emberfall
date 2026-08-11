@@ -22,11 +22,14 @@ export const EVENT_WEIGHTS: Record<string, number> = {
   capture: 10,
   civFell: 9,
   warDeclared: 9,
+  rebirth: 9,
+  treatySigned: 8,
   collapse: 8,
   goldenAge: 8,
   founding: 7,
   wildfire: 7,
   migration: 6,
+  resettleRuin: 6,
   town: 6,
   plague: 6,
   skirmish: 5,
@@ -39,6 +42,7 @@ export const EVENT_WEIGHTS: Record<string, number> = {
   flood: 3,
   wildfireWild: 3,
   tradeOpened: 3,
+  tributeEnds: 3,
 };
 
 const EVENT_ZOOM: Record<string, number> = {
@@ -48,6 +52,9 @@ const EVENT_ZOOM: Record<string, number> = {
   wildfire: 2.4,
   wildfireWild: 2.2,
   migration: 2.8,
+  resettleRuin: 3.2,
+  rebirth: 3.5,
+  treatySigned: 2.8,
   goldenAge: 3.4,
   town: 3.6,
   village: 3.4,
@@ -140,9 +147,11 @@ export function ambientTargets(state: SimState): InterestTarget[] {
     }
   }
 
+  // Tile coordinates address cell centres; (size - 1) / 2 is therefore the
+  // exact geometric centre between the two middle cells on an even-sized map.
   out.push({
-    x: state.world.width / 2,
-    y: state.world.height / 2,
+    x: (state.world.width - 1) / 2,
+    y: (state.world.height - 1) / 2,
     zoom: 0.95,
     score: 2,
     holdTime: 8,

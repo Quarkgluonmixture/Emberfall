@@ -8,15 +8,23 @@ function freshState() {
 }
 
 describe('chronicle long-run compaction', () => {
-  it('keeps an all-notable chronicle bounded', () => {
+  it('keeps an all-notable chronicle bounded and leaves compaction headroom', () => {
     const state = freshState();
-    for (let i = 0; i < 5000; i++) {
+    for (let i = 0; i <= 4000; i++) {
       state.day = i;
       pushEntry(state, 'town', 2, 0, `event ${i}`);
     }
 
-    expect(state.chronicle.length).toBe(4000);
-    expect(state.chronicle[0].text).toBe('event 1000');
+    // Crossing 4000 compacts to 3000 older notable entries + 500 recent.
+    expect(state.chronicle.length).toBe(3500);
+    expect(state.chronicle.at(-1)?.text).toBe('event 4000');
+
+    for (let i = 4001; i < 5000; i++) {
+      state.day = i;
+      pushEntry(state, 'town', 2, 0, `event ${i}`);
+    }
+    expect(state.chronicle.length).toBeLessThanOrEqual(4000);
+    expect(state.chronicle.length).toBeGreaterThanOrEqual(3500);
     expect(state.chronicle.at(-1)?.text).toBe('event 4999');
   });
 

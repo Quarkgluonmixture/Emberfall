@@ -10,8 +10,11 @@ import type { Season } from '../core/types';
  * stylesheet URL, not where the inline variable was authored. Resolve the
  * public asset directory to an absolute URL up front so Vite's relative base
  * also works when Emberfall is hosted below the origin root (e.g. /Emberfall/).
+ * Keep a relative fallback so importing this helper in node-based tests remains
+ * side-effect free even when no DOM exists.
  */
-const ICON_BASE = new URL('assets/icons/', document.baseURI).href;
+const ICON_BASE =
+  typeof document === 'undefined' ? 'assets/icons/' : new URL('assets/icons/', document.baseURI).href;
 
 /** Chronicle kinds that ship a matching event_<kind>.svg. */
 const EVENT_ICON_KINDS = new Set([

@@ -166,13 +166,36 @@ export function loadFromLocalStorage(key: string = SAVE_KEY): Simulation | null 
   }
 }
 
-/** Read a slot's timestamp only when its payload is parseable and compatible. */
+function looksLikeSaveFile(value: unknown): value is SaveFile {
+  if (!value || typeof value !== 'object') return false;
+  const file = value as Partial<SaveFile>;
+  return (
+    file.version === SAVE_VERSION &&
+    typeof file.seed === 'number' &&
+    Number.isFinite(file.seed) &&
+    typeof file.time === 'number' &&
+    Number.isFinite(file.time) &&
+    typeof file.day === 'number' &&
+    Number.isFinite(file.day) &&
+    typeof file.rngState === 'number' &&
+    Number.isFinite(file.rngState) &&
+    typeof file.nextSettlementId === 'number' &&
+    Number.isFinite(file.nextSettlementId) &&
+    Array.isArray(file.civs) &&
+    Array.isArray(file.settlements) &&
+    Array.isArray(file.relationPairs) &&
+    Array.isArray(file.chronicle) &&
+    Array.isArray(file.terrainMods)
+  );
+}
+
+/** Read a slot's timestamp only when its payload has the current save shape. */
 function storedSaveTimestamp(key: string): number | null {
   try {
     const json = localStorage.getItem(key);
     if (!json) return null;
-    const header = JSON.parse(json) as { version?: unknown };
-    if (header.version !== SAVE_VERSION) return null;
+    const candidate = JSON.parse(json) as unknown;
+    if (!looksLikeSaveFile(candidate)) return null;
     const at = Number(localStorage.getItem(`${key}:at`) ?? 0);
     return Number.isFinite(at) ? at : 0;
   } catch {

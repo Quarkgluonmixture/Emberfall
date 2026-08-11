@@ -157,9 +157,13 @@ export class Renderer {
   }
 
   destroy(): void {
+    // Layer-owned generated textures are released explicitly. Assets.load()
+    // textures are global cached objects shared by every Renderer instance, so
+    // Application teardown must never recursively destroy sprite textures.
     this.fx.destroy();
     this.terrain.destroy();
-    this.app.destroy(true, { children: true, texture: true });
+    this.macro.destroy();
+    this.app.destroy(true, { children: true, texture: false, textureSource: false });
   }
 }
 

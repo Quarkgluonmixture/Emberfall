@@ -57,16 +57,34 @@ const SEASON_TINT: Record<string, [number, number, number, number]> = {
   field: [0xe6dcb4, 0xffffff, 0xe6b25e, 0xc6d0dc],
 };
 
+/**
+ * Exact visual occupancy signature for the data DecorLayer actually consumes.
+ * Settlement population/name do not affect decor, but id/tier do; ruin x/y do.
+ * Compute at most once per sim day in the layer so render frames do not allocate
+ * a fresh signature continuously.
+ */
+export function decorOccupancySignature(state: SimState): string {
+  const settlements = state.settlements.map((s) => `${s.id}:${s.tier}`).join(',');
+  const ruins = state.ruins.map((r) => `${r.x}:${r.y}`).join(',');
+  return `${settlements}/${ruins}`;
+}
+
 export class DecorLayer {
   container = new Container();
   private builtKey = '';
   private sinceRebuild = Infinity;
+  private occupancyDay = -1;
+  private occupancyKey = '';
 
   constructor(private tex: GameTextures) {}
 
   update(dt: number, state: SimState, season: Season): void {
     this.sinceRebuild += dt;
-    const key = `${season}:${state.terrainVersion}:${state.territoryVersion}:${state.roadsVersion}`;
+    if (state.day !== this.occupancyDay) {
+      this.occupancyDay = state.day;
+      this.occupancyKey = decorOccupancySignature(state);
+    }
+    const key = `${season}:${state.terrainVersion}:${state.roadsVersion}:${this.occupancyKey}`;
     if (key === this.builtKey || this.sinceRebuild < 5) return;
     this.builtKey = key;
     this.sinceRebuild = 0;

@@ -170,6 +170,7 @@ export class Renderer {
     this.fx.destroy();
     this.terrain.destroy();
     this.macro.destroy();
+    this.atmosphere.destroy();
     this.app.destroy(true, { children: true, texture: false, textureSource: false });
     destroyGameTextures(this.textures);
   }

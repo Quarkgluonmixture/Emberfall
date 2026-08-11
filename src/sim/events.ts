@@ -14,19 +14,45 @@ import { maybeRebirth } from './rebirth';
 import { recomputeTerritory } from './territory';
 import { isFirstDayOfSpring, seasonOf, yearOf } from './time';
 
+const TERRAIN_MOD_COMPACT_MIN = 6000;
+const TERRAIN_MOD_COMPACT_INTERVAL = 1024;
+
+/**
+ * Periodically collapse terrain history to the latest value per tile.
+ *
+ * The old "length > 6000" guard compacted on every subsequent tile mutation
+ * once the world had more than 6000 distinct changed tiles, turning wildfire
+ * and regrowth into repeated O(n) scans. We cannot hard-cap below the number
+ * of distinct changed tiles without making save replay lossy, so compact at
+ * sparse length checkpoints instead. The log stays within roughly one interval
+ * of its unique-tile representation while compaction work is amortized.
+ */
+export function compactTerrainModsIfDue(state: SimState): boolean {
+  if (
+    state.terrainMods.length <= TERRAIN_MOD_COMPACT_MIN ||
+    state.terrainMods.length % TERRAIN_MOD_COMPACT_INTERVAL !== 0
+  ) {
+    return false;
+  }
+  const compact = new Map<number, number>();
+  for (const [k, v] of state.terrainMods) compact.set(k, v);
+  state.terrainMods = [...compact.entries()];
+  return true;
+}
+
 /** Mutate terrain and record the diff so saves can replay it onto a fresh world. */
 function setTerrainMod(state: SimState, tileIndex: number, terrain: Terrain): void {
   state.world.terrain[tileIndex] = terrain;
   state.terrainMods.push([tileIndex, terrain]);
-  if (state.terrainMods.length > 6000) {
-    const compact = new Map<number, number>();
-    for (const [k, v] of state.terrainMods) compact.set(k, v);
-    state.terrainMods = [...compact.entries()];
-  }
+  compactTerrainModsIfDue(state);
 }
 
-/** Progress ongoing plagues and famines; emit recovery entries when they end. */
-export function updateAfflictions(state: SimState, rng: RNG): void {
+/**
+ * Progress ongoing plagues and famines; emit recovery entries when they end.
+ * Returns the settlements that were immune at dawn so spontaneous plague rolls
+ * later in the same daily event pass respect that final protected day too.
+ */
+export function updateAfflictions(state: SimState, rng: RNG): Set<number> {
   const e = BALANCE.events;
   // Canonical id order makes the deterministic RNG stream independent of the
   // incidental order settlements happen to occupy in the state array.
@@ -90,6 +116,7 @@ export function updateAfflictions(state: SimState, rng: RNG): void {
     const duration = pending.get(s.id);
     if (duration !== undefined) s.plagueDays = duration;
   }
+  return immuneAtStart;
 }
 
 export function maybeFamine(state: SimState, s: Settlement, rng: RNG): void {
@@ -499,10 +526,13 @@ export function collapseCheck(state: SimState, rng: RNG): void {
 
 /** Run all event systems for the current day. */
 export function generateDailyEvents(state: SimState, rng: RNG): void {
-  updateAfflictions(state, rng);
+  const immuneAtStart = updateAfflictions(state, rng);
   for (const s of state.settlements) {
     maybeFamine(state, s, rng);
-    maybePlague(state, s, rng);
+    // A settlement that was immune at dawn receives its entire final protected
+    // day; it becomes eligible for a spontaneous infection tomorrow, not after
+    // the countdown happened to run earlier in this same event phase.
+    if (!immuneAtStart.has(s.id)) maybePlague(state, s, rng);
   }
   maybeMigration(state, rng);
   diplomaticIncidents(state, rng);

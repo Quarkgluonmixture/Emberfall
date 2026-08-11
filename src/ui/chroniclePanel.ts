@@ -8,6 +8,7 @@ const VISIBLE_ENTRIES = 9;
 
 export class ChroniclePanel {
   private root: HTMLElement;
+  private lastChronicle: SimState['chronicle'] | null = null;
   private lastLength = -1;
   private lastLang = '';
 
@@ -20,9 +21,16 @@ export class ChroniclePanel {
   }
 
   update(state: SimState): void {
-    if (state.chronicle.length === this.lastLength && getLang() === this.lastLang) return;
+    const lang = getLang();
+    if (
+      state.chronicle === this.lastChronicle &&
+      state.chronicle.length === this.lastLength &&
+      lang === this.lastLang
+    )
+      return;
+    this.lastChronicle = state.chronicle;
     this.lastLength = state.chronicle.length;
-    this.lastLang = getLang();
+    this.lastLang = lang;
     // The feed is the world's saga, not its weather: show only notable beats
     // (importance ≥ 2) so a fall, a war, a golden age lingers instead of being
     // shoved offscreen by routine texture. Epochal beats get an ember mark.

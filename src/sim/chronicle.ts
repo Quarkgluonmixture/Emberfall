@@ -115,14 +115,19 @@ export function composeText(rng: RNG, kind: string, params: ChronicleParams): st
 
 const CHRONICLE_SOFT_CAP = 4000;
 const CHRONICLE_KEEP_RECENT = 500;
-const CHRONICLE_HISTORY_BUDGET = CHRONICLE_SOFT_CAP - CHRONICLE_KEEP_RECENT;
+/** Leave room before the next compaction so event-driven consumers see a
+ *  length drop and compaction is amortized instead of running every push. */
+const CHRONICLE_COMPACT_HEADROOM = 500;
+const CHRONICLE_HISTORY_BUDGET =
+  CHRONICLE_SOFT_CAP - CHRONICLE_KEEP_RECENT - CHRONICLE_COMPACT_HEADROOM;
 
 /**
  * Keep recent texture verbatim plus a bounded spine of older notable history.
  * The previous "soft cap" retained every old importance-2/3 event forever;
  * once those alone exceeded the budget, every new event re-filtered an ever-
  * growing array. Long-running second-monitor worlds therefore accumulated both
- * save size and O(n) compaction work without bound.
+ * save size and O(n) compaction work without bound. Compacting below the cap
+ * also gives length-cursor consumers (notably SFX) an observable reset point.
  */
 function compactChronicle(entries: ChronicleEntry[]): ChronicleEntry[] {
   if (entries.length <= CHRONICLE_SOFT_CAP) return entries;

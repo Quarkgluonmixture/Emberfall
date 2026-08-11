@@ -12,7 +12,11 @@ import { Camera } from './camera';
 import { CitizenLayer } from './citizenLayer';
 import { DecorLayer } from './decorLayer';
 import { FxLayer } from './fxLayer';
-import { destroyGameTextures } from './gameTextureCleanup';
+import {
+  destroyGameTextures,
+  destroyReplacedGameTextures,
+  snapshotGameTextures,
+} from './gameTextureCleanup';
 import { MacroLayer, macroBlend } from './macroLayer';
 import { MarkerLayer } from './markerLayer';
 import { RoadLayer } from './roadLayer';
@@ -96,7 +100,9 @@ export class Renderer {
     });
     parent.appendChild(app.canvas);
     const renderer = new Renderer(app, world);
+    const procedural = snapshotGameTextures(renderer.textures);
     const loaded = await loadRealTextures(renderer.textures);
+    destroyReplacedGameTextures(procedural, renderer.textures);
     if (loaded > 0) console.info(`Emberfall: loaded ${loaded} art assets.`);
     return renderer;
   }

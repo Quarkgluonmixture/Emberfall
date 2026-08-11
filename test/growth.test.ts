@@ -18,6 +18,23 @@ describe('settlement growth', () => {
     expect(s.hungerDays).toBe(1);
   });
 
+  it('does not accumulate a new famine trigger while famine is already active', () => {
+    const s = makeSettlement(1, 0, 5, 5, {
+      population: 10,
+      food: 0,
+      hungerDays: BALANCE.events.famineHungerDays,
+      famineDays: 1,
+    });
+
+    updateSettlementGrowth(s, makeCiv(0), true);
+
+    // updateAfflictions runs later in the same day and will turn famineDays 1→0.
+    // Keeping the trigger streak at zero means maybeFamine cannot immediately
+    // reopen a new famine on that exact recovery day.
+    expect(s.famineDays).toBe(1);
+    expect(s.hungerDays).toBe(0);
+  });
+
   it('upgrades a camp to a village at the population and wood thresholds', () => {
     const cfg = BALANCE.growth;
     const s = makeSettlement(1, 0, 5, 5, {

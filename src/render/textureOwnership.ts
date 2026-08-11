@@ -21,8 +21,11 @@ export class TextureOwnership {
   }
 
   destroy(): void {
-    // Destroy views first while their shared Assets sources are still alive.
-    for (const texture of this.viewOwned) texture.destroy(false);
+    // Source ownership wins if a future caller accidentally registers the same
+    // texture in both sets: one full destroy is safer than a double teardown.
+    for (const texture of this.viewOwned) {
+      if (!this.sourceOwned.has(texture)) texture.destroy(false);
+    }
     this.viewOwned.clear();
     for (const texture of this.sourceOwned) texture.destroy(true);
     this.sourceOwned.clear();

@@ -88,4 +88,18 @@ describe('save storage resilience', () => {
       expect(newestSaveKey()).toBe(SAVE_KEY);
     });
   });
+
+  it('ignores a newer malformed payload that merely claims the current version', () => {
+    const manual = serializeState(Simulation.create(5).state);
+    const storage = mapStorage({
+      [SAVE_KEY]: manual,
+      [`${SAVE_KEY}:at`]: '10',
+      [AUTOSAVE_KEY]: JSON.stringify({ version: 1, seed: 5 }),
+      [`${AUTOSAVE_KEY}:at`]: '40',
+    });
+
+    withStorage(storage, () => {
+      expect(newestSaveKey()).toBe(SAVE_KEY);
+    });
+  });
 });

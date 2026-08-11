@@ -5,7 +5,7 @@
  */
 import { BALANCE } from '../config/balance';
 import { RNG } from '../core/rng';
-import type { SimState } from '../core/types';
+import type { ChronicleEntry, SimState } from '../core/types';
 import type { Camera } from '../render/camera';
 import { EVENT_WEIGHTS, eventTargets, pickNextTarget, type InterestTarget } from './interest';
 
@@ -18,26 +18,52 @@ export class Director {
 
   private holdTimer = 0;
   private chronicleIndex = 0;
+  private chronicleRef: SimState['chronicle'] | null = null;
+  private lastChronicleEntry: ChronicleEntry | null = null;
   private driftAngle = 0;
   private rng = new RNG(0xd12ec7);
+  private camera: Camera | null = null;
 
   start(state: SimState, camera: Camera): void {
     this.active = true;
+    this.camera = camera;
     this.chronicleIndex = state.chronicle.length;
+    this.chronicleRef = state.chronicle;
+    this.lastChronicleEntry = state.chronicle.at(-1) ?? null;
     this.next(state, camera);
   }
 
   stop(): void {
+    // Keyboard/HUD exits do not pass through Camera.attach(), so without an
+    // explicit cancel the last cinematic flyTo keeps moving the world after
+    // attract mode is visibly off.
+    this.camera?.cancelFlight();
+    this.camera = null;
     this.active = false;
     this.current = null;
+    this.chronicleRef = null;
+    this.lastChronicleEntry = null;
   }
 
   update(dt: number, state: SimState, camera: Camera): void {
     if (!this.active) return;
 
-    // Breaking news: a big located event interrupts the current shot.
-    const fresh = eventTargets(state, this.chronicleIndex, 9999);
+    // Breaking news: a big located event interrupts the current shot. Chronicle
+    // compaction replaces the array and may keep the same/below length, so a raw
+    // numeric cursor can jump past the newly appended event. On replacement,
+    // relocate the last object we actually saw; retained entries preserve their
+    // identity through compaction.
+    let sinceIndex = this.chronicleIndex;
+    if (state.chronicle !== this.chronicleRef) {
+      const previousIndex = this.lastChronicleEntry
+        ? state.chronicle.lastIndexOf(this.lastChronicleEntry)
+        : -1;
+      sinceIndex = previousIndex >= 0 ? previousIndex + 1 : Math.max(0, state.chronicle.length - 1);
+    }
+    const fresh = eventTargets(state, sinceIndex, 9999);
     this.chronicleIndex = state.chronicle.length;
+    this.chronicleRef = state.chronicle;
+    this.lastChronicleEntry = state.chronicle.at(-1) ?? null;
     let breaking: InterestTarget | null = null;
     for (const t of fresh) {
       if ((EVENT_WEIGHTS[t.kind] ?? 0) >= BREAKING_WEIGHT) {

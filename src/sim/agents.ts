@@ -83,8 +83,26 @@ export class AgentSystem {
         s.y >= view.y0 - margin &&
         s.y <= view.y1 + margin,
     );
-    const visibleIds = new Set(visible.map((s) => s.id));
+    const visibleById = new Map(visible.map((s) => [s.id, s]));
+    const visibleIds = new Set(visibleById.keys());
     this.agents = this.agents.filter((a) => visibleIds.has(a.settlementId));
+
+    // A captured settlement keeps its id, so visible agents survive the filter.
+    // Rebind them to the settlement's new civ and drop any war/trade task that
+    // belonged to the previous owner instead of leaving ghost loyalists around
+    // until the camera happens to despawn them.
+    for (const a of this.agents) {
+      const home = visibleById.get(a.settlementId);
+      if (home && home.civId !== a.civId) {
+        a.civId = home.civId;
+        a.route = undefined;
+        a.tx = a.x;
+        a.ty = a.y;
+        a.state = 'idle';
+        a.pendingState = 'idle';
+        a.timer = 0;
+      }
+    }
 
     const cx = (view.x0 + view.x1) / 2;
     const cy = (view.y0 + view.y1) / 2;
@@ -160,7 +178,15 @@ export class AgentSystem {
     if (dt <= 0) return;
     for (const a of this.agents) {
       a.phase += dt * 6;
-      if (a.state === 'walking' || a.state === 'fleeing' || a.state === 'trading') {
+      // `trading` is both the caravan's travel presentation and its activity at
+      // the destination. Only treat it as movement while a route/target remains;
+      // once snapped to the destination its work timer must be allowed to tick.
+      const traveling =
+        a.state === 'walking' ||
+        a.state === 'fleeing' ||
+        (a.state === 'trading' &&
+          (a.route !== undefined || a.x !== a.tx || a.y !== a.ty));
+      if (traveling) {
         const dx = a.tx - a.x;
         const dy = a.ty - a.y;
         const d = Math.sqrt(dx * dx + dy * dy);

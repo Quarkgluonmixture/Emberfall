@@ -9,6 +9,7 @@
  */
 import { BALANCE } from '../config/balance';
 import type { SimState } from '../core/types';
+import { storageGet, storageSet } from '../persist/storage';
 
 export type MusicTrack =
   | 'theme'
@@ -71,7 +72,7 @@ export class MusicManager {
   private lastState: SimState | null = null;
 
   constructor() {
-    this.muted = localStorage.getItem(MUTE_KEY) === '1';
+    this.muted = storageGet(MUTE_KEY) === '1';
     const unlock = (): void => {
       this.unlocked = true;
       window.removeEventListener('pointerdown', unlock);
@@ -88,7 +89,7 @@ export class MusicManager {
   /** Toggle mute; returns the new muted state. */
   toggle(): boolean {
     this.muted = !this.muted;
-    localStorage.setItem(MUTE_KEY, this.muted ? '1' : '0');
+    storageSet(MUTE_KEY, this.muted ? '1' : '0');
     if (this.muted) for (const el of this.players.values()) el.pause();
     return this.muted;
   }

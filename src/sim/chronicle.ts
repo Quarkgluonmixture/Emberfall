@@ -115,6 +115,33 @@ export function composeText(rng: RNG, kind: string, params: ChronicleParams): st
 
 const CHRONICLE_SOFT_CAP = 4000;
 const CHRONICLE_KEEP_RECENT = 500;
+/** Leave room before the next compaction so event-driven consumers see a
+ *  length drop and compaction is amortized instead of running every push. */
+const CHRONICLE_COMPACT_HEADROOM = 500;
+const CHRONICLE_HISTORY_BUDGET =
+  CHRONICLE_SOFT_CAP - CHRONICLE_KEEP_RECENT - CHRONICLE_COMPACT_HEADROOM;
+
+/**
+ * Keep recent texture verbatim plus a bounded spine of older notable history.
+ * The previous "soft cap" retained every old importance-2/3 event forever;
+ * once those alone exceeded the budget, every new event re-filtered an ever-
+ * growing array. Long-running second-monitor worlds therefore accumulated both
+ * save size and O(n) compaction work without bound. Compacting below the cap
+ * also gives length-cursor consumers (notably SFX) an observable reset point.
+ */
+function compactChronicle(entries: ChronicleEntry[]): ChronicleEntry[] {
+  if (entries.length <= CHRONICLE_SOFT_CAP) return entries;
+
+  const recentStart = Math.max(0, entries.length - CHRONICLE_KEEP_RECENT);
+  const recent = entries.slice(recentStart);
+  const history = entries.slice(0, recentStart).filter((e) => e.importance >= 2);
+  const boundedHistory =
+    history.length > CHRONICLE_HISTORY_BUDGET
+      ? history.slice(history.length - CHRONICLE_HISTORY_BUDGET)
+      : history;
+
+  return [...boundedHistory, ...recent];
+}
 
 export function pushEntry(
   state: SimState,
@@ -139,11 +166,7 @@ export function pushEntry(
     entry.y = y;
   }
   state.chronicle.push(entry);
-  // Keep memory bounded on very long runs: drop old minor entries, keep history.
-  if (state.chronicle.length > CHRONICLE_SOFT_CAP) {
-    const cutoff = state.chronicle.length - CHRONICLE_KEEP_RECENT;
-    state.chronicle = state.chronicle.filter((e, i) => i >= cutoff || e.importance >= 2);
-  }
+  state.chronicle = compactChronicle(state.chronicle);
   return entry;
 }
 

@@ -49,14 +49,12 @@ class Heap {
   pop(): number {
     const it = this.items;
     const top = it[1];
+    // Pairs are stored as [f, node], so pop() removes node first, then f.
+    const lastNode = it.pop()!;
     const lastF = it.pop()!;
-    const lastN = it.pop()!;
     if (it.length > 0) {
-      it[0] = lastN;
-      it[1] = lastF;
-      // re-fix order: we store [f,node] pairs; keep slot layout consistent
       it[0] = lastF;
-      it[1] = lastN;
+      it[1] = lastNode;
       let i = 0;
       const n = it.length / 2;
       for (;;) {

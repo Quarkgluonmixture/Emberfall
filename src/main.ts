@@ -7,6 +7,7 @@ import type { Ticker } from 'pixi.js';
 import { MusicManager } from './audio/music';
 import { SfxManager } from './audio/sfx';
 import { BALANCE } from './config/balance';
+import { LatestRequestGate } from './core/latestRequest';
 import {
   AUTOSAVE_KEY,
   hasSave,
@@ -37,6 +38,7 @@ const DEFAULT_SEED = 1337;
 let sim: Simulation;
 let renderer: Renderer | null = null;
 let agents = new AgentSystem();
+const startGate = new LatestRequestGate();
 /** Fly the camera to a chronicle event's location (clicked from a feed). */
 function focusTile(x: number, y: number): void {
   if (!renderer) return;
@@ -299,8 +301,9 @@ function loop(ticker: Ticker): void {
   }
 }
 
-/** Start (or restart) the game with a fresh simulation. */
-async function start(newSim: Simulation): Promise<void> {
+/** Start (or restart) the game with a fresh simulation. Latest request wins. */
+async function start(newSim: Simulation): Promise<boolean> {
+  const request = startGate.begin();
   stopAttract();
   const old = renderer;
   renderer = null;
@@ -312,8 +315,17 @@ async function start(newSim: Simulation): Promise<void> {
   historyPanel = new HistoryPanel(focusTile);
   inspector.select(null);
 
-  const created = await Renderer.create(document.getElementById('app')!, sim.state.world);
-  const first = sim.state.settlements[0];
+  // Renderer.create contains async Pixi init + real-texture loading. Another
+  // Load/New World/gallery request may begin while this awaits.
+  const created = await Renderer.create(document.getElementById('app')!, newSim.state.world);
+  if (!startGate.isCurrent(request)) {
+    // The canvas may already have been appended by Renderer.create; stale work
+    // owns its cleanup but must never attach a ticker or publish itself globally.
+    created.destroy();
+    return false;
+  }
+
+  const first = newSim.state.settlements[0];
   if (first) created.camera.centerOn(first.x, first.y);
   created.camera.attach(created.app.canvas, onPick);
   created.camera.onInput = () => {
@@ -326,6 +338,7 @@ async function start(newSim: Simulation): Promise<void> {
   renderer = created;
   applyFpsCap();
   autosaveTimer = 0;
+  return true;
 }
 
 window.addEventListener('keydown', (e) => {
@@ -437,7 +450,8 @@ if (params.get('probe')) {
 hud.setSpeed(speedIndex);
 hud.setMusic(music.enabled);
 
-void start(Simulation.create(initialSeed)).then(() => {
+void start(Simulation.create(initialSeed)).then((started) => {
+  if (!started) return;
   if (params.get('stress')) {
     hud.showToast('Running 100-year stress test…');
     // Let the first frame paint before blocking on the synchronous runs.

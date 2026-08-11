@@ -155,23 +155,62 @@ export function saveToLocalStorage(state: SimState, key: string = SAVE_KEY): boo
 
 export function loadFromLocalStorage(key: string = SAVE_KEY): Simulation | null {
   if (typeof localStorage === 'undefined') return null;
-  const json = localStorage.getItem(key);
-  if (!json) return null;
   try {
+    const json = localStorage.getItem(key);
+    if (!json) return null;
     return simulationFromSave(json);
+  } catch {
+    // Browsers may expose localStorage while denying access (privacy/sandboxed
+    // contexts), and corrupt/old payloads should degrade like a missing save.
+    return null;
+  }
+}
+
+function looksLikeSaveFile(value: unknown): value is SaveFile {
+  if (!value || typeof value !== 'object') return false;
+  const file = value as Partial<SaveFile>;
+  return (
+    file.version === SAVE_VERSION &&
+    typeof file.seed === 'number' &&
+    Number.isFinite(file.seed) &&
+    typeof file.time === 'number' &&
+    Number.isFinite(file.time) &&
+    typeof file.day === 'number' &&
+    Number.isFinite(file.day) &&
+    typeof file.rngState === 'number' &&
+    Number.isFinite(file.rngState) &&
+    typeof file.nextSettlementId === 'number' &&
+    Number.isFinite(file.nextSettlementId) &&
+    Array.isArray(file.civs) &&
+    Array.isArray(file.settlements) &&
+    Array.isArray(file.relationPairs) &&
+    Array.isArray(file.chronicle) &&
+    Array.isArray(file.terrainMods)
+  );
+}
+
+/** Read a slot's timestamp only when its payload has the current save shape. */
+function storedSaveTimestamp(key: string): number | null {
+  try {
+    const json = localStorage.getItem(key);
+    if (!json) return null;
+    const candidate = JSON.parse(json) as unknown;
+    if (!looksLikeSaveFile(candidate)) return null;
+    const at = Number(localStorage.getItem(`${key}:at`) ?? 0);
+    return Number.isFinite(at) ? at : 0;
   } catch {
     return null;
   }
 }
 
-/** The save slot (manual or auto) with the most recent timestamp. */
+/** The compatible save slot (manual or auto) with the most recent timestamp. */
 export function newestSaveKey(): string | null {
   if (typeof localStorage === 'undefined') return null;
   let best: string | null = null;
   let bestAt = -1;
   for (const key of [SAVE_KEY, AUTOSAVE_KEY]) {
-    if (localStorage.getItem(key) === null) continue;
-    const at = Number(localStorage.getItem(`${key}:at`) ?? 0);
+    const at = storedSaveTimestamp(key);
+    if (at === null) continue;
     if (at > bestAt) {
       bestAt = at;
       best = key;

@@ -41,4 +41,14 @@ describe('TextureOwnership', () => {
     ownership.destroy();
     expect(calls).toEqual([true]);
   });
+
+  it('uses source ownership once when a texture was registered both ways', () => {
+    const calls: boolean[] = [];
+    const ownership = new TextureOwnership();
+    const texture = fakeTexture(calls);
+    ownership.view(texture);
+    ownership.source(texture);
+    ownership.destroy();
+    expect(calls).toEqual([true]);
+  });
 });

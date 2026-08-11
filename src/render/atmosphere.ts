@@ -3,6 +3,7 @@ import { Container, Graphics, Sprite, Texture } from 'pixi.js';
 import { BALANCE } from '../config/balance';
 import { RNG } from '../core/rng';
 import type { Weather } from '../sim/weather';
+import { TextureOwnership } from './textureOwnership';
 import type { GameTextures } from './textures';
 
 interface Particle {
@@ -61,6 +62,7 @@ export class Atmosphere {
 
   private particles: Particle[] = [];
   private rng = new RNG(0xfade);
+  private ownership = new TextureOwnership();
   private screenW = 0;
   private screenH = 0;
   private gustPhase = 0;
@@ -69,9 +71,11 @@ export class Atmosphere {
     const cfg = BALANCE.render;
     this.nightMul.blendMode = 'multiply';
     this.nightAdd.blendMode = 'add';
-    this.duskOverlay = new Sprite(gradientTexture(cfg.duskTopColor, cfg.duskBottomColor));
+    this.duskOverlay = new Sprite(
+      this.ownership.source(gradientTexture(cfg.duskTopColor, cfg.duskBottomColor)),
+    );
     this.duskOverlay.blendMode = 'multiply';
-    this.vignette = new Sprite(vignetteTexture());
+    this.vignette = new Sprite(this.ownership.source(vignetteTexture()));
     this.vignette.alpha = cfg.vignetteAlpha;
   }
 
@@ -138,5 +142,11 @@ export class Atmosphere {
       if (p.sprite.x > this.screenW + 20) p.sprite.x = -20;
       if (p.sprite.x < -20) p.sprite.x = this.screenW + 20;
     }
+  }
+
+  destroy(): void {
+    for (const particle of this.particles) particle.sprite.destroy();
+    this.particles = [];
+    this.ownership.destroy();
   }
 }

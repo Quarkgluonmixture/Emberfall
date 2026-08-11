@@ -301,29 +301,43 @@ function loop(ticker: Ticker): void {
   }
 }
 
-/** Start (or restart) the game with a fresh simulation. Latest request wins. */
+/**
+ * Start (or restart) the game. Replacement is transactional: an active world
+ * stays playable until its successor has finished Pixi init + texture loading.
+ * Latest request wins; failed/stale replacements never publish simulation/UI
+ * state or destroy the current renderer.
+ */
 async function start(newSim: Simulation): Promise<boolean> {
   const request = startGate.begin();
+  const hadActiveWorld = renderer !== null;
+  // On initial boot there is no old world to preserve, but HUD/probe callbacks
+  // may run while Pixi initializes; give them a valid simulation immediately.
+  if (!hadActiveWorld) sim = newSim;
+
+  let created: Renderer;
+  try {
+    created = await Renderer.create(document.getElementById('app')!, newSim.state.world);
+  } catch (error) {
+    console.error('Emberfall: renderer creation failed; keeping the current world.', error);
+    return false;
+  }
+
+  if (!startGate.isCurrent(request)) {
+    created.destroy();
+    return false;
+  }
+
+  // Commit the replacement synchronously only after construction succeeds.
+  // Until this point the old ticker/sim/director have remained untouched.
   stopAttract();
   const old = renderer;
-  renderer = null;
-  old?.destroy();
-
   sim = newSim;
   agents = new AgentSystem();
   chroniclePanel = new ChroniclePanel(focusTile);
   historyPanel = new HistoryPanel(focusTile);
   inspector.select(null);
-
-  // Renderer.create contains async Pixi init + real-texture loading. Another
-  // Load/New World/gallery request may begin while this awaits.
-  const created = await Renderer.create(document.getElementById('app')!, newSim.state.world);
-  if (!startGate.isCurrent(request)) {
-    // The canvas may already have been appended by Renderer.create; stale work
-    // owns its cleanup but must never attach a ticker or publish itself globally.
-    created.destroy();
-    return false;
-  }
+  renderer = created;
+  old?.destroy();
 
   const first = newSim.state.settlements[0];
   if (first) created.camera.centerOn(first.x, first.y);
@@ -335,7 +349,6 @@ async function start(newSim: Simulation): Promise<boolean> {
   // Transient event FX are wall-clock animated — suppress them in probe
   // sessions so the screenshot battery stays pixel-deterministic.
   created.fx.suppress = params.get('probe') !== null;
-  renderer = created;
   applyFpsCap();
   autosaveTimer = 0;
   return true;

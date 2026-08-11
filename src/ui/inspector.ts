@@ -107,6 +107,14 @@ export class Inspector {
   }
 
   update(state: SimState, agents: AgentSystem): void {
+    // Inspector and biography outlive individual worlds. IDs restart from low
+    // values in a fresh/load world, so keeping an old {kind,id} can silently
+    // retarget the panel to an unrelated settlement/civ/citizen with the same
+    // numeric id. A state identity change is therefore a hard selection reset.
+    if (this.lastState && state !== this.lastState) {
+      this.select(null);
+      this.bio.close();
+    }
     this.lastState = state;
     if (!this.selection) return;
     let html = '';

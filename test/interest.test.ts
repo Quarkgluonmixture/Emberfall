@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { RNG } from '../src/core/rng';
 import { Terrain } from '../src/core/types';
-import { ambientTargets, eventTargets, pickNextTarget } from '../src/showcase/interest';
+import {
+  EVENT_WEIGHTS,
+  ambientTargets,
+  eventTargets,
+  pickNextTarget,
+} from '../src/showcase/interest';
 import { makeCiv, makeSettlement, makeState, makeWorld } from './util';
 
 function entry(kind: string, importance: 1 | 2 | 3, day: number, x?: number, y?: number) {
@@ -37,6 +42,11 @@ describe('interest scoring', () => {
     expect(freshTarget.score).toBeGreaterThan(staleTarget.score);
   });
 
+  it('treats rebirth and signed treaties as breaking-news-worthy events', () => {
+    expect(EVENT_WEIGHTS.rebirth).toBeGreaterThanOrEqual(7);
+    expect(EVENT_WEIGHTS.treatySigned).toBeGreaterThanOrEqual(7);
+  });
+
   it('ignores entries older than the age window', () => {
     const state = makeState(makeWorld(40, 40, Terrain.Grassland), [makeCiv(0)], []);
     state.day = 100;
@@ -64,6 +74,10 @@ describe('interest scoring', () => {
     // Frontier is the midpoint of the closest settlement pair.
     const frontier = targets.find((t) => t.kind === 'frontier');
     expect(frontier?.x).toBe(Math.round((8 + 25) / 2));
+    // Even-sized maps centre between the two middle cells, not half a tile off.
+    const wide = targets.find((t) => t.kind === 'wide');
+    expect(wide?.x).toBe(19.5);
+    expect(wide?.y).toBe(19.5);
   });
 
   it('always picks some target for a living world', () => {

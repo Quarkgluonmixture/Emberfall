@@ -20,7 +20,12 @@ export function updateSettlementGrowth(
     if (civ.traits.includes('hardy')) rate *= TRAIT_EFFECTS.hardyStarvation;
     s.population -= s.population * rate;
     s.morale -= cfg.starveMoraleLoss;
-    s.hungerDays++;
+    // hungerDays is the pre-famine escalation streak, not a second timer that
+    // keeps accumulating underneath an active famine. Resetting it while the
+    // famine runs prevents its final day from emitting famineEnd and then
+    // immediately reopening another famine in the same daily event pass.
+    if (s.famineDays > 0) s.hungerDays = 0;
+    else s.hungerDays++;
   } else {
     s.hungerDays = 0;
     if (s.food > s.population * 0.5 && s.population < cap) {

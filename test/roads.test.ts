@@ -21,6 +21,36 @@ describe('roads', () => {
     for (const i of path!) expect(world.terrain[i]).not.toBe(Terrain.Ocean);
   });
 
+  it('keeps every heap candidate reachable on a constrained route', () => {
+    const world = makeWorld(8, 8, Terrain.Grassland);
+    // This compact maze is intentionally shaped so A* must revisit the frontier
+    // after several heap pops. The old heap restoration swapped [f,node] into
+    // [node,f], silently losing a required candidate and returning null here.
+    const ocean = [
+      [1, 0],
+      [6, 2],
+      [6, 3],
+      [3, 4],
+      [5, 4],
+      [6, 4],
+      [3, 5],
+      [6, 5],
+      [7, 5],
+      [2, 7],
+      [6, 7],
+      [7, 7],
+    ] as const;
+    for (const [x, y] of ocean) world.terrain[y * 8 + x] = Terrain.Ocean;
+
+    const state = makeState(world, [makeCiv(0)], []);
+    const path = findRoadPath(state, state.roads, 0, 4, 7, 4);
+
+    expect(path).not.toBeNull();
+    expect(path![0]).toBe(4 * 8);
+    expect(path![path!.length - 1]).toBe(4 * 8 + 7);
+    for (const i of path!) expect(world.terrain[i]).not.toBe(Terrain.Ocean);
+  });
+
   it('links a civ’s settlements into one network and bumps the version once', () => {
     const world = makeWorld(60, 20, Terrain.Grassland);
     const state = makeState(

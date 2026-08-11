@@ -28,29 +28,27 @@ function setTerrainMod(state: SimState, tileIndex: number, terrain: Terrain): vo
 /** Progress ongoing plagues and famines; emit recovery entries when they end. */
 export function updateAfflictions(state: SimState, rng: RNG): void {
   const e = BALANCE.events;
-  for (const s of state.settlements) {
+  // Canonical id order makes the deterministic RNG stream independent of the
+  // incidental order settlements happen to occupy in the state array.
+  const settlements = [...state.settlements].sort((a, b) => a.id - b.id);
+  const immuneAtStart = new Set(
+    settlements.filter((s) => s.immunityDays > 0).map((s) => s.id),
+  );
+  const infectedAtStart = new Set(
+    settlements.filter((s) => s.plagueDays > 0).map((s) => s.id),
+  );
+
+  // Phase 1: progress only afflictions that already existed at dawn. A newly
+  // exposed settlement must not take deaths, lose a disease day, or transmit
+  // again until tomorrow.
+  for (const s of settlements) {
     if (s.immunityDays > 0) s.immunityDays--;
-    if (s.plagueDays > 0) {
+    if (infectedAtStart.has(s.id)) {
       s.population -= s.population * BALANCE.growth.plagueDeathRate;
       s.plagueDays--;
       if (s.plagueDays === 0) {
         s.immunityDays = e.plagueImmunityDays;
         pushEvent(state, rng, 'plagueEnd', 1, s.civId, { name: s.name, x: s.x, y: s.y });
-      } else {
-        for (const other of state.settlements) {
-          if (other.id === s.id || other.plagueDays > 0 || other.immunityDays > 0) continue;
-          const d2 = (other.x - s.x) ** 2 + (other.y - s.y) ** 2;
-          if (d2 > e.plagueSpreadRange ** 2) continue;
-          if (rng.chance(e.plagueSpreadChance)) {
-            other.plagueDays = rng.int(e.plagueDurationMin, e.plagueDurationMax);
-            // Secondary spread is texture, not an epochal beat — imp 1.
-            pushEvent(state, rng, 'plague', 1, other.civId, {
-              name: other.name,
-              x: other.x,
-              y: other.y,
-            });
-          }
-        }
       }
     }
     if (s.famineDays > 0) {
@@ -60,6 +58,37 @@ export function updateAfflictions(state: SimState, rng: RNG): void {
         pushEvent(state, rng, 'famineEnd', 1, s.civId, { name: s.name, x: s.x, y: s.y });
       }
     }
+  }
+
+  // Phase 2: surviving infectious settlements expose susceptible neighbors.
+  // Record the duration now (so chance/duration/template RNG consumption stays
+  // together), but apply disease state only after every source has been scanned.
+  const pending = new Map<number, number>();
+  for (const source of settlements) {
+    if (!infectedAtStart.has(source.id) || source.plagueDays <= 0) continue;
+    for (const other of settlements) {
+      if (
+        other.id === source.id ||
+        infectedAtStart.has(other.id) ||
+        immuneAtStart.has(other.id) ||
+        pending.has(other.id)
+      )
+        continue;
+      const d2 = (other.x - source.x) ** 2 + (other.y - source.y) ** 2;
+      if (d2 > e.plagueSpreadRange ** 2) continue;
+      if (!rng.chance(e.plagueSpreadChance)) continue;
+      pending.set(other.id, rng.int(e.plagueDurationMin, e.plagueDurationMax));
+      // Secondary spread is texture, not an epochal beat — imp 1.
+      pushEvent(state, rng, 'plague', 1, other.civId, {
+        name: other.name,
+        x: other.x,
+        y: other.y,
+      });
+    }
+  }
+  for (const s of settlements) {
+    const duration = pending.get(s.id);
+    if (duration !== undefined) s.plagueDays = duration;
   }
 }
 

@@ -20,14 +20,21 @@ export class Director {
   private chronicleIndex = 0;
   private driftAngle = 0;
   private rng = new RNG(0xd12ec7);
+  private camera: Camera | null = null;
 
   start(state: SimState, camera: Camera): void {
     this.active = true;
+    this.camera = camera;
     this.chronicleIndex = state.chronicle.length;
     this.next(state, camera);
   }
 
   stop(): void {
+    // Keyboard/HUD exits do not pass through Camera.attach(), so without an
+    // explicit cancel the last cinematic flyTo keeps moving the world after
+    // attract mode is visibly off.
+    this.camera?.cancelFlight();
+    this.camera = null;
     this.active = false;
     this.current = null;
   }

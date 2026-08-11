@@ -2,7 +2,14 @@ import { describe, expect, it } from 'vitest';
 import { BALANCE } from '../src/config/balance';
 import { RNG } from '../src/core/rng';
 import { Terrain } from '../src/core/types';
-import { collapseCheck, maybeFamine, updateAfflictions, warEvents } from '../src/sim/events';
+import {
+  collapseCheck,
+  generateDailyEvents,
+  maybeFamine,
+  setTerrainMod,
+  updateAfflictions,
+  warEvents,
+} from '../src/sim/events';
 import { Simulation } from '../src/sim/simulation';
 import { serializeState } from '../src/persist/save';
 import { makeCiv, makeSettlement, makeState, makeWorld } from './util';
@@ -84,17 +91,40 @@ describe('events', () => {
     );
   });
 
-  it('a final immunity day protects the full day before expiring', () => {
-    const source = makeSettlement(1, 0, 5, 10, { plagueDays: 2 });
-    const protectedTown = makeSettlement(2, 0, 10, 10, { immunityDays: 1 });
+  it('a final immunity day protects against every infection source before expiring', () => {
+    const protectedTown = makeSettlement(1, 0, 10, 10, { immunityDays: 1 });
     const state = makeState(
       makeWorld(20, 20, Terrain.Grassland),
       [makeCiv(0)],
-      [source, protectedTown],
+      [protectedTown],
     );
-    updateAfflictions(state, alwaysSpreadRng());
+
+    // The RNG would force a spontaneous outbreak if maybePlague were allowed to
+    // run after updateAfflictions decremented 1 -> 0 in this same daily pass.
+    generateDailyEvents(state, alwaysSpreadRng());
+
     expect(protectedTown.immunityDays).toBe(0);
     expect(protectedTown.plagueDays).toBe(0);
+    expect(state.chronicle.some((e) => e.kind === 'plague')).toBe(false);
+  });
+
+  it('keeps one lossless terrain diff per touched tile after legacy duplicate logs', () => {
+    const state = makeState(makeWorld(100, 100, Terrain.Grassland), [makeCiv(0)], []);
+    state.terrainMods = Array.from(
+      { length: 6144 },
+      (_, i) => [i % 6100, Terrain.Forest] as [number, number],
+    );
+
+    // First mutation normalizes an old duplicate-rich log once, then adds the
+    // new tile. Repeated edits of that tile update in place instead of growing
+    // the save log or rescanning thousands of tuples.
+    setTerrainMod(state, 6100, Terrain.Forest);
+    expect(state.terrainMods).toHaveLength(6101);
+    for (let i = 0; i < 100; i++) setTerrainMod(state, 6100, Terrain.Grassland);
+
+    expect(state.terrainMods).toHaveLength(6101);
+    expect(state.world.terrain[6100]).toBe(Terrain.Grassland);
+    expect(state.terrainMods.find(([tile]) => tile === 6100)?.[1]).toBe(Terrain.Grassland);
   });
 
   it('collapses dying settlements and fells civs with nothing left', () => {

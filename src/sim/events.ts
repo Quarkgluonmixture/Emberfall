@@ -14,19 +14,62 @@ import { maybeRebirth } from './rebirth';
 import { recomputeTerritory } from './territory';
 import { isFirstDayOfSpring, seasonOf, yearOf } from './time';
 
-/** Mutate terrain and record the diff so saves can replay it onto a fresh world. */
-function setTerrainMod(state: SimState, tileIndex: number, terrain: Terrain): void {
+interface TerrainModCache {
+  list: SimState['terrainMods'];
+  byTile: Map<number, number>;
+}
+
+/** Runtime-only index: authoritative terrain history remains plain save data. */
+const terrainModCaches = new WeakMap<SimState, TerrainModCache>();
+
+function terrainModCache(state: SimState): TerrainModCache {
+  const cached = terrainModCaches.get(state);
+  if (cached && cached.list === state.terrainMods) return cached;
+
+  const byTile = new Map<number, number>();
+  const compact: SimState['terrainMods'] = [];
+  for (const [tile, terrain] of state.terrainMods) {
+    const existing = byTile.get(tile);
+    if (existing === undefined) {
+      byTile.set(tile, compact.length);
+      compact.push([tile, terrain]);
+    } else {
+      compact[existing][1] = terrain;
+    }
+  }
+  if (compact.length !== state.terrainMods.length) state.terrainMods = compact;
+
+  const next = { list: state.terrainMods, byTile };
+  terrainModCaches.set(state, next);
+  return next;
+}
+
+/**
+ * Mutate terrain and retain exactly one save diff per touched tile.
+ *
+ * The old >6000 compaction became an O(n) scan on every mutation once more
+ * than 6000 distinct tiles had changed. Keeping a runtime index lets repeated
+ * wildfire/regrowth edits update the existing tuple in O(1), bounds save data
+ * by unique touched tiles, and remains fully replayable after save/load.
+ */
+export function setTerrainMod(state: SimState, tileIndex: number, terrain: Terrain): void {
   state.world.terrain[tileIndex] = terrain;
-  state.terrainMods.push([tileIndex, terrain]);
-  if (state.terrainMods.length > 6000) {
-    const compact = new Map<number, number>();
-    for (const [k, v] of state.terrainMods) compact.set(k, v);
-    state.terrainMods = [...compact.entries()];
+  const { byTile } = terrainModCache(state);
+  const existing = byTile.get(tileIndex);
+  if (existing === undefined) {
+    byTile.set(tileIndex, state.terrainMods.length);
+    state.terrainMods.push([tileIndex, terrain]);
+  } else {
+    state.terrainMods[existing][1] = terrain;
   }
 }
 
-/** Progress ongoing plagues and famines; emit recovery entries when they end. */
-export function updateAfflictions(state: SimState, rng: RNG): void {
+/**
+ * Progress ongoing plagues and famines; emit recovery entries when they end.
+ * Returns the settlements that were immune at dawn so spontaneous plague rolls
+ * later in the same daily event pass respect that final protected day too.
+ */
+export function updateAfflictions(state: SimState, rng: RNG): Set<number> {
   const e = BALANCE.events;
   // Canonical id order makes the deterministic RNG stream independent of the
   // incidental order settlements happen to occupy in the state array.
@@ -90,6 +133,7 @@ export function updateAfflictions(state: SimState, rng: RNG): void {
     const duration = pending.get(s.id);
     if (duration !== undefined) s.plagueDays = duration;
   }
+  return immuneAtStart;
 }
 
 export function maybeFamine(state: SimState, s: Settlement, rng: RNG): void {
@@ -499,10 +543,13 @@ export function collapseCheck(state: SimState, rng: RNG): void {
 
 /** Run all event systems for the current day. */
 export function generateDailyEvents(state: SimState, rng: RNG): void {
-  updateAfflictions(state, rng);
+  const immuneAtStart = updateAfflictions(state, rng);
   for (const s of state.settlements) {
     maybeFamine(state, s, rng);
-    maybePlague(state, s, rng);
+    // A settlement that was immune at dawn receives its entire final protected
+    // day; it becomes eligible for a spontaneous infection tomorrow, not after
+    // the countdown happened to run earlier in this same event phase.
+    if (!immuneAtStart.has(s.id)) maybePlague(state, s, rng);
   }
   maybeMigration(state, rng);
   diplomaticIncidents(state, rng);

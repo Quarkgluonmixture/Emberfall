@@ -32,6 +32,7 @@ export class HistoryPanel {
   visible = false;
   private root: HTMLElement;
   private mode: Mode = 'saga';
+  private renderedChronicle: SimState['chronicle'] | null = null;
   private renderedLength = -1;
   private renderedLang = '';
   private renderedMode: Mode | '' = '';
@@ -70,6 +71,7 @@ export class HistoryPanel {
     this.state = state;
     if (!this.visible) return;
     if (
+      state.chronicle === this.renderedChronicle &&
       state.chronicle.length === this.renderedLength &&
       getLang() === this.renderedLang &&
       this.mode === this.renderedMode
@@ -79,6 +81,7 @@ export class HistoryPanel {
   }
 
   private render(state: SimState): void {
+    this.renderedChronicle = state.chronicle;
     this.renderedLength = state.chronicle.length;
     this.renderedLang = getLang();
     this.renderedMode = this.mode;

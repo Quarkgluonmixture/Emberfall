@@ -11,6 +11,24 @@ import { addCivRelations } from './diplomacy';
 import { foundSettlement, scoreSite } from './founding';
 import { recomputeTerritory } from './territory';
 
+/**
+ * Choose a never-before-used culture name without changing the simulation RNG
+ * budget. Once the eight base names are exhausted we still consume exactly one
+ * pick, then resolve any "New X" collision with a deterministic numeric suffix.
+ * Expanding CIV_NAMES instead would change the founding shuffle and every seed.
+ */
+export function rebirthName(existingNames: Iterable<string>, rng: RNG): string {
+  const used = new Set(existingNames);
+  const fresh = CIV_NAMES.filter((name) => !used.has(name));
+  if (fresh.length > 0) return rng.pick(fresh);
+
+  const stem = `New ${rng.pick(CIV_NAMES)}`;
+  if (!used.has(stem)) return stem;
+  let suffix = 2;
+  while (used.has(`${stem} ${suffix}`)) suffix++;
+  return `${stem} ${suffix}`;
+}
+
 export function maybeRebirth(state: SimState, rng: RNG): void {
   const cfg = BALANCE.rebirth;
   if (state.civs.length >= MAX_CIVS) return;
@@ -54,9 +72,10 @@ export function maybeRebirth(state: SimState, rng: RNG): void {
   }
   if (!best) return;
 
-  const used = new Set(state.civs.map((c) => c.name));
-  const fresh = CIV_NAMES.filter((n) => !used.has(n));
-  const name = fresh.length > 0 ? rng.pick(fresh) : `New ${rng.pick(CIV_NAMES)}`;
+  const name = rebirthName(
+    state.civs.map((c) => c.name),
+    rng,
+  );
 
   // The new people may keep one memory of the most recently fallen culture.
   const fallen = state.civs

@@ -16,6 +16,7 @@ import { SAVE_VERSION, Simulation } from '../sim/simulation';
 import { recomputeRoads } from '../sim/roads';
 import { recomputeTerritory } from '../sim/territory';
 import { generateWorld } from '../world/worldgen';
+import { storageGet, storageSet } from './storage';
 
 export const SAVE_KEY = 'emberfall:save:v1';
 export const AUTOSAVE_KEY = 'emberfall:autosave:v1';
@@ -142,26 +143,24 @@ export function simulationFromSave(json: string): Simulation {
 }
 
 export function saveToLocalStorage(state: SimState, key: string = SAVE_KEY): boolean {
-  if (typeof localStorage === 'undefined') return false;
   try {
-    localStorage.setItem(key, serializeState(state));
+    const json = serializeState(state);
+    if (!storageSet(key, json)) return false;
     // Timestamp lives beside the payload so save data itself stays deterministic.
-    localStorage.setItem(`${key}:at`, String(Date.now()));
-    return true;
+    return storageSet(`${key}:at`, String(Date.now()));
   } catch {
     return false;
   }
 }
 
 export function loadFromLocalStorage(key: string = SAVE_KEY): Simulation | null {
-  if (typeof localStorage === 'undefined') return null;
   try {
-    const json = localStorage.getItem(key);
+    const json = storageGet(key);
     if (!json) return null;
     return simulationFromSave(json);
   } catch {
-    // Browsers may expose localStorage while denying access (privacy/sandboxed
-    // contexts), and corrupt/old payloads should degrade like a missing save.
+    // Corrupt/old payloads degrade like a missing save; storage access itself is
+    // already guarded by storageGet().
     return null;
   }
 }
@@ -192,11 +191,11 @@ function looksLikeSaveFile(value: unknown): value is SaveFile {
 /** Read a slot's timestamp only when its payload has the current save shape. */
 function storedSaveTimestamp(key: string): number | null {
   try {
-    const json = localStorage.getItem(key);
+    const json = storageGet(key);
     if (!json) return null;
     const candidate = JSON.parse(json) as unknown;
     if (!looksLikeSaveFile(candidate)) return null;
-    const at = Number(localStorage.getItem(`${key}:at`) ?? 0);
+    const at = Number(storageGet(`${key}:at`) ?? 0);
     return Number.isFinite(at) ? at : 0;
   } catch {
     return null;
@@ -205,7 +204,6 @@ function storedSaveTimestamp(key: string): number | null {
 
 /** The compatible save slot (manual or auto) with the most recent timestamp. */
 export function newestSaveKey(): string | null {
-  if (typeof localStorage === 'undefined') return null;
   let best: string | null = null;
   let bestAt = -1;
   for (const key of [SAVE_KEY, AUTOSAVE_KEY]) {

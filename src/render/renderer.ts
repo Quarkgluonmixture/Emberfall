@@ -92,19 +92,39 @@ export class Renderer {
 
   static async create(parent: HTMLElement, world: World): Promise<Renderer> {
     const app = new Application();
-    await app.init({
-      resizeTo: window,
-      background: 0x0a0910,
-      antialias: false,
-      preference: 'webgl',
-    });
-    parent.appendChild(app.canvas);
-    const renderer = new Renderer(app, world);
-    const procedural = snapshotGameTextures(renderer.textures);
-    const loaded = await loadRealTextures(renderer.textures);
-    destroyReplacedGameTextures(procedural, renderer.textures);
-    if (loaded > 0) console.info(`Emberfall: loaded ${loaded} art assets.`);
-    return renderer;
+    let renderer: Renderer | null = null;
+    try {
+      await app.init({
+        resizeTo: window,
+        background: 0x0a0910,
+        antialias: false,
+        preference: 'webgl',
+      });
+      renderer = new Renderer(app, world);
+      const procedural = snapshotGameTextures(renderer.textures);
+      const loaded = await loadRealTextures(renderer.textures);
+      destroyReplacedGameTextures(procedural, renderer.textures);
+      // Publish only after Pixi + real assets are ready. A replacement world can
+      // therefore build beside the active renderer without flashing a blank
+      // canvas or destroying the current playable world on a load failure.
+      parent.appendChild(app.canvas);
+      if (loaded > 0) console.info(`Emberfall: loaded ${loaded} art assets.`);
+      return renderer;
+    } catch (error) {
+      if (renderer) {
+        renderer.destroy();
+      } else {
+        // app.init / constructor failures may leave a partially initialized app.
+        // At this point no shared Assets textures have been installed, so a
+        // best-effort deep teardown is safe; never mask the original error.
+        try {
+          app.destroy(true, { children: true, texture: true, textureSource: true });
+        } catch {
+          // Ignore cleanup failure and rethrow the actual construction error.
+        }
+      }
+      throw error;
+    }
   }
 
   get fps(): number {

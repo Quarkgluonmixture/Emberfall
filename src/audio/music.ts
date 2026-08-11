@@ -97,11 +97,16 @@ export class MusicManager {
   /** Advance fades and re-evaluate which track should be playing. */
   update(dt: number, state: SimState, season: number, darkness: number): void {
     if (state !== this.lastState) {
-      // New or loaded world: skip its pre-existing history, drop any mood.
+      // New or loaded world: skip its pre-existing history and drop every piece
+      // of transition state derived from the previous world's mood/light cycle.
+      // Keeping holdLeft or the night hysteresis bit lets an old war/night track
+      // leak several real seconds into an otherwise unrelated fresh world.
       this.lastState = state;
       this.chronicleSeen = state.chronicle.length;
       this.mood = null;
       this.moodLeft = 0;
+      this.holdLeft = 0;
+      this.night = false;
     }
     this.scanChronicle(state);
 

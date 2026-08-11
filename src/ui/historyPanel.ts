@@ -7,6 +7,7 @@
 import type { ChronicleEntry, SimState } from '../core/types';
 import { entryText, getLang, seasonName, t } from './i18n';
 import { eventIconHtml } from './icons';
+import { bindSingletonClick } from './singletonEvent';
 
 const MAX_YEARS_SHOWN = 60;
 /** Repeats of one kind within a year collapse once they reach this count. */
@@ -38,8 +39,11 @@ export class HistoryPanel {
 
   constructor(private onFocus?: (x: number, y: number) => void) {
     this.root = document.getElementById('history')!;
-    // Event-delegated: mode toggle, then click-to-center on located entries.
-    this.root.addEventListener('click', (e) => {
+    // A restarted world creates a fresh controller around the same DOM root.
+    // Keep the DOM state aligned with the new controller and replace, rather
+    // than stack, the root click handler.
+    this.root.classList.toggle('hidden', true);
+    bindSingletonClick(this.root, (e) => {
       const target = e.target as HTMLElement;
       const tab = target?.closest('[data-mode]') as HTMLElement | null;
       if (tab) {

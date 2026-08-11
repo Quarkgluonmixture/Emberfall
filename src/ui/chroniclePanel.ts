@@ -2,6 +2,7 @@
 import type { SimState } from '../core/types';
 import { entryText, getLang, seasonName } from './i18n';
 import { eventIconHtml } from './icons';
+import { bindSingletonClick } from './singletonEvent';
 
 const VISIBLE_ENTRIES = 9;
 
@@ -12,7 +13,7 @@ export class ChroniclePanel {
 
   constructor(private onFocus?: (x: number, y: number) => void) {
     this.root = document.getElementById('chronicle')!;
-    this.root.addEventListener('click', (e) => {
+    bindSingletonClick(this.root, (e) => {
       const el = (e.target as HTMLElement)?.closest('[data-x]') as HTMLElement | null;
       if (el && this.onFocus) this.onFocus(Number(el.dataset.x), Number(el.dataset.y));
     });

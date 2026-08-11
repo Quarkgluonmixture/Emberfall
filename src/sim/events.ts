@@ -14,37 +14,54 @@ import { maybeRebirth } from './rebirth';
 import { recomputeTerritory } from './territory';
 import { isFirstDayOfSpring, seasonOf, yearOf } from './time';
 
-const TERRAIN_MOD_COMPACT_MIN = 6000;
-const TERRAIN_MOD_COMPACT_INTERVAL = 1024;
-
-/**
- * Periodically collapse terrain history to the latest value per tile.
- *
- * The old "length > 6000" guard compacted on every subsequent tile mutation
- * once the world had more than 6000 distinct changed tiles, turning wildfire
- * and regrowth into repeated O(n) scans. We cannot hard-cap below the number
- * of distinct changed tiles without making save replay lossy, so compact at
- * sparse length checkpoints instead. The log stays within roughly one interval
- * of its unique-tile representation while compaction work is amortized.
- */
-export function compactTerrainModsIfDue(state: SimState): boolean {
-  if (
-    state.terrainMods.length <= TERRAIN_MOD_COMPACT_MIN ||
-    state.terrainMods.length % TERRAIN_MOD_COMPACT_INTERVAL !== 0
-  ) {
-    return false;
-  }
-  const compact = new Map<number, number>();
-  for (const [k, v] of state.terrainMods) compact.set(k, v);
-  state.terrainMods = [...compact.entries()];
-  return true;
+interface TerrainModCache {
+  list: SimState['terrainMods'];
+  byTile: Map<number, number>;
 }
 
-/** Mutate terrain and record the diff so saves can replay it onto a fresh world. */
-function setTerrainMod(state: SimState, tileIndex: number, terrain: Terrain): void {
+/** Runtime-only index: authoritative terrain history remains plain save data. */
+const terrainModCaches = new WeakMap<SimState, TerrainModCache>();
+
+function terrainModCache(state: SimState): TerrainModCache {
+  const cached = terrainModCaches.get(state);
+  if (cached && cached.list === state.terrainMods) return cached;
+
+  const byTile = new Map<number, number>();
+  const compact: SimState['terrainMods'] = [];
+  for (const [tile, terrain] of state.terrainMods) {
+    const existing = byTile.get(tile);
+    if (existing === undefined) {
+      byTile.set(tile, compact.length);
+      compact.push([tile, terrain]);
+    } else {
+      compact[existing][1] = terrain;
+    }
+  }
+  if (compact.length !== state.terrainMods.length) state.terrainMods = compact;
+
+  const next = { list: state.terrainMods, byTile };
+  terrainModCaches.set(state, next);
+  return next;
+}
+
+/**
+ * Mutate terrain and retain exactly one save diff per touched tile.
+ *
+ * The old >6000 compaction became an O(n) scan on every mutation once more
+ * than 6000 distinct tiles had changed. Keeping a runtime index lets repeated
+ * wildfire/regrowth edits update the existing tuple in O(1), bounds save data
+ * by unique touched tiles, and remains fully replayable after save/load.
+ */
+export function setTerrainMod(state: SimState, tileIndex: number, terrain: Terrain): void {
   state.world.terrain[tileIndex] = terrain;
-  state.terrainMods.push([tileIndex, terrain]);
-  compactTerrainModsIfDue(state);
+  const { byTile } = terrainModCache(state);
+  const existing = byTile.get(tileIndex);
+  if (existing === undefined) {
+    byTile.set(tileIndex, state.terrainMods.length);
+    state.terrainMods.push([tileIndex, terrain]);
+  } else {
+    state.terrainMods[existing][1] = terrain;
+  }
 }
 
 /**

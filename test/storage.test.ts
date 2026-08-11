@@ -12,8 +12,24 @@ function withStorage(storage: Storage, run: () => void): void {
   }
 }
 
+function withBlockedStorageProperty(run: () => void): void {
+  const previous = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
+  Object.defineProperty(globalThis, 'localStorage', {
+    configurable: true,
+    get: () => {
+      throw new Error('SecurityError');
+    },
+  });
+  try {
+    run();
+  } finally {
+    if (previous) Object.defineProperty(globalThis, 'localStorage', previous);
+    else delete (globalThis as { localStorage?: Storage }).localStorage;
+  }
+}
+
 describe('best-effort browser storage', () => {
-  it('returns fallbacks when storage access is blocked', () => {
+  it('returns fallbacks when storage methods are blocked', () => {
     const blocked = {
       getItem: () => {
         throw new Error('SecurityError');
@@ -24,6 +40,13 @@ describe('best-effort browser storage', () => {
     } as unknown as Storage;
 
     withStorage(blocked, () => {
+      expect(storageGet('x')).toBeNull();
+      expect(storageSet('x', '1')).toBe(false);
+    });
+  });
+
+  it('returns fallbacks when resolving localStorage itself throws', () => {
+    withBlockedStorageProperty(() => {
       expect(storageGet('x')).toBeNull();
       expect(storageSet('x', '1')).toBe(false);
     });

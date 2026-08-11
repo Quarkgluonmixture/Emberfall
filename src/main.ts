@@ -302,7 +302,7 @@ function loop(ticker: Ticker): void {
 }
 
 /** Start (or restart) the game with a fresh simulation. Latest request wins. */
-async function start(newSim: Simulation): Promise<void> {
+async function start(newSim: Simulation): Promise<boolean> {
   const request = startGate.begin();
   stopAttract();
   const old = renderer;
@@ -322,7 +322,7 @@ async function start(newSim: Simulation): Promise<void> {
     // The canvas may already have been appended by Renderer.create; stale work
     // owns its cleanup but must never attach a ticker or publish itself globally.
     created.destroy();
-    return;
+    return false;
   }
 
   const first = newSim.state.settlements[0];
@@ -338,6 +338,7 @@ async function start(newSim: Simulation): Promise<void> {
   renderer = created;
   applyFpsCap();
   autosaveTimer = 0;
+  return true;
 }
 
 window.addEventListener('keydown', (e) => {
@@ -449,7 +450,8 @@ if (params.get('probe')) {
 hud.setSpeed(speedIndex);
 hud.setMusic(music.enabled);
 
-void start(Simulation.create(initialSeed)).then(() => {
+void start(Simulation.create(initialSeed)).then((started) => {
+  if (!started) return;
   if (params.get('stress')) {
     hud.showToast('Running 100-year stress test…');
     // Let the first frame paint before blocking on the synchronous runs.

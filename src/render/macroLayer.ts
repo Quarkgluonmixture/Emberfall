@@ -9,6 +9,7 @@ import { Container, Graphics, Sprite, Texture, type Renderer } from 'pixi.js';
 import { BALANCE } from '../config/balance';
 import { Terrain, type SimState } from '../core/types';
 import { isLordlySeat, settlementRole, type SettlementRole } from './settlementCluster';
+import { TextureOwnership } from './textureOwnership';
 
 interface Glyph {
   /** Dark backing disc so the civ-tinted glyph pops against busy terrain. */
@@ -27,6 +28,7 @@ export function macroBlend(scale: number): number {
 
 export class MacroLayer {
   container = new Container();
+  private ownership = new TextureOwnership();
   private glyphTex: [Texture, Texture, Texture];
   /** Role-distinct town/village glyphs so market/abbey/fort/forest read apart
       at macro zoom (codex review-6: settlement LOD identity). */
@@ -47,7 +49,7 @@ export class MacroLayer {
     const make = (draw: (g: Graphics) => void): Texture => {
       const g = new Graphics();
       draw(g);
-      const t = renderer.generateTexture({ target: g, resolution: 4 });
+      const t = this.ownership.source(renderer.generateTexture({ target: g, resolution: 4 }));
       g.destroy();
       return t;
     };
@@ -248,5 +250,9 @@ export class MacroLayer {
         }
       }
     }
+  }
+
+  destroy(): void {
+    this.ownership.destroy();
   }
 }

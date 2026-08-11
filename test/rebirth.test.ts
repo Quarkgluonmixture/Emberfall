@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { BALANCE } from '../src/config/balance';
+import { CIV_NAMES } from '../src/config/civConfig';
 import { RNG } from '../src/core/rng';
 import { deserializeState, serializeState } from '../src/persist/save';
 import { addCivRelations } from '../src/sim/diplomacy';
 import { scoreSite } from '../src/sim/founding';
-import { maybeRebirth } from '../src/sim/rebirth';
+import { maybeRebirth, rebirthName } from '../src/sim/rebirth';
 import { Simulation } from '../src/sim/simulation';
 import { recomputeTerritory } from '../src/sim/territory';
 
@@ -46,6 +47,24 @@ describe('civ rebirth', () => {
       expect(state.relations[i][before]).toBe(state.relations[before][i]);
     }
     expect(state.relations[before]).toHaveLength(before + 1); // n slots, self slot empty
+  });
+
+  it('keeps fallback culture names unique without extra RNG draws', () => {
+    const existing = [
+      ...CIV_NAMES,
+      'New Ashvale',
+      'New Ashvale 2',
+    ];
+    let picks = 0;
+    const rng = {
+      pick<T>(items: T[]): T {
+        picks++;
+        return items[0];
+      },
+    } as unknown as RNG;
+
+    expect(rebirthName(existing, rng)).toBe('New Ashvale 3');
+    expect(picks).toBe(1);
   });
 
   it('raises a new civ from an old ruin once conditions hold', () => {

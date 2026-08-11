@@ -4,15 +4,30 @@ import { pairKey, Terrain, type SimState } from '../core/types';
 
 export function settlementRadius(tier: number, population: number): number {
   const cfg = BALANCE.territory;
-  return (
-    cfg.radiusByTier[tier] + Math.min(cfg.popRadiusBonusCap, Math.floor(population / 40))
-  );
+  return cfg.radiusByTier[tier] + Math.min(cfg.popRadiusBonusCap, Math.floor(population / 40));
+}
+
+function sameOwner(a: Int16Array, b: Int16Array): boolean {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
+  return true;
+}
+
+function sameNumbers(a: readonly number[], b: readonly number[]): boolean {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
+  return true;
 }
 
 /** Recompute tile ownership and the set of bordering civ pairs. */
 export function recomputeTerritory(state: SimState): void {
   const world = state.world;
   const { width, height } = world;
+  // territoryVersion is a render invalidation token, not a recompute counter.
+  // Keep a compact snapshot so the 10-day cadence can be a no-op visually when
+  // the actual owner grid and border-pair set are unchanged.
+  const previousOwner = world.owner.slice();
+  const previousBorders = state.borders;
   world.owner.fill(-1);
 
   const claims = state.settlements.map((s) => ({
@@ -58,5 +73,7 @@ export function recomputeTerritory(state: SimState): void {
     }
   }
   state.borders = [...borders].sort((a, b) => a - b);
-  state.territoryVersion++;
+  if (!sameOwner(previousOwner, world.owner) || !sameNumbers(previousBorders, state.borders)) {
+    state.territoryVersion++;
+  }
 }

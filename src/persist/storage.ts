@@ -1,21 +1,31 @@
 /**
  * Best-effort browser storage. Some privacy/sandboxed contexts expose the
- * localStorage global but throw SecurityError on every read/write; preferences
- * must never become a bootstrap dependency for the simulation.
+ * localStorage global but throw SecurityError even while resolving the property;
+ * preferences must never become a bootstrap dependency for the simulation.
  */
-export function storageGet(key: string): string | null {
-  if (typeof localStorage === 'undefined') return null;
+function browserStorage(): Storage | null {
   try {
-    return localStorage.getItem(key);
+    return typeof localStorage === 'undefined' ? null : localStorage;
+  } catch {
+    return null;
+  }
+}
+
+export function storageGet(key: string): string | null {
+  const storage = browserStorage();
+  if (!storage) return null;
+  try {
+    return storage.getItem(key);
   } catch {
     return null;
   }
 }
 
 export function storageSet(key: string, value: string): boolean {
-  if (typeof localStorage === 'undefined') return false;
+  const storage = browserStorage();
+  if (!storage) return false;
   try {
-    localStorage.setItem(key, value);
+    storage.setItem(key, value);
     return true;
   } catch {
     return false;

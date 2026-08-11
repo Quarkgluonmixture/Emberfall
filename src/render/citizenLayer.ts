@@ -235,6 +235,7 @@ export class CitizenLayer {
       this.pool.pop()!.destroy();
       this.shadows.pop()!.destroy();
       this.icons.pop()!.destroy();
+      this.iconBgs.pop()!.destroy();
       this.puffs.pop()!.destroy();
     }
   }

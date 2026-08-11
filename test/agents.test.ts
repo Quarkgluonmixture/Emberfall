@@ -60,4 +60,56 @@ describe('citizen agent lifecycle', () => {
     expect(trader.state).toBe('trading');
     expect(trader.timer).toBeCloseTo(0.75, 6);
   });
+
+  it('lets a fleeing citizen settle after reaching safety', () => {
+    const settlement = makeSettlement(1, 0, 5, 5, { plagueDays: 10 });
+    const state = makeState(
+      makeWorld(12, 12, Terrain.Grassland),
+      [makeCiv(0)],
+      [settlement],
+    );
+    const system = new AgentSystem();
+    const citizen: Agent = {
+      id: 1,
+      civId: 0,
+      settlementId: settlement.id,
+      x: 44,
+      y: 44,
+      tx: 44,
+      ty: 44,
+      homeX: 44,
+      homeY: 44,
+      state: 'idle',
+      pendingState: 'idle',
+      timer: 0,
+      phase: 0,
+      speed: 20,
+    };
+    system.agents.push(citizen);
+
+    // Force the danger branch and a deterministic eastward flee target.
+    (system as unknown as {
+      rng: {
+        chance: (p: number) => boolean;
+        range: (min: number, max: number) => number;
+      };
+    }).rng = {
+      chance: () => true,
+      range: (min) => min,
+    };
+
+    system.update(0.01, state, 0);
+    expect(citizen.state).toBe('fleeing');
+    expect(citizen.pendingState).toBe('idle');
+
+    citizen.x = citizen.tx;
+    citizen.y = citizen.ty;
+    system.update(0.01, state, 0);
+
+    expect(citizen.state).toBe('idle');
+    const dwellTimer = citizen.timer;
+    system.update(0.25, state, 0);
+    expect(citizen.state).toBe('idle');
+    expect(citizen.timer).toBeCloseTo(dwellTimer - 0.25, 6);
+  });
 });

@@ -4,13 +4,14 @@
  * touching simulation determinism (the English text in the save is canonical).
  */
 import type { ChronicleEntry, Season } from '../core/types';
+import { storageGet, storageSet } from '../persist/storage';
 import { dayOfSeason, seasonOf, yearOf } from '../sim/time';
 
 export type Lang = 'en' | 'zh';
 
 const LANG_KEY = 'emberfall:lang';
-let lang: Lang =
-  (typeof localStorage !== 'undefined' && (localStorage.getItem(LANG_KEY) as Lang)) || 'en';
+const storedLang = storageGet(LANG_KEY);
+let lang: Lang = storedLang === 'zh' ? 'zh' : 'en';
 const listeners: Array<() => void> = [];
 
 export function getLang(): Lang {
@@ -20,11 +21,7 @@ export function getLang(): Lang {
 export function setLang(next: Lang): void {
   if (next === lang) return;
   lang = next;
-  try {
-    localStorage.setItem(LANG_KEY, next);
-  } catch {
-    /* storage unavailable */
-  }
+  storageSet(LANG_KEY, next);
   for (const fn of listeners) fn();
 }
 

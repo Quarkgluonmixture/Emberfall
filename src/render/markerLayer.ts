@@ -26,6 +26,8 @@ interface Flame {
 const FLAME_FRAME_TIME = 0.13;
 const FLAME_LIFE = 6;
 const FLAMES_PER_FIRE = 5;
+/** More new entries than this in one frame = a bulk jump, not live play. */
+const BULK_LIMIT = 8;
 
 const KIND_COLORS: Record<string, number> = {
   warDeclared: 0xd96a5a,
@@ -43,6 +45,9 @@ const KIND_COLORS: Record<string, number> = {
 
 export class MarkerLayer {
   container = new Container();
+  /** Probe screenshots must not contain wall-clock transient markers. */
+  suppress =
+    typeof location !== 'undefined' && new URLSearchParams(location.search).has('probe');
   private markers: Marker[] = [];
   private flames: Flame[] = [];
   private chronicleIndex = -1;
@@ -54,6 +59,19 @@ export class MarkerLayer {
     if (this.chronicleIndex < 0 || this.chronicleIndex > state.chronicle.length) {
       this.chronicleIndex = state.chronicle.length;
     }
+
+    // Screenshot batteries advance simulation synchronously, then wait for the
+    // render to settle. Event rings/flames are wall-clock animated, so allowing
+    // them into probe frames makes otherwise deterministic shots timing-sensitive.
+    // The same bulk-jump guard also prevents a large fast-forward from spawning
+    // a wall of stale markers in normal diagnostic sessions.
+    const fresh = state.chronicle.length - this.chronicleIndex;
+    if (this.suppress || fresh > BULK_LIMIT) {
+      this.chronicleIndex = state.chronicle.length;
+      if (this.suppress) this.clearTransient();
+      return;
+    }
+
     const ts = BALANCE.map.tileSize;
     while (this.chronicleIndex < state.chronicle.length) {
       const e = state.chronicle[this.chronicleIndex++];
@@ -103,6 +121,13 @@ export class MarkerLayer {
       const fadeOut = Math.min(1, (f.life - f.age) / 1.4);
       f.sp.alpha = fadeIn * fadeOut;
     }
+  }
+
+  private clearTransient(): void {
+    for (const marker of this.markers) marker.g.destroy();
+    this.markers = [];
+    for (const flame of this.flames) flame.sp.destroy();
+    this.flames = [];
   }
 
   /** Scatter a deterministic cluster of animated flames around a burn origin. */

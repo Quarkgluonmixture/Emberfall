@@ -399,6 +399,30 @@ function isolateMainFigure(ctx: CanvasRenderingContext2D, w: number, h: number):
   ctx.putImageData(img, 0, 0);
 }
 
+/**
+ * Filter + bake sliced citizen-frame views and immediately release every view
+ * that no longer survives in the returned animation set. Pixi Texture views
+ * register listeners on their shared TextureSource, so relying on GC alone can
+ * retain dozens of discarded views across repeated world restarts.
+ */
+export function pruneAndBakeFrames(
+  frames: Texture[],
+  coverage: (texture: Texture) => number = frameCoverage,
+  bake: (texture: Texture) => Texture = bakeStandalone,
+): Texture[] {
+  const kept: Texture[] = [];
+  for (const frame of frames) {
+    if (coverage(frame) < 0.02) {
+      frame.destroy(false);
+      continue;
+    }
+    const baked = bake(frame);
+    if (baked !== frame) frame.destroy(false);
+    kept.push(baked);
+  }
+  return kept;
+}
+
 /** Drop blank padding frames (and fully-empty role rows) from a sliced
     animation set so a citizen never renders a transparent, blinking cell, and
     bake each surviving frame to a standalone texture (see bakeStandalone).
@@ -406,8 +430,7 @@ function isolateMainFigure(ctx: CanvasRenderingContext2D, w: number, h: number):
     frames is backfilled from the richest surviving cycle so frameFor() never
     indexes an empty array. */
 function pruneBlankAnims(set: CitizenAnims): CitizenAnims | null {
-  const keep = (frames: Texture[]): Texture[] =>
-    frames.filter((t) => frameCoverage(t) >= 0.02).map(bakeStandalone);
+  const keep = (frames: Texture[]): Texture[] => pruneAndBakeFrames(frames);
   const walk = keep(set.walk);
   const work = keep(set.work);
   const fight = keep(set.fight);

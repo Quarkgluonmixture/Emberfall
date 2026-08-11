@@ -155,23 +155,39 @@ export function saveToLocalStorage(state: SimState, key: string = SAVE_KEY): boo
 
 export function loadFromLocalStorage(key: string = SAVE_KEY): Simulation | null {
   if (typeof localStorage === 'undefined') return null;
-  const json = localStorage.getItem(key);
-  if (!json) return null;
   try {
+    const json = localStorage.getItem(key);
+    if (!json) return null;
     return simulationFromSave(json);
+  } catch {
+    // Browsers may expose localStorage while denying access (privacy/sandboxed
+    // contexts), and corrupt/old payloads should degrade like a missing save.
+    return null;
+  }
+}
+
+/** Read a slot's timestamp only when its payload is parseable and compatible. */
+function storedSaveTimestamp(key: string): number | null {
+  try {
+    const json = localStorage.getItem(key);
+    if (!json) return null;
+    const header = JSON.parse(json) as { version?: unknown };
+    if (header.version !== SAVE_VERSION) return null;
+    const at = Number(localStorage.getItem(`${key}:at`) ?? 0);
+    return Number.isFinite(at) ? at : 0;
   } catch {
     return null;
   }
 }
 
-/** The save slot (manual or auto) with the most recent timestamp. */
+/** The compatible save slot (manual or auto) with the most recent timestamp. */
 export function newestSaveKey(): string | null {
   if (typeof localStorage === 'undefined') return null;
   let best: string | null = null;
   let bestAt = -1;
   for (const key of [SAVE_KEY, AUTOSAVE_KEY]) {
-    if (localStorage.getItem(key) === null) continue;
-    const at = Number(localStorage.getItem(`${key}:at`) ?? 0);
+    const at = storedSaveTimestamp(key);
+    if (at === null) continue;
     if (at > bestAt) {
       bestAt = at;
       best = key;

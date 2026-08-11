@@ -5,9 +5,13 @@
  */
 import type { Season } from '../core/types';
 
-/* Root-absolute: a relative url() inside a custom property resolves against
- * the consuming stylesheet's base (/src/style.css), not the document. */
-const ICON_BASE = '/assets/icons/';
+/**
+ * Custom-property url() tokens are resolved where var() is consumed, i.e. the
+ * stylesheet URL, not where the inline variable was authored. Resolve the
+ * public asset directory to an absolute URL up front so Vite's relative base
+ * also works when Emberfall is hosted below the origin root (e.g. /Emberfall/).
+ */
+const ICON_BASE = new URL('assets/icons/', document.baseURI).href;
 
 /** Chronicle kinds that ship a matching event_<kind>.svg. */
 const EVENT_ICON_KINDS = new Set([

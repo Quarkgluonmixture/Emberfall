@@ -4,7 +4,7 @@
  * and is rebuilt on every open. Creates its own DOM node so no bootstrap
  * wiring is needed.
  */
-import type { ChronicleEntry, SimState } from '../core/types';
+import type { ChronicleEntry, Civilization, SimState } from '../core/types';
 import { yearOf } from '../sim/time';
 import { entryText, seasonName, t, traitName } from './i18n';
 import { eventIconHtml } from './icons';
@@ -13,6 +13,18 @@ const MAX_YEAR_BLOCKS = 80;
 
 /** Minor (importance 1) kinds that still belong in a life's story. */
 const PERSONAL_MINOR_KINDS = new Set(['resettleRuin', 'tributeEnds', 'peace']);
+
+/**
+ * Chronicle membership for one civilization. Modern entries carry structured
+ * civ/otherCiv provenance, which must win over fuzzy text search: otherwise a
+ * culture named "Ashvale" also absorbs every event about "New Ashvale". The
+ * text fallback remains only for legacy saves created before params existed.
+ */
+export function chronicleEntryBelongsToCiv(e: ChronicleEntry, civ: Civilization): boolean {
+  if (e.civId === civ.id) return true;
+  if (e.params) return e.params.civ === civ.name || e.params.otherCiv === civ.name;
+  return e.text.includes(civ.name);
+}
 
 export class BiographyPanel {
   private root: HTMLElement;
@@ -43,7 +55,7 @@ export class BiographyPanel {
 
     const entries = state.chronicle.filter(
       (e) =>
-        (e.civId === civId || e.text.includes(civ.name)) &&
+        chronicleEntryBelongsToCiv(e, civ) &&
         (e.importance >= 2 || PERSONAL_MINOR_KINDS.has(e.kind)),
     );
 

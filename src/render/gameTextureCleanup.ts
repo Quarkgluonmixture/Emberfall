@@ -71,6 +71,29 @@ function collectTextures(value: unknown, out: Set<Texture>): void {
   for (const child of Object.values(value as Record<string, unknown>)) collectTextures(child, out);
 }
 
+/** Snapshot the textures currently reachable from one GameTextures graph. */
+export function snapshotGameTextures(game: GameTextures): Set<Texture> {
+  const textures = new Set<Texture>();
+  collectTextures(game, textures);
+  return textures;
+}
+
+/**
+ * Procedural placeholders exist before real Assets are loaded. Once a real
+ * texture replaces one, the old generated source becomes unreachable from the
+ * GameTextures graph and normal teardown can no longer find it. Release those
+ * orphaned initial sources immediately after the art overlay finishes.
+ */
+export function destroyReplacedGameTextures(
+  beforeLoad: Iterable<Texture>,
+  game: GameTextures,
+): void {
+  const afterLoad = snapshotGameTextures(game);
+  for (const texture of new Set(beforeLoad)) {
+    if (!afterLoad.has(texture)) texture.destroy(true);
+  }
+}
+
 /**
  * Destroy a known set of renderer-local textures while preserving Pixi Assets
  * cache entries and their shared sources. Exported separately so the ownership
@@ -88,23 +111,25 @@ export function destroyTextureSet(
   }
 }
 
-/** Release only textures owned by one GameTextures instance. */
-export function destroyGameTextures(game: GameTextures): void {
-  const sharedTextures = new Set<Texture>();
-  const sharedSources = new Set<unknown>();
+function sharedAssetTextures(): { textures: Set<Texture>; sources: Set<unknown> } {
+  const textures = new Set<Texture>();
+  const sources = new Set<unknown>();
   for (const url of assetUrls()) {
     try {
       const texture = Assets.get<Texture>(url);
       if (texture instanceof Texture) {
-        sharedTextures.add(texture);
-        sharedSources.add(texture.source);
+        textures.add(texture);
+        sources.add(texture.source);
       }
     } catch {
       // A missing optional asset is normal; it has nothing to protect.
     }
   }
+  return { textures, sources };
+}
 
-  const textures = new Set<Texture>();
-  collectTextures(game, textures);
-  destroyTextureSet(textures, sharedTextures, sharedSources);
+/** Release only textures owned by one GameTextures instance. */
+export function destroyGameTextures(game: GameTextures): void {
+  const shared = sharedAssetTextures();
+  destroyTextureSet(snapshotGameTextures(game), shared.textures, shared.sources);
 }

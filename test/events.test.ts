@@ -4,9 +4,9 @@ import { RNG } from '../src/core/rng';
 import { Terrain } from '../src/core/types';
 import {
   collapseCheck,
-  compactTerrainModsIfDue,
   generateDailyEvents,
   maybeFamine,
+  setTerrainMod,
   updateAfflictions,
   warEvents,
 } from '../src/sim/events';
@@ -108,19 +108,23 @@ describe('events', () => {
     expect(state.chronicle.some((e) => e.kind === 'plague')).toBe(false);
   });
 
-  it('amortizes terrain diff compaction instead of rescanning after every mutation', () => {
+  it('keeps one lossless terrain diff per touched tile after legacy duplicate logs', () => {
     const state = makeState(makeWorld(100, 100, Terrain.Grassland), [makeCiv(0)], []);
     state.terrainMods = Array.from(
       { length: 6144 },
       (_, i) => [i % 6100, Terrain.Forest] as [number, number],
     );
 
-    expect(compactTerrainModsIfDue(state)).toBe(true);
-    expect(state.terrainMods).toHaveLength(6100);
-
-    state.terrainMods.push([6100, Terrain.Forest]);
-    expect(compactTerrainModsIfDue(state)).toBe(false);
+    // First mutation normalizes an old duplicate-rich log once, then adds the
+    // new tile. Repeated edits of that tile update in place instead of growing
+    // the save log or rescanning thousands of tuples.
+    setTerrainMod(state, 6100, Terrain.Forest);
     expect(state.terrainMods).toHaveLength(6101);
+    for (let i = 0; i < 100; i++) setTerrainMod(state, 6100, Terrain.Grassland);
+
+    expect(state.terrainMods).toHaveLength(6101);
+    expect(state.world.terrain[6100]).toBe(Terrain.Grassland);
+    expect(state.terrainMods.find(([tile]) => tile === 6100)?.[1]).toBe(Terrain.Grassland);
   });
 
   it('collapses dying settlements and fells civs with nothing left', () => {

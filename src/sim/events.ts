@@ -206,6 +206,24 @@ function seatOf(state: SimState, civId: number): Settlement | null {
   return best;
 }
 
+/**
+ * Mark every living civilization with no remaining settlements as fallen.
+ * Idempotent so military capture and natural settlement collapse can share one
+ * extinction rule without double-emitting civFell.
+ */
+export function markExtinctCivs(state: SimState, rng: RNG): boolean {
+  let changed = false;
+  for (const civ of state.civs) {
+    if (!civ.alive || state.settlements.some((s) => s.civId === civ.id)) continue;
+    civ.alive = false;
+    civ.fallenYear = yearOf(state.day);
+    civ.military = 0;
+    pushEvent(state, rng, 'civFell', 3, civ.id, { civ: civ.name });
+    changed = true;
+  }
+  return changed;
+}
+
 /** Skirmishes and settlement captures along borders between warring civs. */
 export function warEvents(state: SimState, rng: RNG): void {
   const e = BALANCE.events;
@@ -262,6 +280,10 @@ export function warEvents(state: SimState, rng: RNG): void {
         x: target.x,
         y: target.y,
       });
+      // A last-city capture must end the defender immediately. Besides fixing
+      // its public alive flag, this makes later keys from the old border-array
+      // snapshot skip the fallen civ instead of letting it fight as a ghost.
+      markExtinctCivs(state, rng);
       recomputeTerritory(state);
     }
   }
@@ -456,25 +478,23 @@ export function collapseCheck(state: SimState, rng: RNG): void {
   const dead = state.settlements.filter(
     (s) => s.population < cfg.collapsePop || s.morale <= cfg.collapseMorale,
   );
-  if (dead.length === 0) return;
-  for (const s of dead) {
-    // A settlement abandoned is a notable regional loss (imp 2); the civ-scale
-    // epochal beat is civFell below, when the *last* settlement is gone.
-    pushEvent(state, rng, 'collapse', 2, s.civId, { name: s.name, x: s.x, y: s.y });
-    state.ruins.push({ x: s.x, y: s.y, day: state.day });
-  }
-  if (state.ruins.length > 60) state.ruins.splice(0, state.ruins.length - 60);
-  const deadIds = new Set(dead.map((s) => s.id));
-  state.settlements = state.settlements.filter((s) => !deadIds.has(s.id));
-  for (const civ of state.civs) {
-    if (civ.alive && !state.settlements.some((s) => s.civId === civ.id)) {
-      civ.alive = false;
-      civ.fallenYear = yearOf(state.day);
-      civ.military = 0;
-      pushEvent(state, rng, 'civFell', 3, civ.id, { civ: civ.name });
+  if (dead.length > 0) {
+    for (const s of dead) {
+      // A settlement abandoned is a notable regional loss (imp 2); the civ-scale
+      // epochal beat is civFell below, when the *last* settlement is gone.
+      pushEvent(state, rng, 'collapse', 2, s.civId, { name: s.name, x: s.x, y: s.y });
+      state.ruins.push({ x: s.x, y: s.y, day: state.day });
     }
+    if (state.ruins.length > 60) state.ruins.splice(0, state.ruins.length - 60);
+    const deadIds = new Set(dead.map((s) => s.id));
+    state.settlements = state.settlements.filter((s) => !deadIds.has(s.id));
   }
-  recomputeTerritory(state);
+
+  // Never gate civilization extinction on an unrelated natural settlement
+  // collapse: military capture can remove the final holding without adding a
+  // member to `dead` at all.
+  const fell = markExtinctCivs(state, rng);
+  if (dead.length > 0 || fell) recomputeTerritory(state);
 }
 
 /** Run all event systems for the current day. */

@@ -12,6 +12,7 @@ import { Camera } from './camera';
 import { CitizenLayer } from './citizenLayer';
 import { DecorLayer } from './decorLayer';
 import { FxLayer } from './fxLayer';
+import { destroyGameTextures } from './gameTextureCleanup';
 import { MacroLayer, macroBlend } from './macroLayer';
 import { MarkerLayer } from './markerLayer';
 import { RoadLayer } from './roadLayer';
@@ -164,6 +165,7 @@ export class Renderer {
     this.terrain.destroy();
     this.macro.destroy();
     this.app.destroy(true, { children: true, texture: false, textureSource: false });
+    destroyGameTextures(this.textures);
   }
 }
 

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { BALANCE } from '../src/config/balance';
 import { RNG } from '../src/core/rng';
 import { Terrain } from '../src/core/types';
-import { collapseCheck, maybeFamine, updateAfflictions } from '../src/sim/events';
+import { collapseCheck, maybeFamine, updateAfflictions, warEvents } from '../src/sim/events';
 import { Simulation } from '../src/sim/simulation';
 import { serializeState } from '../src/persist/save';
 import { makeCiv, makeSettlement, makeState, makeWorld } from './util';
@@ -108,6 +108,36 @@ describe('events', () => {
     expect(state.civs[0].alive).toBe(false);
     expect(state.chronicle.some((e) => e.kind === 'collapse')).toBe(true);
     expect(state.chronicle.some((e) => e.kind === 'civFell')).toBe(true);
+  });
+
+  it('fells a settlement-less civ even when no natural collapse happened that day', () => {
+    const state = makeState(makeWorld(20, 20, Terrain.Grassland), [makeCiv(0)], []);
+    collapseCheck(state, new RNG(1));
+
+    expect(state.civs[0].alive).toBe(false);
+    expect(state.civs[0].military).toBe(0);
+    expect(state.chronicle.filter((e) => e.kind === 'civFell')).toHaveLength(1);
+  });
+
+  it('fells a defender immediately when its final settlement is captured', () => {
+    const attacker = makeCiv(0, { military: 100 });
+    const defender = makeCiv(1, { military: 1 });
+    const target = makeSettlement(2, 1, 8, 10, { population: 20 });
+    const state = makeState(
+      makeWorld(20, 20, Terrain.Grassland),
+      [attacker, defender],
+      [makeSettlement(1, 0, 5, 10, { population: 20 }), target],
+    );
+    state.relations[0][1].state = 'war';
+    state.borders = [1]; // pairKey(0, 1) with MAX_CIVS=16
+
+    warEvents(state, alwaysSpreadRng());
+
+    expect(target.civId).toBe(attacker.id);
+    expect(defender.alive).toBe(false);
+    expect(defender.military).toBe(0);
+    expect(state.chronicle.map((e) => e.kind)).toContain('capture');
+    expect(state.chronicle.filter((e) => e.kind === 'civFell')).toHaveLength(1);
   });
 
   it('event generation is fully deterministic for a given seed', () => {

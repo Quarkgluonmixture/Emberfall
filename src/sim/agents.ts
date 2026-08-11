@@ -231,7 +231,9 @@ export class AgentSystem {
     const hx = (s.x + 0.5) * ts;
     const hy = (s.y + 0.5) * ts;
 
-    // Danger: plague or a recent raid sends people scattering.
+    // Danger: plague or a recent raid sends people scattering. Fleeing is the
+    // travel presentation; once the citizen reaches safety it should settle
+    // into idle instead of adopting fleeing as a permanent destination state.
     const danger = s.plagueDays > 0 || state.day - s.lastRaidDay < cfg.raidFearDays;
     if (danger && this.rng.chance(0.3)) {
       const ang = this.rng.range(0, Math.PI * 2);
@@ -239,7 +241,7 @@ export class AgentSystem {
         a,
         hx + Math.cos(ang) * cfg.fleeDistance * ts,
         hy + Math.sin(ang) * cfg.fleeDistance * ts,
-        'fleeing',
+        'idle',
         state,
       );
       a.state = 'fleeing';
